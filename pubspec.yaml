@@ -41,6 +41,7 @@ dependencies:
   graphic: ^2.5.1
   cross_file: ^0.3.4+2
   share_plus: ^11.0.0
+  test: ^1.25.15
 
 dev_dependencies:
   flutter_test:

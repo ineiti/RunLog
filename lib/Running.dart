@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:graphic/graphic.dart';
+import 'package:run_log/positiontracker.dart';
 import 'package:run_log/storage.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'geotracker.dart';
 
@@ -12,44 +18,43 @@ class Running extends StatefulWidget {
   State<Running> createState() => _RunningState();
 }
 
+enum RState { waitGPS, running }
+
 class _RunningState extends State<Running> {
-  late GeoTracker tracker;
+  late GeoTracker geoTracker;
+  late PositionTracker posTracker;
+  RState runState = RState.waitGPS;
+  StreamController<RState> runStateStream = StreamController();
 
   @override
   void initState() {
     super.initState();
-    tracker = GeoTracker();
-  }
-
-  Widget stats(String s) {
-    return Text(s, style: Theme.of(context).textTheme.headlineMedium);
-  }
-
-  Widget blueButton(String s, VoidCallback click) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.lightBlue,
-      ),
-      onPressed: () {
+    geoTracker = GeoTracker();
+    runStateStream.stream.listen((RState? rs) {
+      if (rs != null) {
         setState(() {
-          click();
+          runState = rs;
         });
-      },
-      child: Text(s),
-    );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
+    switch (runState) {
+      case RState.waitGPS:
+        return _streamBuilder(geoTracker.stream, _widgetWaitGPS);
+      case RState.running:
+        return _streamBuilder(posTracker.stream, _widgetRunning);
+    }
+  }
+
+  Widget _streamBuilder<T>(Stream<T> stream, Function(T?) showWidget) {
     return StreamBuilder(
-      stream: tracker.stream(),
+      stream: stream,
       builder: (context, snapshot) {
         return Scaffold(
           appBar: AppBar(
@@ -72,49 +77,8 @@ class _RunningState extends State<Running> {
               children: <Widget>[
                 Flex(
                   direction: Axis.vertical,
-                  children: <Widget>[
-                    const Text('Current statistics:'),
-                    stats('Curr. Speed: ${tracker.fmtSpeedCurrent()}'),
-                    stats('Overall speed: ${tracker.fmtSpeedOverall()}'),
-
-                    stats('Duration: ${tracker.duration().toInt()} s'),
-                    stats('Distance: ${tracker.distance().toInt()} m'),
-                    Flex(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      direction: Axis.horizontal,
-                      spacing: 10,
-                      children: <Widget>[
-                        blueButton("--", () {
-                          tracker.pauseSpeedDec();
-                        }),
-                        Text("PauseSpeed: ${tracker.fmtPauseSpeed()}"),
-                        blueButton("++", () {
-                          tracker.pauseSpeedInc();
-                        }),
-                      ],
-                    ),
-                    Flex(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      direction: Axis.horizontal,
-                      spacing: 10,
-                      children: <Widget>[
-                        blueButton("Reset", () {
-                          tracker.reset();
-                        }),
-                        blueButton("Share", () {
-                          tracker.share();
-                        }),
-                      ],
-                    ),
-                    tracker.liveStats(),
-                  ],
+                  children: showWidget(snapshot.data),
                 ),
-                // )
-                // floatingActionButton: FloatingActionButton(
-                //   onPressed: _incrementSpeedPause,
-                //   tooltip: 'Increment',
-                //   child: const Icon(Icons.add),
-                // ), // This trailing comma makes auto-formatting nicer for build methods.
               ],
             ),
           ),
@@ -122,5 +86,179 @@ class _RunningState extends State<Running> {
       },
     );
   }
-}
 
+  List<Widget> _widgetWaitGPS(GTState? s) {
+    print("_widgetWaitGPS($s)");
+    switch (s) {
+      case null:
+        return [_stats("Starting up")];
+      case GTState.permissionRequest:
+        return [_stats("Waiting for permission")];
+      case GTState.permissionRefused:
+        return [_stats("Permission refused - restart")];
+      case GTState.permissionGranted:
+        posTracker = PositionTracker(geoTracker.positionStream);
+        runStateStream.add(RState.running);
+        return [_stats("Permission Granted")];
+    }
+  }
+
+  List<Widget> _widgetRunning(PTState? s) {
+    switch (s) {
+      case null:
+        return [_stats("Unknown state")];
+      case PTState.waitAccurateGPS:
+        return [_stats("Waiting for accurate GPS fix")];
+      case PTState.waitRunning:
+        return [_stats("Ready to run! GO!!!")];
+      case PTState.positionUpdate:
+        return _showRunning(false);
+      case PTState.paused:
+        return _showRunning(true);
+    }
+  }
+
+  List<Widget> _showRunning(bool pause) {
+    return <Widget>[
+      const Text('Current statistics:'),
+      _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
+      _stats('Overall speed: ${_fmtSpeedOverall()}'),
+
+      _stats('Duration: ${posTracker.durationS().toInt()} s'),
+      _stats('Distance: ${posTracker.distanceM().toInt()} m'),
+      Flex(
+        mainAxisAlignment: MainAxisAlignment.center,
+        direction: Axis.horizontal,
+        spacing: 10,
+        children: <Widget>[
+          _blueButton("--", () {
+            _pauseSpeedDec();
+          }),
+          Text("PauseSpeed: ${_speedStrMinKm(posTracker.pauseSpeed)}"),
+          _blueButton("++", () {
+            _pauseSpeedInc();
+          }),
+        ],
+      ),
+      Flex(
+        mainAxisAlignment: MainAxisAlignment.center,
+        direction: Axis.horizontal,
+        spacing: 10,
+        children: <Widget>[
+          _blueButton("Reset", () {
+            posTracker.reset();
+          }),
+          _blueButton("Share", () {
+            _share();
+          }),
+        ],
+      ),
+      Container(
+        margin: const EdgeInsets.only(top: 10),
+        width: 350,
+        height: 200,
+        child: Chart(
+          data: posTracker.speedChart,
+          variables: {
+            'timestamp': Variable(
+              accessor: ((double, double) l) => l.$1 as num,
+            ),
+            'speed': Variable(accessor: ((double, double) l) => l.$2 as num),
+          },
+          marks: [
+            LineMark(
+              shape: ShapeEncode(value: BasicLineShape(dash: [5, 2])),
+              selected: {
+                'touchMove': {1},
+              },
+            ),
+          ],
+          axes: [Defaults.horizontalAxis, Defaults.verticalAxis],
+          selections: {
+            'touchMove': PointSelection(
+              on: {
+                GestureType.scaleUpdate,
+                GestureType.tapDown,
+                GestureType.longPressMoveUpdate,
+              },
+              dim: Dim.x,
+            ),
+          },
+        ),
+      ),
+    ];
+  }
+
+  String _fmtSpeedCurrent() {
+    final speed = _speedMinKm(posTracker.speedCurrentMpS());
+    if (speed < 0) {
+      return "Waiting";
+    } else if (speed == 0) {
+      return "Paused";
+    }
+    return "${speed.toStringAsFixed(1)} min/km";
+  }
+
+  String _fmtSpeedOverall() {
+    double dist = posTracker.distanceM();
+    double dur = posTracker.durationS();
+    if (dist > 0 && dur > 0) {
+      return _speedStrMinKm(dist / dur);
+    } else {
+      return "Waiting";
+    }
+  }
+
+  double _speedMinKm(double mps) {
+    if (mps <= 0) {
+      return mps;
+    }
+    return 1000 / 60 / mps;
+  }
+
+  String _speedStrMinKm(double mps) {
+    return "${_speedMinKm(mps).toStringAsFixed(1)} min/km";
+  }
+
+  void _pauseSpeedInc() {
+    posTracker.pauseSpeed += 0.25;
+  }
+
+  void _pauseSpeedDec() {
+    if (posTracker.pauseSpeed >= 1) {
+      posTracker.pauseSpeed -= 0.25;
+    }
+  }
+
+  void _share() async {
+    final params = ShareParams(
+      text: 'run_log.gpx',
+      files: [XFile.fromData(Uint8List(0), mimeType: "application/gpx+xml")],
+    );
+
+    final result = await SharePlus.instance.share(params);
+
+    if (result.status == ShareResultStatus.success) {
+      print('File shared');
+    }
+  }
+
+  Widget _stats(String s) {
+    return Text(s, style: Theme.of(context).textTheme.headlineMedium);
+  }
+
+  Widget _blueButton(String s, VoidCallback click) {
+    return TextButton(
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.lightBlue,
+      ),
+      onPressed: () {
+        setState(() {
+          click();
+        });
+      },
+      child: Text(s),
+    );
+  }
+}
