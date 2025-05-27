@@ -3,7 +3,37 @@ import 'dart:math';
 
 import 'package:geolocator/geolocator.dart';
 
-enum PTState { waitAccurateGPS, waitRunning, positionUpdate, paused }
+enum PTState {
+  waitFirstFix,
+  waitAccurateGPS,
+  waitRunning,
+  positionUpdate,
+  paused,
+}
+
+class TimeData implements Comparable<TimeData> {
+  TimeData(this.dt, this.mps);
+
+  final double dt;
+  final double mps;
+
+  @override
+  int compareTo(TimeData other) {
+    throw mps.compareTo(other.mps);
+  }
+}
+
+extension DebugPrint on List<TimeData> {
+  /// Prints each element with its index (for debugging)
+  String debug() {
+    if (isEmpty) {
+      return 'List is empty';
+    }
+    return map(
+      (td) => "(${td.dt.toStringAsFixed(1)}, ${td.mps.toStringAsFixed(1)})",
+    ).join(", ");
+  }
+}
 
 class PositionTracker {
   // If the speed between two GPS measurements drops below pauseSpeed [m/s],
@@ -53,9 +83,10 @@ class PositionTracker {
   // This ensures that the area under the speed curve equals the distance
   // run. Supposing that "pause" means "stops".
   // TODO: simplify by only calculating last segment after splitting.
-  List<(double, double)> speedChart = [(0, 0)];
-  late double distance;
+  List<TimeData> speedChart = [TimeData(0, 0)];
+  double distance = 0;
   List<double> lanczos = [];
+  double accuracy = -1;
 
   StreamController<PTState> ptStateStream = StreamController();
   late StreamSubscription<Position> _waitAccuracy;
@@ -70,11 +101,14 @@ class PositionTracker {
   PositionTracker(Stream<Position> pStream) {
     lanczos = _lanczos(5);
     distance = 0;
-    ptStateStream.add(PTState.waitAccurateGPS);
+    ptStateStream.add(PTState.waitFirstFix);
     _waitAccuracy = pStream.listen((Position? position) {
       print("Waiting for accuracy: $position / ${position?.accuracy}");
       if (position != null) {
-        if (position.accuracy < 10) {
+        if (position.accuracy > accuracyMin) {
+          accuracy = position.accuracy;
+          ptStateStream.add(PTState.waitAccurateGPS);
+        } else {
           _waitAccuracy.cancel();
           positionsRaw = [position];
           positionsFiltered = [PositionPause(position, PPState.endPause)];
@@ -94,7 +128,7 @@ class PositionTracker {
     positionsFiltered = [PositionPause(positionsRaw.last, PPState.beginPause)];
     pauseSpeed = 1.75;
     speedChartRaw = [];
-    speedChart = [(0, 0)];
+    speedChart = [TimeData(0, 0)];
     distance = 0;
   }
 
@@ -123,14 +157,14 @@ class PositionTracker {
     positionsFiltered.add(PositionPause(newPos, PPState.running));
     _updateSpeedChartRaw();
     print("SpeedChartRaw: ${spChDebug(speedChartRaw)}");
-    print("SpeedChart: ${spChDebug(speedChart)}");
+    print("SpeedChart: ${speedChart.debug()}");
     return PTState.positionUpdate;
   }
 
   Stream<PTState> get stream => ptStateStream.stream;
 
   double speedCurrentMpS() {
-    return speedChart.last.$2;
+    return speedChart.last.mps;
   }
 
   double distanceM() {
@@ -138,7 +172,7 @@ class PositionTracker {
   }
 
   double durationS() {
-    return speedChart.last.$1;
+    return speedChart.last.dt;
   }
 
   _updateSpeedChartRaw() {
@@ -154,16 +188,18 @@ class PositionTracker {
     final s = pos0.speedMS(pos1);
 
     void addSpeed(double dt, double speed) {
-      final t0 = speedChartRaw.lastOrNull?.$1 ?? 0;
+      final t0 = speedChartRaw.lastOrNull?.$1 ?? -dt;
       speedChartRaw.add((t0 + dt, speed));
       // print("Adding ${_tSpDebug(dt, speed)}");
     }
 
-    if (pos1.ppState == PPState.running) {
-      addSpeed(dt, s);
-    }
-    if (pos1.ppState == PPState.endPause) {
-      addSpeed(0, 0);
+    switch (pos1.ppState){
+      case PPState.running:
+        addSpeed(dt, s);
+        break;
+      case PPState.endPause:
+        addSpeed(dt, s);
+      default:
     }
 
     _updateSpeedChart();
@@ -177,11 +213,10 @@ class PositionTracker {
       speedChart.addAll(
         segment
             .asMap()
-            .map((i, s) => MapEntry(i, (s.$1, applyLanczos(speeds, i))))
+            .map((i, s) => MapEntry(i, TimeData(s.$1, applyLanczos(speeds, i))))
             .values,
       );
     }
-    spChDebug(speedChart);
   }
 
   List<double> _lanczos(int n2) {
@@ -218,8 +253,8 @@ class PositionTracker {
       valuesEnd -= overflow;
     }
 
-    final filter = lanczos.sublist(lanczosStart, lanczosEnd+1);
-    final src = values.sublist(valuesStart, valuesEnd+1);
+    final filter = lanczos.sublist(lanczosStart, lanczosEnd + 1);
+    final src = values.sublist(valuesStart, valuesEnd + 1);
 
     double sum = filter.fold(0.0, (a, b) => a + b);
     return src.asMap().entries.fold(
@@ -235,7 +270,7 @@ class PositionTracker {
   String get _posFilterDebug =>
       "${positionsFiltered.windowMap((a, b) => a.speedMS(b).toStringAsFixed(2))}";
 
-  String spChDebug(List<(double, double)> sc){
+  String spChDebug(List<(double, double)> sc) {
     return sc.map((a) => _tSpDebug(a.$1, a.$2)).toString();
   }
 

@@ -1,11 +1,13 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:graphic/graphic.dart';
 import 'package:run_log/positiontracker.dart';
 import 'package:run_log/storage.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:syncfusion_flutter_core/core.dart';
 
 import 'geotracker.dart';
 
@@ -107,8 +109,15 @@ class _RunningState extends State<Running> {
     switch (s) {
       case null:
         return [_stats("Unknown state")];
+      case PTState.waitFirstFix:
+        return [_stats("Waiting for GPS")];
       case PTState.waitAccurateGPS:
-        return [_stats("Waiting for accurate GPS fix")];
+        return [
+          _stats("Waiting for accurate GPS:"),
+          _stats(
+            "${posTracker.accuracy.toInt()} > ${posTracker.accuracyMin.toInt()}",
+          ),
+        ];
       case PTState.waitRunning:
         return [_stats("Ready to run! GO!!!")];
       case PTState.positionUpdate:
@@ -119,6 +128,19 @@ class _RunningState extends State<Running> {
   }
 
   List<Widget> _showRunning(bool pause) {
+    var max = (_speedMinKm(
+      posTracker.speedChart.reduce((a, b) => a.mps < b.mps ? a : b).mps,
+    ) * 6 + 1).toInt() / 6;
+    var min = (_speedMinKm(
+      posTracker.speedChart.reduce((a, b) => a.mps > b.mps ? a : b).mps,
+    ) * 6 - 1).toInt() / 6;
+    var med = (max + min) / 2;
+    if (med + 0.5 > max){
+      max = med + 0.5;
+    }
+    if (med - 0.5 < min){
+      min = med -0.5;
+    }
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
@@ -155,35 +177,37 @@ class _RunningState extends State<Running> {
       ),
       Container(
         margin: const EdgeInsets.only(top: 10),
-        width: 350,
-        height: 200,
-        child: Chart(
-          data: posTracker.speedChart,
-          variables: {
-            'timestamp': Variable(
-              accessor: ((double, double) l) => l.$1 as num,
-            ),
-            'speed': Variable(accessor: ((double, double) l) => l.$2 as num),
-          },
-          marks: [
-            LineMark(
-              shape: ShapeEncode(value: BasicLineShape(dash: [5, 2])),
-              selected: {
-                'touchMove': {1},
-              },
+        child: SfCartesianChart(
+          primaryXAxis: CategoryAxis(
+            labelIntersectAction: AxisLabelIntersectAction.multipleRows,
+          ),
+          primaryYAxis: NumericAxis(
+            isInversed: true,
+            minimum: min,
+            maximum: max,
+            axisLabelFormatter:
+                (AxisLabelRenderDetails details) {
+                  final value = double.parse(details.text);
+                  final min = value.toInt();
+                  final sec = ((value - min) * 60).round();
+                  if (sec == 0) {
+                    return ChartAxisLabel("$min'", details.textStyle);
+                  } else {
+                    return ChartAxisLabel("$min' $sec''", details.textStyle);
+                  }
+                },
+          ),
+          legend: Legend(isVisible: true),
+          tooltipBehavior: TooltipBehavior(enable: true),
+          series: <CartesianSeries<TimeData, String>>[
+            LineSeries<TimeData, String>(
+              dataSource: posTracker.speedChart,
+              xValueMapper: (TimeData entry, _) => _timeHMS(entry.dt),
+              yValueMapper: (TimeData entry, _) => _speedMinKm(entry.mps),
+              name: 'Speed [min/km]',
+              dataLabelSettings: DataLabelSettings(isVisible: false),
             ),
           ],
-          axes: [Defaults.horizontalAxis, Defaults.verticalAxis],
-          selections: {
-            'touchMove': PointSelection(
-              on: {
-                GestureType.scaleUpdate,
-                GestureType.tapDown,
-                GestureType.longPressMoveUpdate,
-              },
-              dim: Dim.x,
-            ),
-          },
         ),
       ),
     ];
@@ -206,6 +230,19 @@ class _RunningState extends State<Running> {
       return _speedStrMinKm(dist / dur);
     } else {
       return "Waiting";
+    }
+  }
+
+  String _timeHMS(double s) {
+    final hours = (s / 60 / 60).toInt();
+    final mins = (s / 60 % 60).toInt();
+    final sec = (s % 60).toInt();
+    if (hours > 0) {
+      return "${hours}h ${mins}m ${sec}s";
+    } else if (mins > 0) {
+      return "${mins}m ${sec}s";
+    } else {
+      return "${sec}s";
     }
   }
 
