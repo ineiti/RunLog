@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/positiontracker.dart';
 import 'package:run_log/storage.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-import 'package:syncfusion_flutter_core/core.dart';
 
+import '../stats/run_raw.dart';
 import 'geotracker.dart';
 
 class Running extends StatefulWidget {
@@ -22,27 +20,37 @@ class Running extends StatefulWidget {
 
 enum RState { waitGPS, running }
 
-class _RunningState extends State<Running> {
+class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late GeoTracker geoTracker;
-  late PositionTracker posTracker;
+  late RunRaw runRaw;
+  late Stream<RRState> runStream;
   RState runState = RState.waitGPS;
   StreamController<RState> runStateStream = StreamController();
+  late RunStorage storage;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     geoTracker = GeoTracker();
-    runStateStream.stream.listen((RState? rs) {
-      if (rs != null) {
-        setState(() {
-          runState = rs;
-        });
-      }
+    RunStorage.init().then((rs) async {
+      storage = rs;
+      runRaw = await RunRaw.newRun(storage);
+      runStateStream.stream.listen((RState? rs) {
+        if (rs != null) {
+          setState(() {
+            runState = rs;
+          });
+        }
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
@@ -50,7 +58,7 @@ class _RunningState extends State<Running> {
       case RState.waitGPS:
         return _streamBuilder(geoTracker.stream, _widgetWaitGPS);
       case RState.running:
-        return _streamBuilder(posTracker.stream, _widgetRunning);
+        return _streamBuilder(runStream, _widgetRunning);
     }
   }
 
@@ -99,66 +107,63 @@ class _RunningState extends State<Running> {
       case GTState.permissionRefused:
         return [_stats("Permission refused - restart")];
       case GTState.permissionGranted:
-        posTracker = PositionTracker(geoTracker.positionStream);
+        runStream = runRaw.continuous(geoTracker.positionStream);
         runStateStream.add(RState.running);
         return [_stats("Permission Granted")];
     }
   }
 
-  List<Widget> _widgetRunning(PTState? s) {
+  List<Widget> _widgetRunning(RRState? s) {
     switch (s) {
       case null:
-        return [_stats("Unknown state")];
-      case PTState.waitFirstFix:
         return [_stats("Waiting for GPS")];
-      case PTState.waitAccurateGPS:
+      case RRState.waitAccurateGPS:
         return [
           _stats("Waiting for accurate GPS:"),
           _stats(
-            "${posTracker.accuracy.toInt()} > ${posTracker.accuracyMin.toInt()}",
+            "Current accuracy: ${runRaw.rawPositions.last.gpsAccuracy.toInt()}m",
           ),
+          _stats("Required accuracy: ${runRaw.minAccuracy.toInt()}m"),
         ];
-      case PTState.waitRunning:
+      case RRState.waitRunning:
         return [_stats("Ready to run! GO!!!")];
-      case PTState.positionUpdate:
+      case RRState.running:
         return _showRunning(false);
-      case PTState.paused:
+      case RRState.paused:
         return _showRunning(true);
     }
   }
 
   List<Widget> _showRunning(bool pause) {
-    var max = (_speedMinKm(
-      posTracker.speedChart.reduce((a, b) => a.mps < b.mps ? a : b).mps,
-    ) * 6 + 1).toInt() / 6;
-    var min = (_speedMinKm(
-      posTracker.speedChart.reduce((a, b) => a.mps > b.mps ? a : b).mps,
-    ) * 6 - 1).toInt() / 6;
+    var (min, max) = (
+      (_speedMinKm(runRaw.minSpeed()) * 6 - 1).toInt() / 6,
+      (_speedMinKm(runRaw.maxSpeed()) * 6 + 1).toInt() / 6,
+    );
     var med = (max + min) / 2;
-    if (med + 0.5 > max){
+    if (med + 0.5 > max) {
       max = med + 0.5;
     }
-    if (med - 0.5 < min){
-      min = med -0.5;
+    if (med - 0.5 < min) {
+      min = med - 0.5;
     }
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
       _stats('Overall speed: ${_fmtSpeedOverall()}'),
 
-      _stats('Duration: ${posTracker.durationS().toInt()} s'),
-      _stats('Distance: ${posTracker.distanceM().toInt()} m'),
+      _stats('Duration: ${runRaw.duration().toInt()} s'),
+      _stats('Distance: ${runRaw.distance().toInt()} m'),
       Flex(
         mainAxisAlignment: MainAxisAlignment.center,
         direction: Axis.horizontal,
         spacing: 10,
         children: <Widget>[
           _blueButton("--", () {
-            _pauseSpeedDec();
+            _speedRunDec();
           }),
-          Text("PauseSpeed: ${_speedStrMinKm(posTracker.pauseSpeed)}"),
+          Text("MinSpeedrun: ${_speedStrMinKm(runRaw.minSpeedRun)}"),
           _blueButton("++", () {
-            _pauseSpeedInc();
+            _speedRunInc();
           }),
         ],
       ),
@@ -168,16 +173,27 @@ class _RunningState extends State<Running> {
         spacing: 10,
         children: <Widget>[
           _blueButton("Reset", () {
-            posTracker.reset();
+            runRaw.reset();
           }),
           _blueButton("Share", () {
             _share();
+          }),
+          _blueButton("Save", () {
+            runRaw.save();
           }),
         ],
       ),
       Container(
         margin: const EdgeInsets.only(top: 10),
         child: SfCartesianChart(
+          zoomPanBehavior: ZoomPanBehavior(
+            enablePinching: true,
+            enablePanning: true,
+            enableDoubleTapZooming: true,
+            enableSelectionZooming: true,
+            enableMouseWheelZooming: true,
+            zoomMode: ZoomMode.x,
+          ),
           primaryXAxis: CategoryAxis(
             labelIntersectAction: AxisLabelIntersectAction.multipleRows,
           ),
@@ -185,23 +201,22 @@ class _RunningState extends State<Running> {
             isInversed: true,
             minimum: min,
             maximum: max,
-            axisLabelFormatter:
-                (AxisLabelRenderDetails details) {
-                  final value = double.parse(details.text);
-                  final min = value.toInt();
-                  final sec = ((value - min) * 60).round();
-                  if (sec == 0) {
-                    return ChartAxisLabel("$min'", details.textStyle);
-                  } else {
-                    return ChartAxisLabel("$min' $sec''", details.textStyle);
-                  }
-                },
+            axisLabelFormatter: (AxisLabelRenderDetails details) {
+              final value = double.parse(details.text);
+              final min = value.toInt();
+              final sec = ((value - min) * 60).round();
+              if (sec == 0) {
+                return ChartAxisLabel("$min'", details.textStyle);
+              } else {
+                return ChartAxisLabel("$min' $sec''", details.textStyle);
+              }
+            },
           ),
           legend: Legend(isVisible: true),
           tooltipBehavior: TooltipBehavior(enable: true),
           series: <CartesianSeries<TimeData, String>>[
             LineSeries<TimeData, String>(
-              dataSource: posTracker.speedChart,
+              dataSource: runRaw.rawSpeed,
               xValueMapper: (TimeData entry, _) => _timeHMS(entry.dt),
               yValueMapper: (TimeData entry, _) => _speedMinKm(entry.mps),
               name: 'Speed [min/km]',
@@ -214,7 +229,7 @@ class _RunningState extends State<Running> {
   }
 
   String _fmtSpeedCurrent() {
-    final speed = _speedMinKm(posTracker.speedCurrentMpS());
+    final speed = _speedMinKm(runRaw.rawSpeed.last.mps);
     if (speed < 0) {
       return "Waiting";
     } else if (speed == 0) {
@@ -224,8 +239,8 @@ class _RunningState extends State<Running> {
   }
 
   String _fmtSpeedOverall() {
-    double dist = posTracker.distanceM();
-    double dur = posTracker.durationS();
+    double dist = runRaw.distance();
+    double dur = runRaw.duration();
     if (dist > 0 && dur > 0) {
       return _speedStrMinKm(dist / dur);
     } else {
@@ -257,13 +272,13 @@ class _RunningState extends State<Running> {
     return "${_speedMinKm(mps).toStringAsFixed(1)} min/km";
   }
 
-  void _pauseSpeedInc() {
-    posTracker.pauseSpeed += 0.25;
+  void _speedRunInc() {
+    runRaw.minSpeedRun += 0.25;
   }
 
-  void _pauseSpeedDec() {
-    if (posTracker.pauseSpeed >= 1) {
-      posTracker.pauseSpeed -= 0.25;
+  void _speedRunDec() {
+    if (runRaw.minSpeedRun >= 0.5) {
+      runRaw.minSpeedRun -= 0.25;
     }
   }
 

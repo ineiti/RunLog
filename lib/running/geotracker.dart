@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum GTState { permissionRequest, permissionRefused, permissionGranted }
@@ -14,10 +15,27 @@ class GeoTracker {
     gtStream.add(GTState.permissionRequest);
     _handlePermission().then((result) {
       if (result) {
-        final LocationSettings locationSettings = LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 0,
-        );
+        late LocationSettings locationSettings;
+
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          locationSettings = AndroidSettings(
+            accuracy: LocationAccuracy.best,
+            distanceFilter: 0,
+            forceLocationManager: true,
+            intervalDuration: const Duration(seconds: 5),
+            foregroundNotificationConfig: const ForegroundNotificationConfig(
+              notificationText:
+                  "RunLog continues receiving location updates even when not in foreground",
+              notificationTitle: "RunLogging your speed",
+              enableWakeLock: true,
+            ),
+          );
+        } else {
+          locationSettings = LocationSettings(
+            accuracy: LocationAccuracy.best,
+            distanceFilter: 0,
+          );
+        }
         positionStream = Geolocator.getPositionStream(
           locationSettings: locationSettings,
         );

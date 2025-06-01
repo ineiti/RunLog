@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:run_log/Running.dart';
+import 'package:run_log/running/Running.dart';
 import 'package:run_log/storage.dart';
+
+import 'history/History.dart';
 
 void main() {
   runApp(const MyApp());
@@ -56,7 +58,7 @@ class _MyAppState extends State<MyApp> {
                   children: [
                     // Pass the initialized RunStorage to the Running widget
                     Running(runStorage: runStorage),
-                    const Icon(Icons.directions_transit),
+                    History(runStorage: runStorage),
                     const Icon(Icons.directions_bike),
                   ],
                 );
