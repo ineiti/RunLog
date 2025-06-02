@@ -7,7 +7,7 @@ import 'package:sqflite/sqflite.dart';
 
 class RunStorage {
   late Database db;
-  List<Run> runs = [];
+  Map<int, Run> runs = {};
   Map<int, List<TrackedData>> trackedData = {};
 
   RunStorage._(this.db);
@@ -23,7 +23,8 @@ class RunStorage {
 
   Future<void> load() async {
     final runMaps = await db.query('Runs');
-    runs = runMaps.map((map) => Run.fromDb(map)).toList();
+    final runList = runMaps.map((map) => Run.fromDb(map)).toList();
+    runs = {for (var run in runList) run.id: run};
 
     final trackedDataMaps = await db.query('TrackedData');
     final allTrackedData =
@@ -40,15 +41,15 @@ class RunStorage {
   }
 
   Future<Run> createRun(DateTime startTime) async {
-    final run = await addRun(Run.start(startTime));
-    runs.add(run);
+    final run = await _addRun(Run.start(startTime));
+    runs[run.id] = run;
     trackedData[run.id] = [];
     return run;
   }
 
   Future<TrackedData> addData({
     int timestamp = -1,
-    int runId = -1,
+    required int runId,
     required double latitude,
     required double longitude,
     required double altitude,
@@ -58,9 +59,6 @@ class RunStorage {
   }) async {
     if (timestamp == -1) {
       timestamp = DateTime.now().millisecondsSinceEpoch;
-    }
-    if (runId == -1) {
-      runId = runs.last.id;
     }
     final data = TrackedData(
       runId: runId,
@@ -85,7 +83,7 @@ class RunStorage {
     trackedData[td.runId]!.add(td);
   }
 
-  Future<Run> addRun(Run run) async {
+  Future<Run> _addRun(Run run) async {
     run.id = await db.insert(
       'Runs',
       run.toMap(),
@@ -95,7 +93,9 @@ class RunStorage {
   }
 
   updateRun(Run run) async {
-    db.update('Runs', run.toMap());
+    // print("Updating ${run.id} out of $runs in $this");
+    db.update('Runs', run.toMap(), where: "id = ?", whereArgs: [run.id]);
+    runs[run.id] = run;
   }
 
   resetDB() async {
@@ -104,7 +104,14 @@ class RunStorage {
     db.close();
     await deleteDatabase(await _dbPath());
     db = await _getDB();
+    runs = {};
+    trackedData = {};
     await load();
+  }
+
+  @override
+  String toString() {
+    return "Storage(${identityHashCode(this)}) - $runs";
   }
 
   static Future<String> _dbPath() async {
@@ -118,7 +125,7 @@ class RunStorage {
       // constructed for each platform.
       join(await _dbPath()),
       onCreate: (db, version) {
-        print("Creating db");
+        // print("Creating db");
         // Run the CREATE TABLE statement on the database.
         db.execute('''
         CREATE TABLE Runs(id INTEGER PRIMARY KEY AUTOINCREMENT,

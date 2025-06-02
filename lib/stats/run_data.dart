@@ -23,9 +23,7 @@ class Run {
     this.weather = "",
     this.avgHeartRate,
     this.avgStepsPerMin,
-  }) {
-    startTime ??= DateTime.now();
-  }
+  });
 
   factory Run.fromDb(Map<String, dynamic> dbMap) {
     return Run(
@@ -57,7 +55,7 @@ class Run {
 
   Map<String, Object?> toMap() {
     return {
-      "start_time": startTime!.millisecondsSinceEpoch,
+      "start_time": startTime.millisecondsSinceEpoch,
       "duration": duration,
       "total_distance": totalDistance,
       "calories_burned": caloriesBurned,
@@ -72,7 +70,12 @@ class Run {
   }
 
   double avgSpeed() {
-    return totalDistance / duration;
+    return totalDistance / duration * 1000;
+  }
+
+  @override
+  String toString() {
+    return "$id: $startTime";
   }
 }
 
@@ -148,6 +151,7 @@ class TrackedData {
   }
 
   double speedMS(TrackedData after) {
+    // print("Calc speed: ${distanceM(after)} / ${durationS(after)}");
     return distanceM(after) / durationS(after);
   }
 

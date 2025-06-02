@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/stats/run_raw.dart';

@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:geolocator/geolocator.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart' as geo;
+import 'package:run_log/stats/filter_speed.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/storage.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 
 enum RRState { waitAccurateGPS, waitRunning, running, paused }
 
 class RunRaw {
   List<TrackedData> rawPositions;
   List<TimeData> rawSpeed = [];
+  List<FilterSpeed> filters = [];
   TrackedData? lastMovement;
   RunStorage? storage;
   Resampler? resampler;
@@ -24,7 +29,7 @@ class RunRaw {
   }
 
   static RunRaw loadRun(RunStorage storage, int runId) {
-    final run = storage.runs.firstWhere((r) => r.id == runId);
+    final run = storage.runs[runId]!;
     final rawPos = storage.trackedData[runId];
     if (rawPos == null) {
       throw ("This run has no data stored");
@@ -33,10 +38,14 @@ class RunRaw {
   }
 
   RunRaw({required this.rawPositions, required this.run, this.storage}) {
-    if (rawPositions.isNotEmpty) {}
+    if (rawPositions.isNotEmpty) {
+      for (TrackedData td in rawPositions) {
+        _newTracked(td);
+      }
+    }
   }
 
-  Stream<RRState> continuous(Stream<Position> positions) {
+  Stream<RRState> continuous(Stream<geo.Position> positions) {
     StreamController<RRState> rrStream = StreamController();
 
     positions.listen((pos) {
@@ -54,18 +63,10 @@ class RunRaw {
     if (rawSpeed.isEmpty) {
       return RRState.waitRunning;
     }
-    if (rawPositions.last != lastMovement) {
+    if (runPaused) {
       return RRState.paused;
     }
     return RRState.running;
-  }
-
-  double minSpeed() {
-    return rawSpeed.reduce((a, b) => a.mps > b.mps ? a : b).mps;
-  }
-
-  double maxSpeed() {
-    return rawSpeed.reduce((a, b) => a.mps < b.mps ? a : b).mps;
   }
 
   double duration() {
@@ -77,12 +78,12 @@ class RunRaw {
 
   double distance() {
     if (resampler == null) {
-      return 0;
+      return 10;
     }
-    return rawSpeed.fold(
-      0,
-      (dist, e) => dist + e.mps * resampler!.sampleInterval,
-    );
+    // The first element is at t=0 and is only used to make a nice graph.
+    return rawSpeed
+        .skip(1)
+        .fold(0, (dist, e) => dist + e.mps * resampler!.sampleInterval / 1000);
   }
 
   reset() async {
@@ -94,17 +95,126 @@ class RunRaw {
     runPaused = false;
   }
 
-  save() async {
+  updateStats() async {
     run.duration = (duration() * 1000).toInt();
     run.totalDistance = distance();
+    // print(storage);
     storage!.updateRun(run);
   }
 
-  void addPosition(Position pos) {
+  void addPosition(geo.Position pos) {
     final td = run.tdFromPosition(pos);
     rawPositions.add(td);
     storage?.addTrackedData(td);
+    updateStats();
     _newTracked(td);
+  }
+
+  void addFilter(int n2) {
+    var filter = FilterSpeed(n2);
+    filter.update(rawSpeed);
+    filters.add(filter);
+  }
+
+  Widget runStats() {
+    print("RawSpeed.length: ${rawSpeed.length}");
+    if (rawSpeed.isEmpty){
+      return Text("No data yet");
+    }
+    var (minSpeed, maxSpeed) = (rawSpeed.minSpeed(), rawSpeed.maxSpeed());
+    var lines = [
+      LineSeries<TimeData, String>(
+        dataSource: rawSpeed,
+        animationDuration: 500,
+        xValueMapper: (TimeData entry, _) => _timeHMS(entry.dt),
+        yValueMapper: (TimeData entry, _) => _speedMinKm(entry.mps),
+        name: 'Raw [min/km]',
+        dataLabelSettings: DataLabelSettings(isVisible: false),
+      ),
+    ];
+    for (var filter in filters) {
+      print("Filter.length: ${filter.filteredSpeed.length}");
+      if (filter.filteredSpeed.isEmpty){
+        return Text("No filter data yet");
+      }
+      minSpeed = math.min(minSpeed, filter.filteredSpeed.minSpeed());
+      maxSpeed = math.max(maxSpeed, filter.filteredSpeed.maxSpeed());
+      lines.add(
+        LineSeries<TimeData, String>(
+          animationDuration: 500,
+          dataSource: filter.filteredSpeed,
+          xValueMapper: (TimeData entry, _) => _timeHMS(entry.dt),
+          yValueMapper: (TimeData entry, _) => _speedMinKm(entry.mps),
+          name: 'Filter ${filter.lanczos.length * 5}s',
+          dataLabelSettings: DataLabelSettings(isVisible: false),
+        ),
+      );
+    }
+    var (minPace, maxPace) = (
+    (_speedMinKm(maxSpeed) * 6 - 1).toInt() / 6,
+    (_speedMinKm(minSpeed) * 6 + 1).toInt() / 6,
+    );
+    var med = (maxPace + minPace) / 2;
+    if (med + 0.5 > maxPace) {
+      maxPace = med + 0.5;
+    }
+    if (med - 0.5 < minPace) {
+      minPace = med - 0.5;
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      child: SfCartesianChart(
+        zoomPanBehavior: ZoomPanBehavior(
+          enablePinching: true,
+          enablePanning: true,
+          enableDoubleTapZooming: true,
+          enableSelectionZooming: true,
+          enableMouseWheelZooming: true,
+          zoomMode: ZoomMode.x,
+        ),
+        primaryXAxis: CategoryAxis(
+          labelIntersectAction: AxisLabelIntersectAction.multipleRows,
+        ),
+        primaryYAxis: NumericAxis(
+          isInversed: true,
+          minimum: minPace,
+          maximum: maxPace,
+          axisLabelFormatter: (AxisLabelRenderDetails details) {
+            final value = double.parse(details.text);
+            final min = value.toInt();
+            final sec = ((value - min) * 60).round();
+            if (sec == 0) {
+              return ChartAxisLabel("$min'", details.textStyle);
+            } else {
+              return ChartAxisLabel("$min' $sec''", details.textStyle);
+            }
+          },
+        ),
+        legend: Legend(isVisible: true),
+        tooltipBehavior: TooltipBehavior(enable: true),
+        series: lines,
+      ),
+    );
+  }
+
+  String _timeHMS(double s) {
+    final hours = (s / 60 / 60).toInt();
+    final mins = (s / 60 % 60).toInt();
+    final sec = (s % 60).toInt();
+    if (hours > 0) {
+      return "${hours}h ${mins}m ${sec}s";
+    } else if (mins > 0) {
+      return "${mins}m ${sec}s";
+    } else {
+      return "${sec}s";
+    }
+  }
+
+  double _speedMinKm(double mps) {
+    if (mps <= 0) {
+      return mps;
+    }
+    return 1000 / 60 / mps;
   }
 
   void _newTracked(TrackedData td) {
@@ -122,55 +232,73 @@ class RunRaw {
   }
 
   void _newResampled(TrackedData td) {
+    // print("lastMov: ${lastMovement?.debug()}");
+    // print("td: ${td.debug()}");
     final speed = lastMovement!.speedMS(td);
+    lastMovement = td;
+    // print("Speed is $speed - length of rawSpeed: ${rawSpeed.length}");
 
     // Wait for minSpeedStart before starting to record speed.
     if (rawSpeed.isEmpty) {
       if (speed < minSpeedStart) {
+        resampler!.pause();
         return;
       }
-      resampler!.sampleReference = lastMovement!.timestamp;
       rawSpeed.add(TimeData(0, speed));
-      run.startTime = DateTime.fromMillisecondsSinceEpoch(td.timestamp);
+      run.startTime = DateTime.fromMillisecondsSinceEpoch(
+        td.timestamp - resampler!.sampleInterval,
+      );
     }
 
     // If running speed is below minSpeedRun, don't count the interval
     // and don't add it to rawSpeed.
-    // TODO: the pauses could be shows in the figure.
+    // TODO: the pauses could be shown in the figure.
     runPaused = speed < minSpeedRun;
     if (runPaused) {
-      resampler!.sampleReference += resampler!.sampleInterval;
+      resampler!.pause();
       return;
     }
-    rawSpeed.add(resampler!.calcSpeed(lastMovement!, td));
+    rawSpeed.add(resampler!.timeData(td.timestamp, speed));
+    for (var filter in filters) {
+      filter.update(rawSpeed);
+      print("${rawSpeed.length} - ${filter.filteredSpeed.length}");
+    }
   }
 }
 
 class Resampler {
-  int sampleReference = -1;
+  int sampleCount = 1;
+  int tsReference = -1;
   int sampleInterval;
   TrackedData lastMovement;
 
   Resampler(this.lastMovement, {this.sampleInterval = 5000}) {
-    sampleReference = lastMovement.timestamp;
+    tsReference = lastMovement.timestamp;
   }
 
   List<TrackedData> resample(TrackedData td) {
-    if (lastMovement == td){
+    if (lastMovement == td) {
       throw "Cannot resample with same element again";
     }
     List<TrackedData> resampled = [];
-    while (sampleReference <= td.timestamp) {
-      resampled.add(lastMovement.interpolate(td, sampleReference));
-      sampleReference += sampleInterval;
+    while (nextSample <= td.timestamp) {
+      resampled.add(lastMovement.interpolate(td, nextSample));
+      sampleCount++;
     }
 
     lastMovement = td;
     return resampled;
   }
 
-  TimeData calcSpeed(TrackedData from, TrackedData to) {
-    return TimeData((to.timestamp - sampleReference) / 1000, from.speedMS(to));
+  int get nextSample => tsReference + sampleCount * sampleInterval;
+
+  TimeData timeData(ts, speed) {
+    return TimeData((ts - tsReference) / 1000, speed);
+  }
+
+  pause() {
+    tsReference += sampleInterval;
+    sampleCount--;
   }
 }
 
@@ -195,5 +323,13 @@ extension DebugPrint on List<TimeData> {
     return map(
       (td) => "(${td.dt.toStringAsFixed(1)}, ${td.mps.toStringAsFixed(1)})",
     ).join(", ");
+  }
+
+  double maxSpeed() {
+    return reduce((a, b) => a.mps > b.mps ? a : b).mps;
+  }
+
+  double minSpeed() {
+    return reduce((a, b) => a.mps < b.mps ? a : b).mps;
   }
 }

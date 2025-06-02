@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:run_log/storage.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../stats/run_raw.dart';
 import 'geotracker.dart';
@@ -26,7 +25,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late Stream<RRState> runStream;
   RState runState = RState.waitGPS;
   StreamController<RState> runStateStream = StreamController();
-  late RunStorage storage;
 
   @override
   bool get wantKeepAlive => true;
@@ -35,9 +33,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     geoTracker = GeoTracker();
-    RunStorage.init().then((rs) async {
-      storage = rs;
-      runRaw = await RunRaw.newRun(storage);
+    RunRaw.newRun(widget.runStorage).then((rr) {
+      rr.addFilter(10);
+      rr.addFilter(3);
+      runRaw = rr;
       runStateStream.stream.listen((RState? rs) {
         if (rs != null) {
           setState(() {
@@ -98,7 +97,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetWaitGPS(GTState? s) {
-    print("_widgetWaitGPS($s)");
+    // print("_widgetWaitGPS($s)");
     switch (s) {
       case null:
         return [_stats("Starting up")];
@@ -114,6 +113,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetRunning(RRState? s) {
+    // print("RRState is $s");
     switch (s) {
       case null:
         return [_stats("Waiting for GPS")];
@@ -135,17 +135,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _showRunning(bool pause) {
-    var (min, max) = (
-      (_speedMinKm(runRaw.minSpeed()) * 6 - 1).toInt() / 6,
-      (_speedMinKm(runRaw.maxSpeed()) * 6 + 1).toInt() / 6,
-    );
-    var med = (max + min) / 2;
-    if (med + 0.5 > max) {
-      max = med + 0.5;
-    }
-    if (med - 0.5 < min) {
-      min = med - 0.5;
-    }
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
@@ -174,57 +163,14 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         children: <Widget>[
           _blueButton("Reset", () {
             runRaw.reset();
+            runStateStream.add(RState.running);
           }),
           _blueButton("Share", () {
             _share();
           }),
-          _blueButton("Save", () {
-            runRaw.save();
-          }),
         ],
       ),
-      Container(
-        margin: const EdgeInsets.only(top: 10),
-        child: SfCartesianChart(
-          zoomPanBehavior: ZoomPanBehavior(
-            enablePinching: true,
-            enablePanning: true,
-            enableDoubleTapZooming: true,
-            enableSelectionZooming: true,
-            enableMouseWheelZooming: true,
-            zoomMode: ZoomMode.x,
-          ),
-          primaryXAxis: CategoryAxis(
-            labelIntersectAction: AxisLabelIntersectAction.multipleRows,
-          ),
-          primaryYAxis: NumericAxis(
-            isInversed: true,
-            minimum: min,
-            maximum: max,
-            axisLabelFormatter: (AxisLabelRenderDetails details) {
-              final value = double.parse(details.text);
-              final min = value.toInt();
-              final sec = ((value - min) * 60).round();
-              if (sec == 0) {
-                return ChartAxisLabel("$min'", details.textStyle);
-              } else {
-                return ChartAxisLabel("$min' $sec''", details.textStyle);
-              }
-            },
-          ),
-          legend: Legend(isVisible: true),
-          tooltipBehavior: TooltipBehavior(enable: true),
-          series: <CartesianSeries<TimeData, String>>[
-            LineSeries<TimeData, String>(
-              dataSource: runRaw.rawSpeed,
-              xValueMapper: (TimeData entry, _) => _timeHMS(entry.dt),
-              yValueMapper: (TimeData entry, _) => _speedMinKm(entry.mps),
-              name: 'Speed [min/km]',
-              dataLabelSettings: DataLabelSettings(isVisible: false),
-            ),
-          ],
-        ),
-      ),
+      runRaw.runStats(),
     ];
   }
 
@@ -245,19 +191,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       return _speedStrMinKm(dist / dur);
     } else {
       return "Waiting";
-    }
-  }
-
-  String _timeHMS(double s) {
-    final hours = (s / 60 / 60).toInt();
-    final mins = (s / 60 % 60).toInt();
-    final sec = (s % 60).toInt();
-    if (hours > 0) {
-      return "${hours}h ${mins}m ${sec}s";
-    } else if (mins > 0) {
-      return "${mins}m ${sec}s";
-    } else {
-      return "${sec}s";
     }
   }
 

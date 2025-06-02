@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:run_log/running/Running.dart';
+import 'package:run_log/running/running.dart';
 import 'package:run_log/storage.dart';
 
-import 'history/History.dart';
+import 'history/history.dart';
 
 void main() {
   runApp(const MyApp());
