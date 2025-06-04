@@ -12,8 +12,8 @@ class DetailPage extends StatelessWidget {
 
   static DetailPage fromRun(Run run, RunStorage storage) {
     final rr = RunRaw.loadRun(storage, run.id);
-    rr.addFilter(10);
-    rr.addFilter(3);
+    rr.figures.addSpeed(3);
+    rr.figures.addSpeed(10);
 
     return DetailPage(run: run, storage: storage, rr: rr);
   }
@@ -41,7 +41,7 @@ class DetailPage extends StatelessWidget {
               "${run.avgSpeed().toStringAsFixed(1)}m/s",
             ),
             const SizedBox(height: 10),
-            rr.runStats(),
+            ...rr.figures.runStats(),
           ],
         ),
       ),

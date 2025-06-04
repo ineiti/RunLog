@@ -34,8 +34,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     super.initState();
     geoTracker = GeoTracker();
     RunRaw.newRun(widget.runStorage).then((rr) {
-      rr.addFilter(10);
-      rr.addFilter(3);
+      rr.figures.addSpeed(0);
+      rr.figures.addSpeed(3);
+      rr.figures.addFigure();
+      rr.figures.addAltitude(2);
       runRaw = rr;
       runStateStream.stream.listen((RState? rs) {
         if (rs != null) {
@@ -170,12 +172,15 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
           }),
         ],
       ),
-      runRaw.runStats(),
+      Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: runRaw.figures.runStats(),
+      ),
     ];
   }
 
   String _fmtSpeedCurrent() {
-    final speed = _speedMinKm(runRaw.rawSpeed.last.mps);
+    final speed = _speedMinKm(runRaw.runningData.last.mps);
     if (speed < 0) {
       return "Waiting";
     } else if (speed == 0) {
