@@ -11,10 +11,16 @@ String timeHMS(double s) {
   }
 }
 
-double speedMinKm(double mps) {
+double paceMinKm(double mps) {
   if (mps <= 0) {
     return mps;
   }
   return 1000 / 60 / mps;
 }
 
+String labelYTime(String s) {
+  final value = double.parse(s);
+  final min = value.toInt();
+  final sec = ((value - min) * 60).round();
+  return "$min' ${sec > 0 ? " $sec''" : ""}";
+}

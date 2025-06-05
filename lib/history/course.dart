@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:run_log/stats/conversions.dart';
 import 'package:run_log/stats/run_raw.dart';
 import 'package:run_log/storage.dart';
 
@@ -12,8 +13,10 @@ class DetailPage extends StatelessWidget {
 
   static DetailPage fromRun(Run run, RunStorage storage) {
     final rr = RunRaw.loadRun(storage, run.id);
-    rr.figures.addSpeed(3);
-    rr.figures.addSpeed(10);
+    rr.figureAddSpeed(10);
+    // rr.figureAddSpeed(100);
+    rr.figureAddSlope(2);
+    rr.figureAddAltitude(10);
 
     return DetailPage(run: run, storage: storage, rr: rr);
   }
@@ -38,7 +41,7 @@ class DetailPage extends StatelessWidget {
           children: [
             Text(
               "${run.totalDistance.toInt()}m in ${run.duration ~/ 1000}s: "
-              "${run.avgSpeed().toStringAsFixed(1)}m/s",
+              "${paceMinKm(run.avgSpeed()).toStringAsFixed(1)} min/km",
             ),
             const SizedBox(height: 10),
             ...rr.figures.runStats(),

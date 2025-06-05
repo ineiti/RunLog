@@ -3,8 +3,8 @@ import 'dart:math';
 class FilterData {
   List<XYData> filteredData = [];
   late List<double> lanczos;
-  double min = 0;
-  double max = 0;
+  double min = double.infinity;
+  double max = -double.infinity;
 
   FilterData(int filterN2) {
     lanczos = _lanczos(filterN2);
@@ -22,8 +22,8 @@ class FilterData {
   }
 
   List<double> _filterValues(List<double> values) {
-    min = 0;
-    max = 0;
+    min = double.infinity;
+    max = -double.infinity;
     return List.generate(values.length, (i) => _applyLanczos(values, i));
   }
 
@@ -53,7 +53,7 @@ class FilterData {
     final src = values.sublist(valuesStart, valuesEnd + 1);
 
     double sum = filter.fold(0.0, (a, b) => a + b);
-    if (sum == 0){
+    if (sum == 0) {
       return 0;
     }
     final value = src.asMap().entries.fold(
@@ -67,7 +67,7 @@ class FilterData {
   }
 
   static List<double> _lanczos(int n2) {
-    if (n2 == 0){
+    if (n2 == 0) {
       return [1];
     }
     return List.generate(n2 * 2 + 1, (n) => _sinc(2 * n / (2 * n2) - 1));
@@ -110,6 +110,11 @@ class XYData {
 
   final double dt;
   final double y;
+
+  @override
+  String toString() {
+    return "${dt.toStringAsFixed(1)}: ${y.toStringAsFixed(1)}";
+  }
 }
 
 extension ListXY on List<XYData> {

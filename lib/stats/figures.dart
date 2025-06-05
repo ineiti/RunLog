@@ -59,9 +59,7 @@ class Figures {
             primaryXAxis: CategoryAxis(
               labelIntersectAction: AxisLabelIntersectAction.multipleRows,
             ),
-            primaryYAxis: CategoryAxis(
-              isVisible: false,
-            ),
+            primaryYAxis: CategoryAxis(isVisible: false),
             legend: Legend(isVisible: true),
             tooltipBehavior: TooltipBehavior(enable: true),
           ),
@@ -117,15 +115,19 @@ class LineStat {
         xyd = runningData.slope();
     }
     filter.update(xyd);
+    // print("Filter after update is: ${filter.filteredData.length}");
   }
 
   CartesianSeries serie() {
+    // print("Filtered data is: ${filter.filteredData.length}");
     return LineSeries<XYData, String>(
       dataSource: filter.filteredData,
       yAxisName: _label(),
       animationDuration: 500,
       xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
-      yValueMapper: (XYData entry, _) => entry.y,
+      yValueMapper:
+          (XYData entry, _) =>
+              type == LineType.speed ? paceMinKm(entry.y) : entry.y,
       name: _label(),
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
@@ -137,12 +139,22 @@ class LineStat {
       name: _label(),
       minimum: min,
       maximum: max,
+      opposedPosition: type != LineType.speed,
+      axisLabelFormatter: (AxisLabelRenderDetails details) {
+        if (type == LineType.speed) {
+          return ChartAxisLabel(labelYTime(details.text), details.textStyle);
+        }
+        return ChartAxisLabel(
+          double.parse(details.text).toStringAsFixed(1),
+          details.textStyle,
+        );
+      },
       isInversed: type == LineType.speed,
     );
   }
 
   (double, double) minMax() {
-    if (filter.filteredData.isEmpty){
+    if (filter.filteredData.isEmpty) {
       return (0, 0);
     }
     switch (type) {
@@ -150,6 +162,9 @@ class LineStat {
         return minMaxPace();
       case LineType.altitude:
       case LineType.slope:
+        print(
+          "minMax Numeric: ${filter.min.toStringAsFixed(2)}..${filter.max.toStringAsFixed(2)}",
+        );
         return (filter.min, filter.max);
     }
   }
@@ -157,10 +172,12 @@ class LineStat {
   (double, double) minMaxPace() {
     // Pace is the inverse of speed, so it's normal that max is assigned to min,
     // and vice-versa.
-    print("${filter.max} - ${filter.min}");
     var (minPace, maxPace) = (
-      (speedMinKm(filter.max) * 6 - 1).toInt() / 6,
-      (speedMinKm(filter.min) * 6 + 1).toInt() / 6,
+      (paceMinKm(filter.max) * 6).floor() / 6,
+      (paceMinKm(filter.min) * 6).ceil() / 6,
+    );
+    print(
+      "minMax Pace - 1: ${filter.min.toStringAsFixed(2)} - ${filter.max.toStringAsFixed(2)} => ${maxPace.toStringAsFixed(2)}..${minPace.toStringAsFixed(2)}",
     );
     var med = (maxPace + minPace) / 2;
     if (med + 0.5 > maxPace) {
@@ -169,6 +186,9 @@ class LineStat {
     if (med - 0.5 < minPace) {
       minPace = med - 0.5;
     }
+    print(
+      "minMax Pace - 2: ${filter.min.toStringAsFixed(2)} - ${filter.max.toStringAsFixed(2)} => ${maxPace.toStringAsFixed(2)}..${minPace.toStringAsFixed(2)}",
+    );
     return (maxPace, minPace);
   }
 
@@ -179,7 +199,8 @@ class LineStat {
       case LineType.altitude:
         return "Altitude${_filter()} [m]";
       case LineType.slope:
-        return "Slope${_filter()} [m/s]";
+        // print("Slope: ${filter.filteredData}");
+        return "Slope${_filter()} [%]";
     }
   }
 

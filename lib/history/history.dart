@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -38,7 +40,7 @@ class _HistoryState extends State<History> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _blueButton("Delete", () => _dbDelete()),
-              _blueButton("PreFill", () => _dbPrefill()),
+              _blueButton("PreFill", () => _createTwoTracks()),
             ],
           ),
           runs.isNotEmpty ? _courseList() : Text("No runs yet"),
@@ -118,40 +120,86 @@ class _HistoryState extends State<History> {
     );
   }
 
-  _dbPrefill() async {
-    var run = await widget.runStorage.createRun(
-      DateTime.now().subtract(Duration(hours: 1)),
+  _createTwoTracks() async {
+    await _dbPrefill(
+      Duration(hours: 1),
+      200,
+      [3, .1, .2, .1, .3, .1],
+      [1000, 10, 5, 2, 1],
     );
-    for (int i = 0; i < 10; i++) {
-      await widget.runStorage.addData(
-        runId: run.id,
-        latitude: 0.0001 * i,
-        longitude: 0,
-        altitude: 0,
-        gpsAccuracy: 0,
-        timestamp: i * 5000,
-      );
-    }
-    run.duration = 10 * 5000;
-    run.totalDistance = 100;
-    await widget.runStorage.updateRun(run);
+    await _dbPrefill(
+      Duration(hours: 5),
+      300,
+      [4, .2, .1, .4, .1, .2],
+      [2000, 20, 10, 20, 10],
+    );
+  }
 
-    run = await widget.runStorage.createRun(
-      DateTime.now().subtract(Duration(hours: 0)),
+  _dbPrefill(
+    Duration before,
+    int points,
+    List<double> speeds,
+    List<double> altitudes,
+  ) async {
+    var run = await widget.runStorage.createRun(
+      DateTime.now().subtract(before),
     );
-    for (int i = 0; i < 20; i++) {
-      await widget.runStorage.addData(
-        runId: run.id,
-        latitude: 0.0001 * i,
-        longitude: 1,
-        altitude: 0,
-        gpsAccuracy: 0,
-        timestamp: i * 5000,
-      );
+    final track = _createTracker(
+      run.id,
+      run.startTime,
+      points,
+      speeds,
+      altitudes,
+    );
+    for (var td in track) {
+      await widget.runStorage.addTrackedData(td);
     }
-    run.duration = 20 * 5000;
-    run.totalDistance = 200;
+    run.duration = track.last.timestamp - track.first.timestamp;
+    run.totalDistance = track.last.latitude * 6e6 / 180 * pi;
     await widget.runStorage.updateRun(run);
+  }
+
+  List<TrackedData> _createTracker(
+    int id,
+    DateTime start,
+    int points,
+    List<double> speed,
+    List<double> altitude,
+  ) {
+    final speeds = _cosSeries(points, speed);
+    final distances = _integrateList(speeds);
+    final altitudes = _cosSeries(points, altitude);
+    return List.generate(
+      points,
+      (i) => TrackedData(
+        runId: id,
+        timestamp: start.millisecondsSinceEpoch + i * 1000,
+        latitude: distances[i] / 6e6 / pi * 180,
+        longitude: 0,
+        altitude: altitudes[i],
+        gpsAccuracy: 5,
+      ),
+    );
+  }
+
+  List<double> _integrateList(List<double> list) {
+    List<double> result = [];
+    double sum = 0;
+    for (var num in list) {
+      sum += num;
+      result.add(sum);
+    }
+    return result;
+  }
+
+  List<double> _cosSeries(int points, List<double> arg) {
+    return List.generate(
+      points,
+      (i) => arg.asMap().entries.fold(
+        0,
+        (prev, s) => prev + s.value * cos(s.key * i / points * 2 * pi),
+      ),
+    );
   }
 
   _dbDelete() async {

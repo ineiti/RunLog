@@ -57,8 +57,8 @@ class _MyAppState extends State<MyApp> {
                 return TabBarView(
                   children: [
                     // Pass the initialized RunStorage to the Running widget
-                    Running(runStorage: runStorage),
                     History(runStorage: runStorage),
+                    Running(runStorage: runStorage),
                     const Icon(Icons.directions_bike),
                   ],
                 );

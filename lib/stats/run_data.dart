@@ -175,18 +175,19 @@ class TrackedData {
   bool operator ==(Object other) {
     var areEqual =
         other is TrackedData &&
-            other.runId == runId &&
-            other.gpsAccuracy == gpsAccuracy &&
-            other.altitude == altitude &&
-            other.latitude == latitude &&
-            other.longitude == longitude &&
-            other.timestamp == timestamp;
+        other.runId == runId &&
+        other.gpsAccuracy == gpsAccuracy &&
+        other.altitude == altitude &&
+        other.latitude == latitude &&
+        other.longitude == longitude &&
+        other.timestamp == timestamp;
 
     return areEqual;
   }
 
-  String debug() {
-    return "$runId - $gpsAccuracy - $altitude - $latitude - $longitude - $timestamp";
+  @override
+  String toString() {
+    return "$runId - $gpsAccuracy - ${altitude.toStringAsFixed(1)} - ${latitude.toStringAsFixed(6)} - $longitude - ${timestamp ~/ 1000}\n";
   }
 
   @override
@@ -201,12 +202,14 @@ class TrackedData {
       stepsPerMin.hashCode;
 
   TrackedData withTimestamp(int ts) {
-    return TrackedData(runId: runId,
-        timestamp: ts,
-        latitude: latitude,
-        longitude: longitude,
-        altitude: altitude,
-        gpsAccuracy: gpsAccuracy);
+    return TrackedData(
+      runId: runId,
+      timestamp: ts,
+      latitude: latitude,
+      longitude: longitude,
+      altitude: altitude,
+      gpsAccuracy: gpsAccuracy,
+    );
   }
 
   double _interpolate(double from, double to, double mult) {
