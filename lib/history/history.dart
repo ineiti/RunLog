@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -17,14 +18,20 @@ class History extends StatefulWidget {
 }
 
 class _HistoryState extends State<History> {
+  StreamSubscription<void>? streamSub;
+
   @override
   void initState() {
     super.initState();
-    widget.runStorage.updateRuns.stream.listen((void _) {
-      setState(() {
-        print("Updated run storages");
-      });
+    streamSub = widget.runStorage.updateRuns.stream.listen((void _) {
+      setState(() {});
     });
+  }
+
+  @override
+  dispose() async {
+    super.dispose();
+    await streamSub?.cancel();
   }
 
   List<Run> get runs =>

@@ -6,7 +6,7 @@ import 'package:run_log/stats/run_data.dart';
 import 'package:sqflite/sqflite.dart';
 
 class RunStorage {
-  StreamController<void> updateRuns = StreamController();
+  StreamController<void> updateRuns = StreamController.broadcast();
   late Database db;
   Map<int, Run> runs = {};
   Map<int, List<TrackedData>> trackedData = {};
@@ -46,7 +46,6 @@ class RunStorage {
     final run = await _addRun(Run.start(startTime));
     runs[run.id] = run;
     trackedData[run.id] = [];
-    print("Adding updateRuns");
     updateRuns.add([]);
     return run;
   }
@@ -56,7 +55,6 @@ class RunStorage {
     await db.delete('Runs', where: 'id = ?', whereArgs: [id]);
     runs.remove(id);
     trackedData.remove(id);
-    print("Adding updateRuns - removed run");
     updateRuns.add([]);
   }
 
