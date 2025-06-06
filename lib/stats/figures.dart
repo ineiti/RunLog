@@ -149,7 +149,7 @@ class LineStat {
           details.textStyle,
         );
       },
-      isInversed: type == LineType.speed,
+      isInversed: type != LineType.altitude,
     );
   }
 
@@ -161,11 +161,11 @@ class LineStat {
       case LineType.speed:
         return minMaxPace();
       case LineType.altitude:
+        return (filter.min.floorToDouble(), filter.max.ceilToDouble());
       case LineType.slope:
-        print(
-          "minMax Numeric: ${filter.min.toStringAsFixed(2)}..${filter.max.toStringAsFixed(2)}",
-        );
-        return (filter.min, filter.max);
+        var (min, max) = (filter.min.floor().abs(), filter.max.ceil().abs());
+        var abs = min > max ? min : max;
+        return (-abs.toDouble(), abs.toDouble());
     }
   }
 

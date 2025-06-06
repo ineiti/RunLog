@@ -20,6 +20,11 @@ class _HistoryState extends State<History> {
   @override
   void initState() {
     super.initState();
+    widget.runStorage.updateRuns.stream.listen((void _) {
+      setState(() {
+        print("Updated run storages");
+      });
+    });
   }
 
   List<Run> get runs =>

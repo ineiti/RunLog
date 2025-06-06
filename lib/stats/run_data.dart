@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:gpx/gpx.dart';
 
 class Run {
   int id;
@@ -214,5 +215,40 @@ class TrackedData {
 
   double _interpolate(double from, double to, double mult) {
     return from + (to - from) * mult;
+  }
+}
+
+extension GpxIO on List<TrackedData> {
+  String toGPX() {
+    var gpx = Gpx();
+    gpx.creator = "RunLog";
+    gpx.wpts =
+        map(
+          (td) => Wpt(
+            lat: td.latitude,
+            lon: td.longitude,
+            ele: td.altitude,
+            time: DateTime.fromMillisecondsSinceEpoch(td.timestamp),
+            hdop: td.gpsAccuracy,
+          ),
+        ).toList();
+    return GpxWriter().asString(gpx);
+  }
+
+  static List<TrackedData> fromGPX(int runId, String data) {
+    final gpxPoints = GpxReader().fromString(data);
+    var now = DateTime.now().subtract(Duration(days: 1)).millisecondsSinceEpoch;
+    return gpxPoints.wpts
+        .map(
+          (wp) => TrackedData(
+            runId: runId,
+            timestamp: wp.time?.millisecondsSinceEpoch ?? (now += 1000),
+            latitude: wp.lat ?? 0,
+            longitude: wp.lon ?? 0,
+            altitude: wp.ele ?? 0,
+            gpsAccuracy: wp.hdop ?? 0,
+          ),
+        )
+        .toList();
   }
 }

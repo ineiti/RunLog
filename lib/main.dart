@@ -1,5 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:run_log/running/running.dart';
+import 'package:run_log/stats/run_data.dart';
+import 'package:run_log/stats/run_raw.dart';
 import 'package:run_log/storage.dart';
 
 import 'history/history.dart';
@@ -22,6 +27,45 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _runStorageFuture = RunStorage.init(); // Initialize RunStorage
+  }
+
+  void _handleIncomingIntent(RunStorage runStorage) async {
+    // For files shared while the app is closed
+    List<SharedMediaFile>? initialFiles =
+        await ReceiveSharingIntent.instance.getInitialMedia();
+    if (initialFiles.isNotEmpty) {
+      SharedMediaFile initialFile = initialFiles.first;
+      if (initialFile.path.endsWith('.gpx')) {
+        print("getInitialMedia: ${initialFile.mimeType}");
+        _processGPXFile(runStorage, initialFile.path);
+      }
+    }
+
+    // For files shared while the app is running
+    ReceiveSharingIntent.instance.getMediaStream().listen((
+      List<SharedMediaFile> files,
+    ) {
+      if (files.isNotEmpty && files.first.path.endsWith('.gpx')) {
+        print("GetMediaStream: ${files.first.mimeType}");
+        _processGPXFile(runStorage, files.first.path);
+      }
+    });
+  }
+
+  void _processGPXFile(RunStorage runStorage, String filePath) async {
+    File gpxFile = File(filePath);
+    String content = await gpxFile.readAsString();
+    Run newRun = await runStorage.createRun(DateTime.now());
+    List<TrackedData> newData = GpxIO.fromGPX(newRun.id, content);
+    for (var td in newData) {
+      runStorage.addTrackedData(td);
+    }
+    newRun.startTime = DateTime.fromMillisecondsSinceEpoch(
+      newData.first.timestamp,
+    );
+    runStorage.updateRun(newRun);
+    RunRaw rr = RunRaw.loadRun(runStorage, newRun.id);
+    await rr.updateStats();
   }
 
   @override
@@ -54,6 +98,8 @@ class _MyAppState extends State<MyApp> {
               } else if (snapshot.hasData) {
                 // If the future completed successfully and has data (the RunStorage instance)
                 final runStorage = snapshot.data!;
+                _handleIncomingIntent(runStorage);
+
                 return TabBarView(
                   children: [
                     // Pass the initialized RunStorage to the Running widget

@@ -44,6 +44,13 @@ dependencies:
   syncfusion_flutter_charts: ^29.2.7
   syncfusion_flutter_core: ^29.2.7
   intl: ^0.20.2
+  gpx: ^2.3.0
+  receive_sharing_intent:
+    git:
+      url: https://github.com/KasemJaffer/receive_sharing_intent
+      ref: 2cea396843cd3ab1b5ec4334be4233864637874e
+  path_provider: ^2.1.5
+  file_picker: ^10.1.9
 
 dev_dependencies:
   flutter_test:

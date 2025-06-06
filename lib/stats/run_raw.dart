@@ -12,7 +12,6 @@ enum RRState { waitAccurateGPS, waitRunning, running, paused }
 class RunRaw {
   List<TrackedData> rawPositions;
   List<TimeData> runningData = [];
-  FilterData altitudes = FilterData(10);
   Figures figures = Figures();
   TrackedData? lastMovement;
   RunStorage? storage;
@@ -148,7 +147,10 @@ class RunRaw {
     // print("td: $td");
     final speed = lastMovement!.speedMS(td);
     // print("Speed: $speed");
-    final distance = lastMovement!.distanceM(td);
+    final slope =
+        (td.altitude - lastMovement!.altitude) /
+        lastMovement!.distanceM(td) *
+        100;
     lastMovement = td;
     // print("Speed is $speed - length of rawSpeed: ${rawSpeed.length}");
 
@@ -172,24 +174,7 @@ class RunRaw {
       resampler!.pause();
       return;
     }
-    altitudes.update([
-      ...runningData.altitude(),
-      XYData(td.timestamp.toDouble(), td.altitude),
-    ]);
-    var altLen = altitudes.filteredData.length;
-    double deltAlt =
-        altLen > 1
-            ? altitudes.filteredData.last.y -
-                altitudes.filteredData[altLen - 2].y
-            : 0;
-    runningData.add(
-      resampler!.timeData(
-        td.timestamp,
-        speed,
-        td.altitude,
-        deltAlt / distance * 100,
-      ),
-    );
+    runningData.add(resampler!.timeData(td.timestamp, speed, td.altitude, slope));
     figures.updateData(runningData);
   }
 }
