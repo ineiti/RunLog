@@ -8,10 +8,13 @@ enum GTState { permissionRequest, permissionRefused, permissionGranted }
 /// GeoTracker implements the necessary conversions from GPS coordinates
 /// to useful data to be displayed by the app.
 class GeoTracker {
-  final StreamController<GTState> gtStream = StreamController();
+  final StreamController<GTState> gtStream = StreamController.broadcast();
   late Stream<Position> positionStream;
+  GTState? state;
 
   GeoTracker() {
+    print("permReq");
+    gtStream.stream.listen((s) => state = s);
     gtStream.add(GTState.permissionRequest);
     _handlePermission().then((result) {
       if (result) {
@@ -39,8 +42,10 @@ class GeoTracker {
         positionStream = Geolocator.getPositionStream(
           locationSettings: locationSettings,
         );
+        print("permGrant");
         gtStream.add(GTState.permissionGranted);
       } else {
+        print("permRef");
         gtStream.add(GTState.permissionRefused);
       }
     });

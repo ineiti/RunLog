@@ -1,40 +1,40 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:run_log/stats/run_data.dart';
-import 'package:run_log/stats/run_raw.dart';
+import 'package:run_log/stats/run_stats.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('Waiting for accuracy', () {
     PositionMock pm = PositionMock();
-    RunRaw rr = RunRaw(
+    RunStats rr = RunStats(
       rawPositions: [],
       run: Run(id: 1, startTime: DateTime.now()),
     );
-    expect(rr.state, RRState.waitAccurateGPS);
+    expect(rr.state, RSState.waitAccurateGPS);
     rr.addPosition(pm.pos.withAccuracy(rr.minAccuracy * 2));
-    expect(rr.state, RRState.waitAccurateGPS);
+    expect(rr.state, RSState.waitAccurateGPS);
     rr.addPosition(pm.pos.withAccuracy(rr.minAccuracy));
-    expect(rr.state, RRState.waitAccurateGPS);
+    expect(rr.state, RSState.waitAccurateGPS);
     rr.addPosition(pm.pos.withAccuracy(rr.minAccuracy / 2));
-    expect(rr.state, RRState.waitRunning);
+    expect(rr.state, RSState.waitRunning);
   });
 
   test('Start running', () {
     PositionMock pm = PositionMock();
-    RunRaw rr = RunRaw(
+    RunStats rr = RunStats(
       rawPositions: [],
       run: Run(id: 1, startTime: DateTime.now()),
     );
     rr.addPosition(pm.pos);
-    expect(rr.state, RRState.waitRunning);
+    expect(rr.state, RSState.waitRunning);
     rr.addPosition(pm.stepSlow());
-    expect(rr.state, RRState.waitRunning);
+    expect(rr.state, RSState.waitRunning);
     rr.addPosition(pm.stepSlow());
-    expect(rr.state, RRState.waitRunning);
+    expect(rr.state, RSState.waitRunning);
     rr.addPosition(pm.stepFast());
-    expect(rr.state, RRState.running);
+    expect(rr.state, RSState.running);
     rr.addPosition(pm.stepFast());
-    expect(rr.state, RRState.running);
+    expect(rr.state, RSState.running);
   });
 
   test('Resampling TrackData', () {

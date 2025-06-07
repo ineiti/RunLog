@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:run_log/storage.dart';
-import 'package:share_plus/share_plus.dart';
 
-import '../stats/run_raw.dart';
+import '../stats/run_stats.dart';
+import '../widgets/basic.dart';
 import 'geotracker.dart';
 
 class Running extends StatefulWidget {
@@ -17,14 +16,13 @@ class Running extends StatefulWidget {
   State<Running> createState() => _RunningState();
 }
 
-enum RState { waitGPS, running }
+enum RunState { waitUser, waitGPS, running }
 
 class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late GeoTracker geoTracker;
-  late RunRaw runRaw;
-  late Stream<RRState> runStream;
-  RState runState = RState.waitGPS;
-  StreamController<RState> runStateStream = StreamController();
+  RunStats? runStats;
+  StreamController<RunState> widgetController = StreamController.broadcast();
+  late Stream<RSState> runStream;
 
   @override
   bool get wantKeepAlive => true;
@@ -33,32 +31,42 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     geoTracker = GeoTracker();
-    RunRaw.newRun(widget.runStorage).then((rr) {
-      rr.figures.addSpeed(0);
-      rr.figures.addSpeed(3);
-      rr.figures.addFigure();
-      rr.figures.addAltitude(2);
-      runRaw = rr;
-      runStateStream.stream.listen((RState? rs) {
-        if (rs != null) {
-          setState(() {
-            runState = rs;
-          });
-        }
-      });
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    switch (runState) {
-      case RState.waitGPS:
+    return StreamBuilder(
+      stream: widgetController.stream,
+      builder: (context, snapshot) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: Text("RunLog"),
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[_runWidget(snapshot.data)],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _runWidget(RunState? rs) {
+    switch (rs) {
+      case null:
+        widgetController.add(RunState.waitUser);
+        return Text("Initializing");
+      case RunState.waitUser:
+        return blueButton("Start Running", () {
+          widgetController.add(RunState.waitGPS);
+        });
+      case RunState.waitGPS:
         return _streamBuilder(geoTracker.stream, _widgetWaitGPS);
-      case RState.running:
+      case RunState.running:
         return _streamBuilder(runStream, _widgetRunning);
     }
   }
@@ -67,40 +75,18 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     return StreamBuilder(
       stream: stream,
       builder: (context, snapshot) {
-        return Scaffold(
-          appBar: AppBar(
-            // TRY THIS: Try changing the color here to a specific color (to
-            // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-            // change color while the other colors stay the same.
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            // Here we take the value from the MyHomePage object that was created by
-            // the App.build method, and use it to set our appbar title.
-            title: Text("RunLog"),
-          ),
-          body: Center(
-            // Center is a layout widget. It takes a single child and positions it
-            // in the middle of the parent.
-            child: Column(
-              // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-              // action in the IDE, or press "p" in the console), to see the
-              // wireframe for each widget.
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Flex(
-                  direction: Axis.vertical,
-                  children: showWidget(snapshot.data),
-                ),
-              ],
-            ),
-          ),
+        return Flex(
+          direction: Axis.vertical,
+          children: showWidget(snapshot.data),
         );
       },
     );
   }
 
   List<Widget> _widgetWaitGPS(GTState? s) {
-    // print("_widgetWaitGPS($s)");
-    switch (s) {
+    print("_widgetWaitGPS($s) - ${geoTracker.state}");
+    print("${s ?? geoTracker.state}");
+    switch (s ?? geoTracker.state) {
       case null:
         return [_stats("Starting up")];
       case GTState.permissionRequest:
@@ -108,30 +94,36 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case GTState.permissionRefused:
         return [_stats("Permission refused - restart")];
       case GTState.permissionGranted:
-        runStream = runRaw.continuous(geoTracker.positionStream);
-        runStateStream.add(RState.running);
+        RunStats.newRun(widget.runStorage).then((rr) {
+          runStats = rr;
+          runStats!.figures.addSpeed(5);
+          runStats!.figures.addSpeed(20);
+          runStats!.figures.addSlope(20);
+          runStream = runStats!.continuous(geoTracker.positionStream);
+          widgetController.add(RunState.running);
+        });
         return [_stats("Permission Granted")];
     }
   }
 
-  List<Widget> _widgetRunning(RRState? s) {
+  List<Widget> _widgetRunning(RSState? s) {
     // print("RRState is $s");
     switch (s) {
       case null:
         return [_stats("Waiting for GPS")];
-      case RRState.waitAccurateGPS:
+      case RSState.waitAccurateGPS:
         return [
           _stats("Waiting for accurate GPS:"),
           _stats(
-            "Current accuracy: ${runRaw.rawPositions.last.gpsAccuracy.toInt()}m",
+            "Current accuracy: ${runStats!.rawPositions.last.gpsAccuracy.toInt()}m",
           ),
-          _stats("Required accuracy: ${runRaw.minAccuracy.toInt()}m"),
+          _stats("Required accuracy: ${runStats!.minAccuracy.toInt()}m"),
         ];
-      case RRState.waitRunning:
+      case RSState.waitRunning:
         return [_stats("Ready to run! GO!!!")];
-      case RRState.running:
+      case RSState.running:
         return _showRunning(false);
-      case RRState.paused:
+      case RSState.paused:
         return _showRunning(true);
     }
   }
@@ -142,45 +134,35 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
       _stats('Overall speed: ${_fmtSpeedOverall()}'),
 
-      _stats('Duration: ${runRaw.duration().toInt()} s'),
-      _stats('Distance: ${runRaw.distance().toInt()} m'),
+      _stats('Duration: ${runStats!.duration().toInt()} s'),
+      _stats('Distance: ${runStats!.distance().toInt()} m'),
       Flex(
         mainAxisAlignment: MainAxisAlignment.center,
         direction: Axis.horizontal,
         spacing: 10,
         children: <Widget>[
-          _blueButton("--", () {
-            _speedRunDec();
+          blueButton("Reset", () {
+            setState(() {
+              runStats!.reset();
+              widgetController.add(RunState.running);
+            });
           }),
-          Text("MinSpeedrun: ${_speedStrMinKm(runRaw.minSpeedRun)}"),
-          _blueButton("++", () {
-            _speedRunInc();
-          }),
-        ],
-      ),
-      Flex(
-        mainAxisAlignment: MainAxisAlignment.center,
-        direction: Axis.horizontal,
-        spacing: 10,
-        children: <Widget>[
-          _blueButton("Reset", () {
-            runRaw.reset();
-            runStateStream.add(RState.running);
-          }),
-          _blueButton("Share", () {
-            _share();
+          blueButton("Stop", () {
+            setState(() {
+              _stop();
+            });
           }),
         ],
       ),
       Column(
         mainAxisAlignment: MainAxisAlignment.start,
-        children: runRaw.figures.runStats(),
+        children: runStats!.figures.runStats(),
       ),
     ];
   }
 
   String _fmtSpeedCurrent() {
-    final speed = _speedMinKm(runRaw.runningData.last.mps);
+    final speed = _speedMinKm(runStats!.runningData.last.mps);
     if (speed < 0) {
       return "Waiting";
     } else if (speed == 0) {
@@ -190,8 +172,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   String _fmtSpeedOverall() {
-    double dist = runRaw.distance();
-    double dur = runRaw.duration();
+    double dist = runStats!.distance();
+    double dur = runStats!.duration();
     if (dist > 0 && dur > 0) {
       return _speedStrMinKm(dist / dur);
     } else {
@@ -210,45 +192,15 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     return "${_speedMinKm(mps).toStringAsFixed(1)} min/km";
   }
 
-  void _speedRunInc() {
-    runRaw.minSpeedRun += 0.25;
-  }
-
-  void _speedRunDec() {
-    if (runRaw.minSpeedRun >= 0.5) {
-      runRaw.minSpeedRun -= 0.25;
-    }
-  }
-
-  void _share() async {
-    final params = ShareParams(
-      text: 'run_log.gpx',
-      files: [XFile.fromData(Uint8List(0), mimeType: "application/gpx+xml")],
-    );
-
-    final result = await SharePlus.instance.share(params);
-
-    if (result.status == ShareResultStatus.success) {
-      print('File shared');
-    }
-  }
-
   Widget _stats(String s) {
     return Text(s, style: Theme.of(context).textTheme.headlineMedium);
   }
 
-  Widget _blueButton(String s, VoidCallback click) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.lightBlue,
-      ),
-      onPressed: () {
-        setState(() {
-          click();
-        });
-      },
-      child: Text(s),
-    );
+  _stop() {
+    if (runStats!.runningData.last.mps < runStats!.minSpeedStart ||
+        runStats!.runPaused) {
+      runStats?.cancel();
+      widgetController.add(RunState.waitUser);
+    }
   }
 }

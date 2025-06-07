@@ -3,22 +3,20 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:run_log/stats/conversions.dart';
-import 'package:run_log/stats/run_raw.dart';
+import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../stats/run_data.dart';
+import '../widgets/basic.dart';
 
 class DetailPage extends StatelessWidget {
   final Run run;
   final RunStorage storage;
-  final RunRaw rr;
+  final RunStats rr;
 
   static DetailPage fromRun(Run run, RunStorage storage) {
-    final rr = RunRaw.loadRun(storage, run.id);
-    for (int i = 1; i < 300; i++){
-      print("$i - ${rr.rawPositions[rr.rawPositions.length-i].gpsAccuracy}");
-    }
+    final rr = RunStats.loadRun(storage, run.id);
     rr.figureAddSpeed(20);
     // rr.figureAddSpeed(2);
     // rr.figureAddSpeed(100);
@@ -54,8 +52,8 @@ class DetailPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _blueButton("Export", () => _trackExport()),
-                _blueButton("Delete", () => _trackDelete(context)),
+                blueButton("Export", () => _trackExport()),
+                blueButton("Delete", () => _trackDelete(context)),
               ],
             ),
             const SizedBox(height: 10),
@@ -63,19 +61,6 @@ class DetailPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _blueButton(String s, VoidCallback click) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.lightBlue,
-      ),
-      onPressed: () {
-        click();
-      },
-      child: Text(s),
     );
   }
 

@@ -7,9 +7,9 @@ import 'package:run_log/storage.dart';
 
 import 'figures.dart';
 
-enum RRState { waitAccurateGPS, waitRunning, running, paused }
+enum RSState { waitAccurateGPS, waitRunning, running, paused }
 
-class RunRaw {
+class RunStats {
   List<TrackedData> rawPositions;
   List<TimeData> runningData = [];
   Figures figures = Figures();
@@ -21,22 +21,23 @@ class RunRaw {
   double minSpeedStart = 1.75;
   double minSpeedRun = 1;
   bool runPaused = false;
+  StreamSubscription<geo.Position>? positionSub;
 
-  static Future<RunRaw> newRun(RunStorage storage) async {
+  static Future<RunStats> newRun(RunStorage storage) async {
     final run = await storage.createRun(DateTime.now());
-    return RunRaw(rawPositions: [], run: run, storage: storage);
+    return RunStats(rawPositions: [], run: run, storage: storage);
   }
 
-  static RunRaw loadRun(RunStorage storage, int runId) {
+  static RunStats loadRun(RunStorage storage, int runId) {
     final run = storage.runs[runId]!;
     final rawPos = storage.trackedData[runId];
     if (rawPos == null) {
       throw ("This run has no data stored");
     }
-    return RunRaw(rawPositions: rawPos, run: run, storage: storage);
+    return RunStats(rawPositions: rawPos, run: run, storage: storage);
   }
 
-  RunRaw({required this.rawPositions, required this.run, this.storage}) {
+  RunStats({required this.rawPositions, required this.run, this.storage}) {
     if (rawPositions.isNotEmpty) {
       for (TrackedData td in rawPositions) {
         _newTracked(td);
@@ -44,10 +45,10 @@ class RunRaw {
     }
   }
 
-  Stream<RRState> continuous(Stream<geo.Position> positions) {
-    StreamController<RRState> rrStream = StreamController();
+  Stream<RSState> continuous(Stream<geo.Position> positions) {
+    StreamController<RSState> rrStream = StreamController();
 
-    positions.listen((pos) {
+    positionSub = positions.listen((pos) {
       addPosition(pos);
       rrStream.add(state);
     });
@@ -55,17 +56,21 @@ class RunRaw {
     return rrStream.stream;
   }
 
-  RRState get state {
+  cancel(){
+    positionSub?.cancel();
+  }
+
+  RSState get state {
     if (lastMovement == null) {
-      return RRState.waitAccurateGPS;
+      return RSState.waitAccurateGPS;
     }
     if (runningData.isEmpty) {
-      return RRState.waitRunning;
+      return RSState.waitRunning;
     }
     if (runPaused) {
-      return RRState.paused;
+      return RSState.paused;
     }
-    return RRState.running;
+    return RSState.running;
   }
 
   double duration() {

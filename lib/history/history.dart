@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../stats/run_data.dart';
 import '../storage.dart';
+import '../widgets/basic.dart';
 import 'course.dart';
 
 class History extends StatefulWidget {
@@ -51,8 +52,18 @@ class _HistoryState extends State<History> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _blueButton("Delete", () => _dbDelete()),
-              _blueButton("PreFill", () => _createTwoTracks()),
+              blueButton(
+                "Delete",
+                () => setState(() {
+                  _dbDelete();
+                }),
+              ),
+              blueButton(
+                "PreFill",
+                () => setState(() {
+                  _createTwoTracks();
+                }),
+              ),
             ],
           ),
           runs.isNotEmpty ? _courseList() : Text("No runs yet"),
@@ -114,21 +125,6 @@ class _HistoryState extends State<History> {
           );
         },
       ),
-    );
-  }
-
-  Widget _blueButton(String s, VoidCallback click) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.lightBlue,
-      ),
-      onPressed: () {
-        setState(() {
-          click();
-        });
-      },
-      child: Text(s),
     );
   }
 

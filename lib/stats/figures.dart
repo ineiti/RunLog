@@ -176,9 +176,6 @@ class LineStat {
       (paceMinKm(filter.max) * 6).floor() / 6,
       (paceMinKm(filter.min) * 6).ceil() / 6,
     );
-    print(
-      "minMax Pace - 1: ${filter.min.toStringAsFixed(2)} - ${filter.max.toStringAsFixed(2)} => ${maxPace.toStringAsFixed(2)}..${minPace.toStringAsFixed(2)}",
-    );
     var med = (maxPace + minPace) / 2;
     if (med + 0.5 > maxPace) {
       maxPace = med + 0.5;
@@ -186,9 +183,6 @@ class LineStat {
     if (med - 0.5 < minPace) {
       minPace = med - 0.5;
     }
-    print(
-      "minMax Pace - 2: ${filter.min.toStringAsFixed(2)} - ${filter.max.toStringAsFixed(2)} => ${maxPace.toStringAsFixed(2)}..${minPace.toStringAsFixed(2)}",
-    );
     return (maxPace, minPace);
   }
 
