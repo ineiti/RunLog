@@ -31,9 +31,12 @@ class _MyAppState extends State<MyApp> {
 
   void _handleIncomingIntent(RunStorage runStorage) async {
     // For files shared while the app is closed
+    print("handling incoming intent");
     List<SharedMediaFile>? initialFiles =
         await ReceiveSharingIntent.instance.getInitialMedia();
+    print("getInitialMedia returned");
     if (initialFiles.isNotEmpty) {
+      print("got initialFiles");
       SharedMediaFile initialFile = initialFiles.first;
       if (initialFile.path.endsWith('.gpx')) {
         print("getInitialMedia: ${initialFile.mimeType}");
@@ -42,14 +45,20 @@ class _MyAppState extends State<MyApp> {
     }
 
     // For files shared while the app is running
-    ReceiveSharingIntent.instance.getMediaStream().listen((
-      List<SharedMediaFile> files,
-    ) {
-      if (files.isNotEmpty && files.first.path.endsWith('.gpx')) {
-        print("GetMediaStream: ${files.first.mimeType}");
-        _processGPXFile(runStorage, files.first.path);
-      }
-    });
+    var some = ReceiveSharingIntent.instance.getMediaStream().listen(
+      (List<SharedMediaFile> files) {
+        print("got media stream");
+        if (files.isNotEmpty && files.first.path.endsWith('.gpx')) {
+          print("GetMediaStream: ${files.first.mimeType}");
+          _processGPXFile(runStorage, files.first.path);
+          _processGPXFile(runStorage, files.first.path);
+        }
+      },
+      onError: (err) {
+        print("Error in media stream: $err");
+      },
+    );
+    print("set up listening - $some");
   }
 
   void _processGPXFile(RunStorage runStorage, String filePath) async {
