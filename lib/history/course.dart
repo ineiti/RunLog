@@ -17,10 +17,10 @@ class DetailPage extends StatelessWidget {
 
   static DetailPage fromRun(Run run, RunStorage storage) {
     final rr = RunStats.loadRun(storage, run.id);
+    rr.figureAddSlope(40);
     rr.figureAddSpeed(20);
     // rr.figureAddSpeed(2);
     // rr.figureAddSpeed(100);
-    rr.figureAddSlope(20);
     // rr.figureAddAltitude(100);
 
     return DetailPage(run: run, storage: storage, rr: rr);

@@ -119,6 +119,14 @@ class LineStat {
   }
 
   CartesianSeries serie() {
+    if (type != LineType.slope) {
+      return _serieLines();
+    } else {
+      return _serieSlope();
+    }
+  }
+
+  CartesianSeries _serieLines() {
     // print("Filtered data is: ${filter.filteredData.length}");
     return LineSeries<XYData, String>(
       dataSource: filter.filteredData,
@@ -130,6 +138,19 @@ class LineStat {
               type == LineType.speed ? paceMinKm(entry.y) : entry.y,
       name: _label(),
       dataLabelSettings: DataLabelSettings(isVisible: false),
+    );
+  }
+
+  CartesianSeries _serieSlope() {
+    return ColumnSeries<XYData, String>(
+      dataSource: filter.filteredData,
+      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      yValueMapper: (XYData entry, _) => entry.y,
+      yAxisName: _label(),
+      name: _label(),
+      pointColorMapper:
+          (XYData entry, _) =>
+              entry.y >= 0 ? Color(0xFFFFBBBB) : Color(0xFF99FF99),
     );
   }
 
