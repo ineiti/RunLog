@@ -65,7 +65,7 @@ class DetailPage extends StatelessWidget {
   }
 
   _trackDelete(BuildContext context) async {
-    return showDialog<String>(
+    showDialog<String>(
       context: context,
       builder:
           (BuildContext context) => AlertDialog(

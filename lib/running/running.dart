@@ -16,7 +16,7 @@ class Running extends StatefulWidget {
   State<Running> createState() => _RunningState();
 }
 
-enum RunState { waitUser, waitGPS, running }
+enum RunState { waitGPS, waitUser, running }
 
 class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late GeoTracker geoTracker;
@@ -58,32 +58,44 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   Widget _runWidget(RunState? rs) {
     switch (rs) {
       case null:
-        widgetController.add(RunState.waitUser);
+        widgetController.add(RunState.waitGPS);
         return Text("Initializing");
-      case RunState.waitUser:
-        return blueButton("Start Running", () {
-          widgetController.add(RunState.waitGPS);
-        });
       case RunState.waitGPS:
         return _streamBuilder(geoTracker.stream, _widgetWaitGPS);
+      case RunState.waitUser:
+        return blueButton("Start Running", () => _startRunning());
       case RunState.running:
         return _streamBuilder(runStream, _widgetRunning);
     }
   }
 
-  Widget _streamBuilder<T>(Stream<T> stream, Function(T?) showWidget) {
+  _startRunning() {
+    RunStats.newRun(widget.runStorage).then((rr) {
+      runStats = rr;
+      runStats!.figures.addSpeed(5);
+      runStats!.figures.addSpeed(20);
+      runStats!.figures.addSlope(20);
+      runStream = runStats!.continuous(geoTracker.positionStream);
+      widgetController.add(RunState.running);
+    });
+  }
+
+  Widget _streamBuilder<T>(
+    Stream<T> stream,
+    Function(BuildContext context, T?) showWidget,
+  ) {
     return StreamBuilder(
       stream: stream,
       builder: (context, snapshot) {
         return Flex(
           direction: Axis.vertical,
-          children: showWidget(snapshot.data),
+          children: showWidget(context, snapshot.data),
         );
       },
     );
   }
 
-  List<Widget> _widgetWaitGPS(GTState? s) {
+  List<Widget> _widgetWaitGPS(BuildContext context, GTState? s) {
     print("_widgetWaitGPS($s) - ${geoTracker.state}");
     print("${s ?? geoTracker.state}");
     switch (s ?? geoTracker.state) {
@@ -94,41 +106,41 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case GTState.permissionRefused:
         return [_stats("Permission refused - restart")];
       case GTState.permissionGranted:
-        RunStats.newRun(widget.runStorage).then((rr) {
-          runStats = rr;
-          runStats!.figures.addSpeed(5);
-          runStats!.figures.addSpeed(20);
-          runStats!.figures.addSlope(20);
-          runStream = runStats!.continuous(geoTracker.positionStream);
-          widgetController.add(RunState.running);
-        });
+        widgetController.add(RunState.waitUser);
         return [_stats("Permission Granted")];
     }
   }
 
-  List<Widget> _widgetRunning(RSState? s) {
-    // print("RRState is $s");
-    switch (s) {
+  List<Widget> _widgetRunning(BuildContext context, RSState? s) {
+    print("RRState is $s");
+    switch (s ?? runStats?.state) {
       case null:
         return [_stats("Waiting for GPS")];
       case RSState.waitAccurateGPS:
+        var last = runStats!.rawPositions.lastOrNull;
         return [
           _stats("Waiting for accurate GPS:"),
           _stats(
-            "Current accuracy: ${runStats!.rawPositions.last.gpsAccuracy.toInt()}m",
+            last != null
+                ? "Current accuracy: ${last.gpsAccuracy.toInt()}m"
+                : "Waiting for first GPS reading",
           ),
-          _stats("Required accuracy: ${runStats!.minAccuracy.toInt()}m"),
+          _stats(
+            last != null
+                ? "Required accuracy: ${runStats!.minAccuracy.toInt()}m"
+                : "",
+          ),
         ];
       case RSState.waitRunning:
         return [_stats("Ready to run! GO!!!")];
       case RSState.running:
-        return _showRunning(false);
+        return _showRunning(context, false);
       case RSState.paused:
-        return _showRunning(true);
+        return _showRunning(context, true);
     }
   }
 
-  List<Widget> _showRunning(bool pause) {
+  List<Widget> _showRunning(BuildContext context, bool pause) {
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
@@ -149,7 +161,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
           }),
           blueButton("Stop", () {
             setState(() {
-              _stop();
+              _stop(context);
             });
           }),
         ],
@@ -196,11 +208,34 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     return Text(s, style: Theme.of(context).textTheme.headlineMedium);
   }
 
-  _stop() {
+  _stop(BuildContext context) {
     if (runStats!.runningData.last.mps < runStats!.minSpeedStart ||
         runStats!.runPaused) {
       runStats?.cancel();
       widgetController.add(RunState.waitUser);
+    } else {
+      showDialog<String>(
+        context: context,
+        builder:
+            (BuildContext context) => AlertDialog(
+              title: const Text('Stop Run'),
+              content: const Text('Do you really want to stop this run?'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    runStats?.cancel();
+                    widgetController.add(RunState.waitUser);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('End Run'),
+                ),
+              ],
+            ),
+      );
     }
   }
 }
