@@ -28,12 +28,9 @@ class RunStats {
     return RunStats(rawPositions: [], run: run, storage: storage);
   }
 
-  static RunStats loadRun(RunStorage storage, int runId) {
+  static Future<RunStats> loadRun(RunStorage storage, int runId) async {
     final run = storage.runs[runId]!;
-    final rawPos = storage.trackedData[runId];
-    if (rawPos == null) {
-      throw ("This run has no data stored");
-    }
+    final rawPos = await storage.loadTrackedData(runId);
     return RunStats(rawPositions: rawPos, run: run, storage: storage);
   }
 
@@ -56,7 +53,7 @@ class RunStats {
     return rrStream.stream;
   }
 
-  cancel(){
+  cancel() {
     positionSub?.cancel();
   }
 
@@ -106,6 +103,10 @@ class RunStats {
     storage!.updateRun(run);
   }
 
+  void figureClean() {
+    figures.clean();
+  }
+
   void figureAddSpeed(int n2) {
     figures.addSpeed(n2);
     figures.updateData(runningData);
@@ -116,8 +117,18 @@ class RunStats {
     figures.updateData(runningData);
   }
 
+  void figureAddAltitudeCorrected(int n2) {
+    figures.addAltitudeCorrected(n2);
+    figures.updateData(runningData);
+  }
+
   void figureAddSlope(int n2) {
     figures.addSlope(n2);
+    figures.updateData(runningData);
+  }
+
+  void figureAddSlopeStats(int n2) {
+    figures.addSlopeStats(n2);
     figures.updateData(runningData);
   }
 
@@ -152,10 +163,13 @@ class RunStats {
     // print("td: $td");
     final speed = lastMovement!.speedMS(td);
     // print("Speed: $speed");
-    final slope =
-        (td.altitude - lastMovement!.altitude) /
-        lastMovement!.distanceM(td) *
-        100;
+    double slope = 100 / lastMovement!.distanceM(td);
+    if (td.altitudeCorrected != null &&
+        lastMovement!.altitudeCorrected != null) {
+      slope *= td.altitudeCorrected! - lastMovement!.altitudeCorrected!;
+    } else {
+      slope *= td.altitude - lastMovement!.altitude;
+    }
     lastMovement = td;
     // print("Speed is $speed - length of rawSpeed: ${rawSpeed.length}");
 
@@ -165,7 +179,7 @@ class RunStats {
         resampler!.pause();
         return;
       }
-      runningData.add(TimeData(0, speed, td.altitude, 0));
+      runningData.add(TimeData(0, speed, td.altitude, td.altitudeCorrected, 0));
       run.startTime = DateTime.fromMillisecondsSinceEpoch(
         td.timestamp - resampler!.sampleInterval,
       );
@@ -179,7 +193,15 @@ class RunStats {
       resampler!.pause();
       return;
     }
-    runningData.add(resampler!.timeData(td.timestamp, speed, td.altitude, slope));
+    runningData.add(
+      resampler!.timeData(
+        td.timestamp,
+        speed,
+        td.altitude,
+        td.altitudeCorrected,
+        slope,
+      ),
+    );
     figures.updateData(runningData);
   }
 }
@@ -210,8 +232,20 @@ class Resampler {
 
   int get nextSample => tsReference + sampleCount * sampleInterval;
 
-  TimeData timeData(int ts, double speed, double altitude, double slope) {
-    return TimeData((ts - tsReference) / 1000, speed, altitude, slope);
+  TimeData timeData(
+    int ts,
+    double speed,
+    double altitude,
+    double? altitudeCorrected,
+    double slope,
+  ) {
+    return TimeData(
+      (ts - tsReference) / 1000,
+      speed,
+      altitude,
+      altitudeCorrected,
+      slope,
+    );
   }
 
   pause() {

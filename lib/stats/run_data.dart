@@ -87,8 +87,10 @@ class TrackedData {
   double longitude;
   double altitude;
   double gpsAccuracy;
+  double? altitudeCorrected;
   int? heartRate;
   int? stepsPerMin;
+  int? id;
 
   TrackedData({
     required this.runId,
@@ -97,17 +99,21 @@ class TrackedData {
     required this.longitude,
     required this.altitude,
     required this.gpsAccuracy,
+    this.altitudeCorrected,
     this.heartRate,
     this.stepsPerMin,
+    this.id,
   });
 
   factory TrackedData.fromDb(Map<String, dynamic> dbMap) {
     return TrackedData(
+      id: dbMap['id'] as int,
       runId: dbMap['run_id'] as int,
       timestamp: dbMap['timestamp'] as int,
       latitude: dbMap['latitude'] as double,
       longitude: dbMap['longitude'] as double,
       altitude: dbMap['altitude'] as double,
+      altitudeCorrected: dbMap['altitude_corrected'] as double?,
       gpsAccuracy: dbMap['gps_accuracy'] as double,
       heartRate: dbMap['heart_rate'] as int?,
       stepsPerMin: dbMap['steps_per_min'] as int?,
@@ -132,6 +138,7 @@ class TrackedData {
       "latitude": latitude,
       "longitude": longitude,
       "altitude": altitude,
+      "altitude_corrected": altitudeCorrected,
       "gps_accuracy": gpsAccuracy,
       "heart_rate": heartRate,
       "steps_per_min": stepsPerMin,
@@ -162,12 +169,17 @@ class TrackedData {
     }
 
     final mult = (ts - timestamp) / (other.timestamp - timestamp);
+    double? ac;
+    if (altitudeCorrected != null && other.altitudeCorrected != null){
+      ac = _interpolate(altitudeCorrected!, other.altitudeCorrected!, mult);
+    }
     return TrackedData(
       runId: runId,
       timestamp: ts,
       latitude: _interpolate(latitude, other.latitude, mult),
       longitude: _interpolate(longitude, other.longitude, mult),
       altitude: _interpolate(altitude, other.altitude, mult),
+      altitudeCorrected: ac,
       gpsAccuracy: _interpolate(gpsAccuracy, other.gpsAccuracy, mult),
     );
   }
@@ -179,6 +191,7 @@ class TrackedData {
         other.runId == runId &&
         other.gpsAccuracy == gpsAccuracy &&
         other.altitude == altitude &&
+        other.altitudeCorrected == altitudeCorrected &&
         other.latitude == latitude &&
         other.longitude == longitude &&
         other.timestamp == timestamp;
@@ -188,7 +201,7 @@ class TrackedData {
 
   @override
   String toString() {
-    return "$runId - $gpsAccuracy - ${altitude.toStringAsFixed(1)} - ${latitude.toStringAsFixed(6)} - $longitude - ${timestamp ~/ 1000}\n";
+    return "$runId - $gpsAccuracy - ${altitude.toStringAsFixed(1)}/${altitudeCorrected?.toStringAsFixed(1)} - ${latitude.toStringAsFixed(6)} - $longitude - ${timestamp ~/ 1000}\n";
   }
 
   @override
@@ -196,6 +209,7 @@ class TrackedData {
       runId.hashCode ^
       gpsAccuracy.hashCode ^
       altitude.hashCode ^
+      altitudeCorrected.hashCode ^
       latitude.hashCode ^
       longitude.hashCode ^
       timestamp.hashCode ^
@@ -209,6 +223,7 @@ class TrackedData {
       latitude: latitude,
       longitude: longitude,
       altitude: altitude,
+      altitudeCorrected: altitudeCorrected,
       gpsAccuracy: gpsAccuracy,
     );
   }
@@ -227,7 +242,8 @@ extension GpxIO on List<TrackedData> {
           (td) => Wpt(
             lat: td.latitude,
             lon: td.longitude,
-            ele: td.altitude,
+            ele: td.altitudeCorrected ?? td.altitude,
+            vdop: td.altitudeCorrected != null ? 0 : td.gpsAccuracy,
             time: DateTime.fromMillisecondsSinceEpoch(td.timestamp),
             hdop: td.gpsAccuracy,
           ),
@@ -246,6 +262,7 @@ extension GpxIO on List<TrackedData> {
             latitude: wp.lat ?? 0,
             longitude: wp.lon ?? 0,
             altitude: wp.ele ?? 0,
+            altitudeCorrected: (wp.vdop ?? 1) != 0 ? null : wp.ele,
             gpsAccuracy: wp.hdop ?? 0,
           ),
         )

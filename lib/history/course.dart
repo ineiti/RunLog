@@ -10,34 +10,45 @@ import 'package:share_plus/share_plus.dart';
 import '../stats/run_data.dart';
 import '../widgets/basic.dart';
 
-class DetailPage extends StatelessWidget {
-  final Run run;
+class DetailPage extends StatefulWidget {
+  const DetailPage({super.key, required this.storage, required this.run});
+
   final RunStorage storage;
-  final RunStats rr;
+  final Run run;
 
-  static DetailPage fromRun(Run run, RunStorage storage) {
-    final rr = RunStats.loadRun(storage, run.id);
-    rr.figureAddSlope(40);
-    rr.figureAddSpeed(20);
-    // rr.figureAddSpeed(2);
-    // rr.figureAddSpeed(100);
-    // rr.figureAddAltitude(100);
+  @override
+  State<StatefulWidget> createState() => _DetailPageState();
+}
 
-    return DetailPage(run: run, storage: storage, rr: rr);
+class _DetailPageState extends State<DetailPage> {
+  RunStats? rr;
+
+  @override
+  void initState() {
+    super.initState();
+    RunStats.loadRun(widget.storage, widget.run.id).then((runStats) {
+      setState(() {
+        rr = runStats;
+        // rr!.figureAddSlope(40);
+        rr!.figureAddSpeed(10);
+        rr!.figureAddSlope(5);
+        // rr.figureAddSpeed(2);
+        // rr.figureAddSpeed(100);
+        // rr!.figureAddAltitude(10);
+        rr!.figureAddAltitudeCorrected(10);
+        rr!.figureAddFigure();
+        rr!.figureAddSlopeStats(10);
+      });
+    });
   }
-
-  const DetailPage({
-    super.key,
-    required this.run,
-    required this.storage,
-    required this.rr,
-  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateFormat('dd MMMM yyyy - HH:mm').format(run.startTime)),
+        title: Text(
+          DateFormat('dd MMMM yyyy - HH:mm').format(widget.run.startTime),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -45,23 +56,32 @@ class DetailPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Text(
-              "${run.totalDistance.toInt()}m in ${run.duration ~/ 1000}s: "
-              "${paceMinKm(run.avgSpeed()).toStringAsFixed(1)} min/km",
+              "${widget.run.totalDistance.toInt()}m in ${widget.run.duration ~/ 1000}s: "
+              "${paceMinKm(widget.run.avgSpeed()).toStringAsFixed(1)} min/km",
             ),
             const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                blueButton("Export", () => _trackExport()),
-                blueButton("Delete", () => _trackDelete(context)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...rr.figures.runStats(),
+            ..._figures(),
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _figures() {
+    if (rr == null) {
+      return [Text("Loading data")];
+    }
+    return [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          blueButton("Export", () => _trackExport()),
+          blueButton("Delete", () => _trackDelete(context)),
+        ],
+      ),
+      const SizedBox(height: 10),
+      ...rr!.figures.runStats(),
+    ];
   }
 
   _trackDelete(BuildContext context) async {
@@ -78,7 +98,7 @@ class DetailPage extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () async {
-                  await storage.removeRun(run.id);
+                  await widget.storage.removeRun(widget.run.id);
                   // storage.updateRuns.add([]);
                   Navigator.of(context)
                     ..pop()
@@ -92,9 +112,9 @@ class DetailPage extends StatelessWidget {
   }
 
   _trackExport() async {
-    final content = rr.rawPositions.toGPX();
+    final content = rr!.rawPositions.toGPX();
     final name =
-        "run-${DateFormat('yyyy-MM-dd_HH:mm').format(run.startTime)}.gpx";
+        "run-${DateFormat('yyyy-MM-dd_HH:mm').format(widget.run.startTime)}.gpx";
     final params = ShareParams(
       files: [
         XFile.fromData(utf8.encode(content), mimeType: 'application/gpx+xml'),

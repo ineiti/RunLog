@@ -13,7 +13,6 @@ class GeoTracker {
   GTState? state;
 
   GeoTracker() {
-    print("permReq");
     gtStream.stream.listen((s) => state = s);
     gtStream.add(GTState.permissionRequest);
     _handlePermission().then((result) {
@@ -32,6 +31,7 @@ class GeoTracker {
               notificationTitle: "RunLogging your speed",
               enableWakeLock: true,
             ),
+            useMSLAltitude: true,
           );
         } else {
           locationSettings = LocationSettings(
@@ -42,10 +42,8 @@ class GeoTracker {
         positionStream = Geolocator.getPositionStream(
           locationSettings: locationSettings,
         );
-        print("permGrant");
         gtStream.add(GTState.permissionGranted);
       } else {
-        print("permRef");
         gtStream.add(GTState.permissionRefused);
       }
     });

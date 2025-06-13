@@ -85,7 +85,8 @@ class _HistoryState extends State<History> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => DetailPage.fromRun(run, widget.runStorage),
+                        (context) =>
+                            DetailPage(run: run, storage: widget.runStorage),
                   ),
                 );
               },
@@ -132,12 +133,12 @@ class _HistoryState extends State<History> {
     await _dbPrefill(
       Duration(hours: 1),
       200,
-      [3, .1, .2, .1, .3, .1],
-      [1000, 10, 5, 2, 1],
+      [3, .1, .2, .1, .3, .1, .2, .3, .2],
+      [0, 1, 5, 2, 1, 2, 5, 2, 5, 3, 5],
     );
     await _dbPrefill(
       Duration(hours: 5),
-      300,
+      100,
       [4, .2, .1, .4, .1, .2],
       [2000, 20, 10, 20, 10],
     );

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:run_log/running/running.dart';
 import 'package:run_log/stats/run_data.dart';
@@ -9,7 +10,8 @@ import 'package:run_log/storage.dart';
 
 import 'history/history.dart';
 
-void main() {
+Future main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -73,7 +75,7 @@ class _MyAppState extends State<MyApp> {
       newData.first.timestamp,
     );
     runStorage.updateRun(newRun);
-    RunStats rr = RunStats.loadRun(runStorage, newRun.id);
+    RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
     await rr.updateStats();
   }
 

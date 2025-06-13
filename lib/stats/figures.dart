@@ -11,6 +11,10 @@ class Figures {
 
   Figures();
 
+  clean() {
+    figures = [];
+  }
+
   updateData(List<TimeData> runningData) {
     for (var figure in figures) {
       figure.updateData(runningData);
@@ -19,6 +23,12 @@ class Figures {
 
   addFigure() {
     figures.add(Figure());
+  }
+
+  addSlopeStats(int filterLength) {
+    figures.last.lines.add(
+      LineStat(type: LineType.slopeStats, filterLength: filterLength),
+    );
   }
 
   addSpeed(int filterLength) {
@@ -30,6 +40,12 @@ class Figures {
   addAltitude(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.altitude, filterLength: filterLength),
+    );
+  }
+
+  addAltitudeCorrected(int filterLength) {
+    figures.last.lines.add(
+      LineStat(type: LineType.altitudeCorrected, filterLength: filterLength),
     );
   }
 
@@ -86,7 +102,7 @@ class Figure {
   }
 
   List<CartesianSeries> series() {
-    return lines.map((line) => line.serie()).toList();
+    return lines.map((line) => line.serie()).expand((l) => l).toList();
   }
 
   double maxValue() {
@@ -94,14 +110,16 @@ class Figure {
   }
 }
 
-enum LineType { speed, altitude, slope }
+enum LineType { speed, altitude, altitudeCorrected, slope, slopeStats }
 
 class LineStat {
   LineType type;
   late FilterData filter;
+  late FilterData second;
 
   LineStat({required this.type, required int filterLength}) {
     filter = FilterData(filterLength);
+    second = FilterData(filterLength);
   }
 
   updateData(List<TimeData> runningData) {
@@ -111,19 +129,74 @@ class LineStat {
         xyd = runningData.speed();
       case LineType.altitude:
         xyd = runningData.altitude();
+      case LineType.altitudeCorrected:
+        xyd = runningData.altitudeCorrected();
       case LineType.slope:
         xyd = runningData.slope();
+      case LineType.slopeStats:
+        filter.update(runningData.speed());
+        second.update(runningData.slope());
+        return;
     }
     filter.update(xyd);
     // print("Filter after update is: ${filter.filteredData.length}");
   }
 
-  CartesianSeries serie() {
-    if (type != LineType.slope) {
-      return _serieLines();
-    } else {
-      return _serieSlope();
+  List<CartesianSeries> serie() {
+    switch (type) {
+      case LineType.speed:
+      case LineType.altitudeCorrected:
+      case LineType.altitude:
+        return [_serieLines()];
+      case LineType.slope:
+        return [_serieSlope()];
+      case LineType.slopeStats:
+        return _serieSlopeStats();
     }
+  }
+
+  List<CartesianSeries> _serieSlopeStats() {
+    final slopes = List.from(second.filteredData).asMap().entries.toList();
+    slopes.sort((a, b) => a.value.y.compareTo(b.value.y));
+    print(slopes);
+    final bins = 4;
+    final List<(double, double, List<XYData>)> slopeStats = [
+      (0, 0, filter.filteredData),
+    ];
+    for (int bin = 0; bin < bins; bin++) {
+      final (from, to) = (
+        slopes.length * bin ~/ bins,
+        slopes.length * (bin + 1) ~/ bins - 1,
+      );
+      slopeStats.add((
+        1,
+        (slopes[from].value.y + slopes[to].value.y) / 2,
+        slopes
+            .sublist(from, to)
+            .map((sl) => filter.filteredData[sl.key])
+            .toList(),
+      ));
+    }
+    // final List<(double, double, List<XYData>)> slopeStats = [
+    //   (0, 0, [XYData(0, 0), XYData(5, 5), XYData(10, 10)]),
+    //   (1, 2, [XYData(0, 10), XYData(10, 5), XYData(5, 0)])
+    // ];
+    return slopeStats.map((ss) => _slopeStats(ss)).toList();
+  }
+
+  CartesianSeries _slopeStats((double, double, List<XYData>) slopeStat) {
+    print(slopeStat);
+    return ScatterSeries<XYData, String>(
+      dataSource: slopeStat.$3,
+      yAxisName: _label(),
+      opacity: slopeStat.$1,
+      isVisibleInLegend: slopeStat.$1 > 0.5,
+      animationDuration: 500,
+      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      yValueMapper: (XYData entry, _) => paceMinKm(entry.y),
+      name: "${slopeStat.$2.toStringAsFixed(1)}",
+      dataLabelSettings: DataLabelSettings(isVisible: false),
+    );
   }
 
   CartesianSeries _serieLines() {
@@ -156,13 +229,14 @@ class LineStat {
 
   ChartAxis axe() {
     final (min, max) = minMax();
+    final speedAxis = type == LineType.speed || type == LineType.slopeStats;
     return NumericAxis(
       name: _label(),
       minimum: min,
       maximum: max,
-      opposedPosition: type != LineType.speed,
+      opposedPosition: !speedAxis,
       axisLabelFormatter: (AxisLabelRenderDetails details) {
-        if (type == LineType.speed) {
+        if (speedAxis) {
           return ChartAxisLabel(labelYTime(details.text), details.textStyle);
         }
         return ChartAxisLabel(
@@ -170,7 +244,7 @@ class LineStat {
           details.textStyle,
         );
       },
-      isInversed: type != LineType.altitude,
+      isInversed: speedAxis,
     );
   }
 
@@ -179,8 +253,11 @@ class LineStat {
       return (0, 0);
     }
     switch (type) {
+      case LineType.slopeStats:
+        // return (0, 10);
       case LineType.speed:
         return minMaxPace();
+      case LineType.altitudeCorrected:
       case LineType.altitude:
         return (filter.min.floorToDouble(), filter.max.ceilToDouble());
       case LineType.slope:
@@ -210,12 +287,16 @@ class LineStat {
   String _label() {
     switch (type) {
       case LineType.speed:
-        return "Speed ${_filter()} [min/km]";
+        return "Speed ${_filter()}";
+      case LineType.altitudeCorrected:
+        return "Alt Corr ${_filter()}";
       case LineType.altitude:
-        return "Altitude${_filter()} [m]";
+        return "Alt${_filter()}";
       case LineType.slope:
         // print("Slope: ${filter.filteredData}");
-        return "Slope${_filter()} [%]";
+        return "Slope${_filter()}";
+      case LineType.slopeStats:
+        return "SlopeStat";
     }
   }
 

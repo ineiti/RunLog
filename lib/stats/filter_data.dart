@@ -86,9 +86,16 @@ class TimeData {
   final double ts;
   final double mps;
   final double altitude;
+  final double? altitudeCorrected;
   final double slope;
 
-  TimeData(this.ts, this.mps, this.altitude, this.slope);
+  TimeData(
+    this.ts,
+    this.mps,
+    this.altitude,
+    this.altitudeCorrected,
+    this.slope,
+  );
 }
 
 extension ListData on List<TimeData> {
@@ -98,6 +105,12 @@ extension ListData on List<TimeData> {
 
   List<XYData> altitude() {
     return map((td) => XYData(td.ts, td.altitude)).toList();
+  }
+
+  List<XYData> altitudeCorrected() {
+    return map(
+      (td) => XYData(td.ts, td.altitudeCorrected ?? td.altitude),
+    ).toList();
   }
 
   List<XYData> slope() {
