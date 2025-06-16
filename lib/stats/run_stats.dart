@@ -39,7 +39,26 @@ class RunStats {
       for (TrackedData td in rawPositions) {
         _newTracked(td);
       }
+      _finalize();
     }
+  }
+
+  // Start from the end and remove all points which are slower than
+  // `minSpeedRun`.
+  _finalize() {
+    FilterData speed = FilterData(10);
+    speed.update(runningData.speed());
+    double prev = speed.filteredData.last.y;
+    for (int pos = runningData.length - 2; pos >= 0; pos--) {
+      var curr = speed.filteredData[pos].y;
+      if (curr < minSpeedStart || prev < curr) {
+        prev = curr;
+        runningData.removeAt(pos+1);
+      } else {
+        break;
+      }
+    }
+    figures.updateData(runningData);
   }
 
   Stream<RSState> continuous(Stream<geo.Position> positions) {

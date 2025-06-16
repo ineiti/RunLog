@@ -31,12 +31,14 @@ class _DetailPageState extends State<DetailPage> {
         rr = runStats;
         // rr!.figureAddSlope(40);
         rr!.figureAddSpeed(10);
-        rr!.figureAddSlope(5);
+        rr!.figureAddSlope(10);
         // rr.figureAddSpeed(2);
         // rr.figureAddSpeed(100);
         // rr!.figureAddAltitude(10);
-        rr!.figureAddAltitudeCorrected(10);
+        // rr!.figureAddAltitudeCorrected(10);
         rr!.figureAddFigure();
+        // rr!.figureAddAltitude(10);
+        // rr!.figureAddAltitudeCorrected(10);
         rr!.figureAddSlopeStats(10);
       });
     });
@@ -114,7 +116,7 @@ class _DetailPageState extends State<DetailPage> {
   _trackExport() async {
     final content = rr!.rawPositions.toGPX();
     final name =
-        "run-${DateFormat('yyyy-MM-dd_HH:mm').format(widget.run.startTime)}.gpx";
+        "run-${DateFormat('yyyy-MM-dd_HH-mm').format(widget.run.startTime)}.gpx";
     final params = ShareParams(
       files: [
         XFile.fromData(utf8.encode(content), mimeType: 'application/gpx+xml'),

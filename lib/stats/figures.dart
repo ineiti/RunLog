@@ -158,7 +158,7 @@ class LineStat {
   List<CartesianSeries> _serieSlopeStats() {
     final slopes = List.from(second.filteredData).asMap().entries.toList();
     slopes.sort((a, b) => a.value.y.compareTo(b.value.y));
-    print(slopes);
+    // print(slopes);
     final bins = 4;
     final List<(double, double, List<XYData>)> slopeStats = [
       (0, 0, filter.filteredData),
@@ -185,7 +185,7 @@ class LineStat {
   }
 
   CartesianSeries _slopeStats((double, double, List<XYData>) slopeStat) {
-    print(slopeStat);
+    // print(slopeStat);
     return ScatterSeries<XYData, String>(
       dataSource: slopeStat.$3,
       yAxisName: _label(),

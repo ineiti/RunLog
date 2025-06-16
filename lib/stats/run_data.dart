@@ -170,7 +170,7 @@ class TrackedData {
 
     final mult = (ts - timestamp) / (other.timestamp - timestamp);
     double? ac;
-    if (altitudeCorrected != null && other.altitudeCorrected != null){
+    if (altitudeCorrected != null && other.altitudeCorrected != null) {
       ac = _interpolate(altitudeCorrected!, other.altitudeCorrected!, mult);
     }
     return TrackedData(
@@ -242,8 +242,11 @@ extension GpxIO on List<TrackedData> {
           (td) => Wpt(
             lat: td.latitude,
             lon: td.longitude,
-            ele: td.altitudeCorrected ?? td.altitude,
-            vdop: td.altitudeCorrected != null ? 0 : td.gpsAccuracy,
+            ele: td.altitude,
+            extensions:
+                td.altitudeCorrected == null
+                    ? null
+                    : {"altitudeCorrected": td.altitudeCorrected!},
             time: DateTime.fromMillisecondsSinceEpoch(td.timestamp),
             hdop: td.gpsAccuracy,
           ),
@@ -262,7 +265,10 @@ extension GpxIO on List<TrackedData> {
             latitude: wp.lat ?? 0,
             longitude: wp.lon ?? 0,
             altitude: wp.ele ?? 0,
-            altitudeCorrected: (wp.vdop ?? 1) != 0 ? null : wp.ele,
+            // This is not completely correct, but not too bad either...
+            altitudeCorrected: double.tryParse(
+              wp.extensions["altitudeCorrected"].toString(),
+            ),
             gpsAccuracy: wp.hdop ?? 0,
           ),
         )

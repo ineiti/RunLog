@@ -1,4 +1,4 @@
-package ch.ineiti.run_log
+package com.example.run_log
 
 import io.flutter.embedding.android.FlutterActivity
 
