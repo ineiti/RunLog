@@ -24,3 +24,15 @@ String labelYTime(String s) {
   final sec = ((value - min) * 60).round();
   return "$min' ${sec > 0 ? " $sec''" : ""}";
 }
+
+String distanceStr(double m) {
+  if (m < 1000) {
+    return "${m.toInt()}m";
+  } else if (m < 10000) {
+    return "${(m / 1000).toStringAsFixed(2)}km";
+  } else if (m < 100000) {
+    return "${(m / 1000).toStringAsFixed(1)}km";
+  } else {
+    return "${(m / 1000).toInt()}km";
+  }
+}

@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:run_log/configuration.dart';
+import 'package:run_log/stats/conversions.dart';
 
 import '../stats/run_data.dart';
 import '../storage.dart';
@@ -10,9 +12,14 @@ import '../widgets/basic.dart';
 import 'course.dart';
 
 class History extends StatefulWidget {
-  const History({super.key, required this.runStorage});
+  const History({
+    super.key,
+    required this.runStorage,
+    required this.configurationStorage,
+  });
 
   final RunStorage runStorage; // Add RunStorage property
+  final ConfigurationStorage configurationStorage; // Configuration
 
   @override
   State<History> createState() => _HistoryState();
@@ -49,26 +56,33 @@ class _HistoryState extends State<History> {
       ),
       body: Column(
         children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              blueButton(
-                "Delete",
-                () => setState(() {
-                  _dbDelete();
-                }),
-              ),
-              blueButton(
-                "PreFill",
-                () => setState(() {
-                  _createTwoTracks();
-                }),
-              ),
-            ],
-          ),
+          _debugRuns(),
           runs.isNotEmpty ? _courseList() : Text("No runs yet"),
         ],
       ),
+    );
+  }
+
+  Widget _debugRuns() {
+    if (!widget.configurationStorage.config.debug) {
+      return Text("");
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        blueButton(
+          "Delete",
+          () => setState(() {
+            _dbDelete();
+          }),
+        ),
+        blueButton(
+          "PreFill",
+          () => setState(() {
+            _createTwoTracks();
+          }),
+        ),
+      ],
     );
   }
 
@@ -85,8 +99,11 @@ class _HistoryState extends State<History> {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) =>
-                            DetailPage(run: run, storage: widget.runStorage),
+                        (context) => DetailPage(
+                          run: run,
+                          configurationStorage: widget.configurationStorage,
+                          storage: widget.runStorage,
+                        ),
                   ),
                 );
               },
@@ -112,7 +129,7 @@ class _HistoryState extends State<History> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           Text(
-                            "${run.totalDistance.toInt()}m in ${run.duration / 1000}s: "
+                            "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration / 1000)}: "
                             "${run.avgSpeed().toStringAsFixed(1)}m/s",
                           ),
                         ],

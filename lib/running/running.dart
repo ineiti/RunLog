@@ -3,14 +3,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:run_log/storage.dart';
 
+import '../configuration.dart';
 import '../stats/run_stats.dart';
 import '../widgets/basic.dart';
 import 'geotracker.dart';
 
 class Running extends StatefulWidget {
-  const Running({super.key, required this.runStorage});
+  const Running({
+    super.key,
+    required this.runStorage,
+    required this.configurationStorage,
+  });
 
   final RunStorage runStorage; // Add RunStorage property
+  final ConfigurationStorage configurationStorage; // Configuration
 
   @override
   State<Running> createState() => _RunningState();

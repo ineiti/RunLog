@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:run_log/configuration.dart';
 import 'package:run_log/running/running.dart';
+import 'package:run_log/settings/settings.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
@@ -22,48 +24,59 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
+class AppFutures {
+  final RunStorage runStorage;
+  final ConfigurationStorage configurationStorage;
+
+  static Future<AppFutures> start() async {
+    return AppFutures(
+      runStorage: await RunStorage.init(),
+      configurationStorage: await ConfigurationStorage.loadConfig(),
+    );
+  }
+
+  AppFutures({required this.runStorage, required this.configurationStorage});
+}
+
 class _MyAppState extends State<MyApp> {
-  late Future<RunStorage> _runStorageFuture;
+  late Future<AppFutures> _appFutures;
 
   @override
   void initState() {
     super.initState();
-    _runStorageFuture = RunStorage.init(); // Initialize RunStorage
+    _appFutures = AppFutures.start();
   }
 
-  void _handleIncomingIntent(RunStorage runStorage) async {
+  void _handleIncomingIntent(RunStorage runStorage, String altitudeURL) async {
     // For files shared while the app is closed
-    print("handling incoming intent");
     List<SharedMediaFile>? initialFiles =
         await ReceiveSharingIntent.instance.getInitialMedia();
-    print("getInitialMedia returned");
     if (initialFiles.isNotEmpty) {
-      print("got initialFiles");
       SharedMediaFile initialFile = initialFiles.first;
       if (initialFile.path.endsWith('.gpx')) {
-        print("getInitialMedia: ${initialFile.mimeType}");
-        _processGPXFile(runStorage, initialFile.path);
+        _processGPXFile(runStorage, initialFile.path, altitudeURL);
       }
     }
 
     // For files shared while the app is running
-    var some = ReceiveSharingIntent.instance.getMediaStream().listen(
+    ReceiveSharingIntent.instance.getMediaStream().listen(
       (List<SharedMediaFile> files) {
-        print("got media stream");
         if (files.isNotEmpty && files.first.path.endsWith('.gpx')) {
-          print("GetMediaStream: ${files.first.mimeType}");
-          _processGPXFile(runStorage, files.first.path);
-          _processGPXFile(runStorage, files.first.path);
+          _processGPXFile(runStorage, files.first.path, altitudeURL);
+          _processGPXFile(runStorage, files.first.path, altitudeURL);
         }
       },
       onError: (err) {
         print("Error in media stream: $err");
       },
     );
-    print("set up listening - $some");
   }
 
-  void _processGPXFile(RunStorage runStorage, String filePath) async {
+  void _processGPXFile(
+    RunStorage runStorage,
+    String filePath,
+    String altitudeURL,
+  ) async {
     File gpxFile = File(filePath);
     String content = await gpxFile.readAsString();
     Run newRun = await runStorage.createRun(DateTime.now());
@@ -75,7 +88,7 @@ class _MyAppState extends State<MyApp> {
       newData.first.timestamp,
     );
     runStorage.updateRun(newRun);
-    RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
+    RunStats rr = await RunStats.loadRun(runStorage, newRun.id, altitudeURL);
     await rr.updateStats();
   }
 
@@ -95,8 +108,8 @@ class _MyAppState extends State<MyApp> {
             ),
             title: const Text('RunLogger'),
           ),
-          body: FutureBuilder<RunStorage>(
-            future: _runStorageFuture, // The future we are waiting for
+          body: FutureBuilder<AppFutures>(
+            future: _appFutures, // The future we are waiting for
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 // While waiting for the future to complete, show a loading indicator
@@ -108,15 +121,26 @@ class _MyAppState extends State<MyApp> {
                 );
               } else if (snapshot.hasData) {
                 // If the future completed successfully and has data (the RunStorage instance)
-                final runStorage = snapshot.data!;
-                _handleIncomingIntent(runStorage);
+                final appFutures = snapshot.data!;
+                _handleIncomingIntent(
+                  appFutures.runStorage,
+                  appFutures.configurationStorage.config.altitudeURL,
+                );
 
                 return TabBarView(
                   children: [
                     // Pass the initialized RunStorage to the Running widget
-                    History(runStorage: runStorage),
-                    Running(runStorage: runStorage),
-                    const Icon(Icons.directions_bike),
+                    History(
+                      runStorage: appFutures.runStorage,
+                      configurationStorage: appFutures.configurationStorage,
+                    ),
+                    Running(
+                      runStorage: appFutures.runStorage,
+                      configurationStorage: appFutures.configurationStorage,
+                    ),
+                    Settings(
+                      configurationStorage: appFutures.configurationStorage,
+                    ),
                   ],
                 );
               } else {

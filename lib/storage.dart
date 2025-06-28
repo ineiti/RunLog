@@ -33,7 +33,10 @@ class RunStorage {
     updateRuns.add([]);
   }
 
-  Future<List<TrackedData>> loadTrackedData(int runId) async {
+  Future<List<TrackedData>> loadTrackedData(
+    int runId,
+    String altitudeURL,
+  ) async {
     // if (_trackedData.containsKey(runId)) {
     //   return _trackedData[runId]!;
     // }
@@ -47,18 +50,20 @@ class RunStorage {
     final allTrackedData =
         trackedDataMaps.map((map) => TrackedData.fromDb(map)).toList();
 
-    // Update trackedData with real altitude reading, if available
-    final List<int> tdUpdate = [];
-    for (int i = 0; i < allTrackedData.length; i++) {
-      if (allTrackedData[i].altitudeCorrected == null) {
-        tdUpdate.add(i);
+    if (altitudeURL != "") {
+      // Update trackedData with real altitude reading, if available
+      final List<int> tdUpdate = [];
+      for (int i = 0; i < allTrackedData.length; i++) {
+        if (allTrackedData[i].altitudeCorrected == null) {
+          tdUpdate.add(i);
+        }
+        if (tdUpdate.length >= 100) {
+          await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
+          tdUpdate.clear();
+        }
       }
-      if (tdUpdate.length >= 100) {
-        await _updateTrackedData(allTrackedData, tdUpdate);
-        tdUpdate.clear();
-      }
+      await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
     }
-    await _updateTrackedData(allTrackedData, tdUpdate);
 
     _trackedData[runId] = [];
     for (var data in allTrackedData) {
@@ -71,6 +76,7 @@ class RunStorage {
   _updateTrackedData(
     List<TrackedData> allTrackedData,
     List<int> tdUpdate,
+    String altitudeURL,
   ) async {
     print("Updating ${tdUpdate.length} entries");
     if (tdUpdate.isEmpty) {
@@ -83,6 +89,7 @@ class RunStorage {
               (i) => (allTrackedData[i].latitude, allTrackedData[i].longitude),
             )
             .toList(),
+        altitudeURL,
       );
       if (acs.length == tdUpdate.length) {
         for (int i in tdUpdate) {
@@ -95,12 +102,18 @@ class RunStorage {
     }
   }
 
-  Future<List<double?>> _fetchAltitudes(List<(double, double)> pos) async {
+  Future<List<double?>> _fetchAltitudes(
+    List<(double, double)> pos,
+    String altitudeURL,
+  ) async {
     final locations =
         "?locations=${pos.map((ll) => "${ll.$1.toStringAsFixed(6)},${ll.$2.toStringAsFixed(6)}").join("|")}";
     // print("Locations are: $locations");
     final url =
-        dotenv.env["TOPO_URL"] ?? 'https://api.opendata.org/v1/eudem25m';
+        dotenv.env["TOPO_URL"] ??
+        (altitudeURL != ""
+            ? altitudeURL
+            : 'https://api.opendata.org/v1/eudem25m');
     print("Getting altitudes from $url");
     final response = await http.get(
       Uri.parse("$url$locations"),
@@ -185,7 +198,7 @@ class RunStorage {
       stepsPerMin: stepsPerMin,
     );
     if (data.altitudeCorrected == null) {
-      final ac = await _fetchAltitudes([(data.latitude, data.longitude)]);
+      final ac = await _fetchAltitudes([(data.latitude, data.longitude)], "");
       if (ac.length == 1) {
         data.altitudeCorrected = ac[0];
       }

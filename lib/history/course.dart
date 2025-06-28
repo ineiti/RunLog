@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:run_log/configuration.dart';
 import 'package:run_log/stats/conversions.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
@@ -11,9 +12,15 @@ import '../stats/run_data.dart';
 import '../widgets/basic.dart';
 
 class DetailPage extends StatefulWidget {
-  const DetailPage({super.key, required this.storage, required this.run});
+  const DetailPage({
+    super.key,
+    required this.storage,
+    required this.configurationStorage,
+    required this.run,
+  });
 
   final RunStorage storage;
+  final ConfigurationStorage configurationStorage;
   final Run run;
 
   @override
@@ -26,12 +33,17 @@ class _DetailPageState extends State<DetailPage> {
   @override
   void initState() {
     super.initState();
-    RunStats.loadRun(widget.storage, widget.run.id).then((runStats) {
+    RunStats.loadRun(
+      widget.storage,
+      widget.run.id,
+      widget.configurationStorage.config.altitudeURL,
+    ).then((runStats) {
       setState(() {
         rr = runStats;
+        var fl = 50;
         // rr!.figureAddSlope(40);
-        rr!.figureAddSpeed(10);
-        rr!.figureAddSlope(10);
+        rr!.figureAddSpeed(fl);
+        rr!.figureAddSlope(fl);
         // rr.figureAddSpeed(2);
         // rr.figureAddSpeed(100);
         // rr!.figureAddAltitude(10);
@@ -39,7 +51,7 @@ class _DetailPageState extends State<DetailPage> {
         rr!.figureAddFigure();
         // rr!.figureAddAltitude(10);
         // rr!.figureAddAltitudeCorrected(10);
-        rr!.figureAddSlopeStats(10);
+        rr!.figureAddSlopeStats(fl);
       });
     });
   }
@@ -58,7 +70,7 @@ class _DetailPageState extends State<DetailPage> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Text(
-              "${widget.run.totalDistance.toInt()}m in ${widget.run.duration ~/ 1000}s: "
+              "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
               "${paceMinKm(widget.run.avgSpeed()).toStringAsFixed(1)} min/km",
             ),
             const SizedBox(height: 10),

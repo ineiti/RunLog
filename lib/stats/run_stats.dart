@@ -28,9 +28,9 @@ class RunStats {
     return RunStats(rawPositions: [], run: run, storage: storage);
   }
 
-  static Future<RunStats> loadRun(RunStorage storage, int runId) async {
+  static Future<RunStats> loadRun(RunStorage storage, int runId, String altitudeURL) async {
     final run = storage.runs[runId]!;
-    final rawPos = await storage.loadTrackedData(runId);
+    final rawPos = await storage.loadTrackedData(runId, altitudeURL);
     return RunStats(rawPositions: rawPos, run: run, storage: storage);
   }
 
