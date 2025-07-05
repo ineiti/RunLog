@@ -12,7 +12,7 @@ void main() {
 
   expectMS(double ms, double minKm) {
     if (minKm > 0) {
-      expectFloat(ms, speedMS(minKm));
+      expectFloat(ms, toSpeedMS(minKm));
     } else {
       expectFloat(ms, 0);
     }

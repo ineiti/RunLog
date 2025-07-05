@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart' as geo;
+import 'package:run_log/stats/conversions.dart';
 import 'package:run_log/stats/filter_data.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/storage.dart';
@@ -18,8 +19,8 @@ class RunStats {
   Resampler? resampler;
   Run run;
   double minAccuracy = 10;
-  double minSpeedStart = 1.75;
-  double minSpeedRun = 1;
+  double minSpeedStart = toSpeedMS(8);
+  double minSpeedRun = toSpeedMS(16);
   bool runPaused = false;
   StreamSubscription<geo.Position>? positionSub;
 

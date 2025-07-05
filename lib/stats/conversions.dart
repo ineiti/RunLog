@@ -11,14 +11,14 @@ String timeHMS(double s) {
   }
 }
 
-double paceMinKm(double mps) {
+double toPaceMinKm(double mps) {
   if (mps <= 0) {
     return mps;
   }
   return 1000 / 60 / mps;
 }
 
-double speedMS(double minKm){
+double toSpeedMS(double minKm){
   if (minKm <= 0){
     return minKm;
   }

@@ -193,7 +193,7 @@ class LineStat {
       isVisibleInLegend: slopeStat.$1 > 0.5,
       animationDuration: 500,
       xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
-      yValueMapper: (XYData entry, _) => paceMinKm(entry.y),
+      yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
       name: "${slopeStat.$2.toStringAsFixed(1)}",
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
@@ -208,7 +208,7 @@ class LineStat {
       xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
       yValueMapper:
           (XYData entry, _) =>
-              type == LineType.speed ? paceMinKm(entry.y) : entry.y,
+              type == LineType.speed ? toPaceMinKm(entry.y) : entry.y,
       name: _label(),
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
@@ -271,8 +271,8 @@ class LineStat {
     // Pace is the inverse of speed, so it's normal that max is assigned to min,
     // and vice-versa.
     var (minPace, maxPace) = (
-      (paceMinKm(filter.max) * 6).floor() / 6,
-      (paceMinKm(filter.min) * 6).ceil() / 6,
+      (toPaceMinKm(filter.max) * 6).floor() / 6,
+      (toPaceMinKm(filter.min) * 6).ceil() / 6,
     );
     var med = (maxPace + minPace) / 2;
     if (med + 0.5 > maxPace) {

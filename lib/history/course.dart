@@ -71,7 +71,7 @@ class _DetailPageState extends State<DetailPage> {
           children: [
             Text(
               "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
-              "${paceMinKm(widget.run.avgSpeed()).toStringAsFixed(1)} min/km",
+              "${toPaceMinKm(widget.run.avgSpeed()).toStringAsFixed(1)} min/km",
             ),
             const SizedBox(height: 10),
             ..._figures(),
