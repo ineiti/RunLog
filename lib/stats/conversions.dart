@@ -18,6 +18,13 @@ double paceMinKm(double mps) {
   return 1000 / 60 / mps;
 }
 
+double speedMS(double minKm){
+  if (minKm <= 0){
+    return minKm;
+  }
+  return 1000 / 60 / minKm;
+}
+
 String labelYTime(String s) {
   final value = double.parse(s);
   final min = value.toInt();

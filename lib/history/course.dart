@@ -40,7 +40,7 @@ class _DetailPageState extends State<DetailPage> {
     ).then((runStats) {
       setState(() {
         rr = runStats;
-        var fl = 50;
+        var fl = 5;
         // rr!.figureAddSlope(40);
         rr!.figureAddSpeed(fl);
         rr!.figureAddSlope(fl);

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:run_log/running/sound_feedback.dart';
 import 'package:run_log/storage.dart';
 
 import '../configuration.dart';
@@ -29,6 +30,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   RunStats? runStats;
   StreamController<RunState> widgetController = StreamController.broadcast();
   late Stream<RSState> runStream;
+  int soundIntervalS = 15;
+  late int lastSoundS;
+  final SoundFeedback feedback = SoundFeedback();
 
   @override
   bool get wantKeepAlive => true;
@@ -36,7 +40,18 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
+    lastSoundS = soundIntervalS;
     geoTracker = GeoTracker();
+    final fb24km = SFEntry.startMinKm(6);
+    fb24km.addPoint(SpeedPoint.fromMinKm(6300, 8));
+    fb24km.addPoint(SpeedPoint.fromMinKm(7000, 6));
+    fb24km.addPoint(SpeedPoint.fromMinKm(8400, 7));
+    fb24km.addPoint(SpeedPoint.fromMinKm(8800, 6));
+    fb24km.addPoint(SpeedPoint.fromMinKm(10100, 8));
+    fb24km.addPoint(SpeedPoint.calc(10800));
+    fb24km.stop(24000);
+    fb24km.calcTotal(24 * 6 * 60);
+    feedback.entries.add(fb24km);
   }
 
   @override
@@ -118,7 +133,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetRunning(BuildContext context, RSState? s) {
-    print("RRState is $s");
+    // print("RRState is $s");
     switch (s ?? runStats?.state) {
       case null:
         return [_stats("Waiting for GPS")];
@@ -147,6 +162,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _showRunning(BuildContext context, bool pause) {
+    if (runStats!.duration() >= lastSoundS) {
+      feedback.playSound(0, runStats!.distance(), runStats!.duration());
+      lastSoundS += soundIntervalS;
+    }
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
@@ -161,6 +180,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         children: <Widget>[
           blueButton("Reset", () {
             setState(() {
+              lastSoundS = 0;
               runStats!.reset();
               widgetController.add(RunState.running);
             });
@@ -170,6 +190,26 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
               _stop(context);
             });
           }),
+          DropdownButton<int>(
+            value: soundIntervalS,
+            icon: const Icon(Icons.arrow_downward),
+            elevation: 16,
+            style: const TextStyle(color: Colors.deepPurple),
+            underline: Container(height: 2, color: Colors.deepPurpleAccent),
+            onChanged: (int? value) {
+              // This is called when the user selects an item.
+              soundIntervalS = value!;
+            },
+            items:
+                [5, 15, 30, 45, 60, 3600].map<DropdownMenuItem<int>>((
+                  int value,
+                ) {
+                  return DropdownMenuItem<int>(
+                    value: value,
+                    child: Text("$value s"),
+                  );
+                }).toList(),
+          ),
         ],
       ),
       Column(

@@ -65,7 +65,9 @@ Probably not...
 
 # Changelog
 
-2025-05-19:
-- Initial first version
+2025-07-05:
+- Added sound feedback, but need to make it configurable
 2025-06-28:
 - Stable enough to use for running
+2025-05-19:
+- Initial first version
