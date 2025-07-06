@@ -63,7 +63,7 @@ class RunStats {
   }
 
   Stream<RSState> continuous(Stream<geo.Position> positions) {
-    StreamController<RSState> rrStream = StreamController();
+    StreamController<RSState> rrStream = StreamController.broadcast();
 
     positionSub = positions.listen((pos) {
       addPosition(pos);

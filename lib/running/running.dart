@@ -97,6 +97,15 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       runStats!.figures.addSpeed(20);
       runStats!.figures.addSlope(20);
       runStream = runStats!.continuous(geoTracker.positionStream);
+      runStream.listen((state) {
+        print("Last duration: ${runStats!.duration()}");
+        if (runStats!.duration() >= lastSoundS) {
+          feedback.playSound(0, runStats!.distance(), runStats!.duration());
+          while (lastSoundS < runStats!.duration()) {
+            lastSoundS += soundIntervalS;
+          }
+        }
+      });
       widgetController.add(RunState.running);
     });
   }
@@ -162,10 +171,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _showRunning(BuildContext context, bool pause) {
-    if (runStats!.duration() >= lastSoundS) {
-      feedback.playSound(0, runStats!.distance(), runStats!.duration());
-      lastSoundS += soundIntervalS;
-    }
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
@@ -197,18 +202,19 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             style: const TextStyle(color: Colors.deepPurple),
             underline: Container(height: 2, color: Colors.deepPurpleAccent),
             onChanged: (int? value) {
-              // This is called when the user selects an item.
-              soundIntervalS = value!;
+              setState(() {
+                soundIntervalS = value!;
+              });
             },
             items:
-                [5, 15, 30, 45, 60, 3600].map<DropdownMenuItem<int>>((
-                  int value,
-                ) {
-                  return DropdownMenuItem<int>(
-                    value: value,
-                    child: Text("$value s"),
-                  );
-                }).toList(),
+                [5, 15, 30, 45, 60, 3600]
+                    .map(
+                      (value) => DropdownMenuItem<int>(
+                        value: value,
+                        child: Text("$value s"),
+                      ),
+                    )
+                    .toList(),
           ),
         ],
       ),
