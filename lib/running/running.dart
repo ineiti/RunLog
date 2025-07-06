@@ -82,7 +82,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         widgetController.add(RunState.waitGPS);
         return Text("Initializing");
       case RunState.waitGPS:
-        return _streamBuilder(geoTracker.stream, _widgetWaitGPS);
+        return _streamBuilder(geoTracker.streamState, _widgetWaitGPS);
       case RunState.waitUser:
         return blueButton("Start Running", () => _startRunning());
       case RunState.running:
@@ -96,12 +96,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       runStats!.figures.addSpeed(5);
       runStats!.figures.addSpeed(20);
       runStats!.figures.addSlope(20);
-      runStream = runStats!.continuous(geoTracker.positionStream);
+      runStream = runStats!.continuous(geoTracker.streamPosition);
       runStream.listen((state) {
-        print("Last duration: ${runStats!.duration()}");
         if (runStats!.duration() >= lastSoundS) {
           feedback.playSound(0, runStats!.distance(), runStats!.duration());
-          while (lastSoundS < runStats!.duration()) {
+          while (lastSoundS <= runStats!.duration()) {
             lastSoundS += soundIntervalS;
           }
         }
@@ -126,8 +125,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetWaitGPS(BuildContext context, GTState? s) {
-    print("_widgetWaitGPS($s) - ${geoTracker.state}");
-    print("${s ?? geoTracker.state}");
+    // print("_widgetWaitGPS($s) - ${geoTracker.state}");
+    // print("${s ?? geoTracker.state}");
     switch (s ?? geoTracker.state) {
       case null:
         return [_stats("Starting up")];
@@ -187,7 +186,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             setState(() {
               lastSoundS = 0;
               runStats!.reset();
-              widgetController.add(RunState.running);
+              widgetController.add(RunState.waitGPS);
             });
           }),
           blueButton("Stop", () {
@@ -204,6 +203,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             onChanged: (int? value) {
               setState(() {
                 soundIntervalS = value!;
+                lastSoundS = (runStats!.duration() + soundIntervalS).toInt();
               });
             },
             items:
@@ -260,11 +260,16 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     return Text(s, style: Theme.of(context).textTheme.headlineMedium);
   }
 
+  _cancel() {
+    print("Cancelling");
+    runStats?.cancel();
+    widgetController.add(RunState.waitUser);
+  }
+
   _stop(BuildContext context) {
     if (runStats!.runningData.last.mps < runStats!.minSpeedStart ||
         runStats!.runPaused) {
-      runStats?.cancel();
-      widgetController.add(RunState.waitUser);
+      _cancel();
     } else {
       showDialog<String>(
         context: context,
@@ -279,8 +284,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
                 ),
                 TextButton(
                   onPressed: () async {
-                    runStats?.cancel();
-                    widgetController.add(RunState.waitUser);
+                    _cancel();
                     Navigator.pop(context);
                   },
                   child: const Text('End Run'),

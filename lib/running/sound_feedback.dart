@@ -51,6 +51,7 @@ class Sound {
   start() async {
     _setupSession();
     await FlutterPcmSound.release();
+    FlutterPcmSound.setLogLevel(LogLevel.none);
     await FlutterPcmSound.setup(sampleRate: sampleRate, channelCount: 1);
     await FlutterPcmSound.setFeedThreshold(8000);
     FlutterPcmSound.setFeedCallback((rest) => _feed(rest == 0));

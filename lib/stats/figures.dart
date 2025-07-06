@@ -98,7 +98,24 @@ class Figure {
   }
 
   List<ChartAxis> axes() {
-    return lines.map((line) => line.axe()).toList();
+    final List<(LineType, (double, double))> axeMinMax =
+        lines.map((l) => (l.type, l.minMax())).toList();
+    axeMinMax.sort((a, b) => a.$1.toString().compareTo(b.$1.toString()));
+    for (var pos = 0; pos + 1 < axeMinMax.length;) {
+      final posMM = axeMinMax[pos];
+      final nextMM = axeMinMax[pos + 1];
+      if (posMM.$1 == nextMM.$1) {
+        // As the speed is given as the pace in km/min, the minimum value is
+        // the highest pace.
+        final valMin = max(posMM.$2.$1, nextMM.$2.$1);
+        final valMax = min(posMM.$2.$2, nextMM.$2.$2);
+        axeMinMax[pos] = (posMM.$1, (valMin, valMax));
+        axeMinMax.removeAt(pos + 1);
+      } else {
+        pos++;
+      }
+    }
+    return axeMinMax.map((axe) => LineStat.axe(axe.$1, axe.$2)).toList();
   }
 
   List<CartesianSeries> series() {
@@ -116,6 +133,27 @@ class LineStat {
   LineType type;
   late FilterData filter;
   late FilterData second;
+
+  static ChartAxis axe(LineType type, (double, double) mm) {
+    final (min, max) = mm;
+    final speedAxis = type == LineType.speed || type == LineType.slopeStats;
+    return NumericAxis(
+      name: "$type",
+      minimum: min,
+      maximum: max,
+      opposedPosition: !speedAxis,
+      axisLabelFormatter: (AxisLabelRenderDetails details) {
+        if (speedAxis) {
+          return ChartAxisLabel(labelYTime(details.text), details.textStyle);
+        }
+        return ChartAxisLabel(
+          double.parse(details.text).toStringAsFixed(1),
+          details.textStyle,
+        );
+      },
+      isInversed: speedAxis,
+    );
+  }
 
   LineStat({required this.type, required int filterLength}) {
     filter = FilterData(filterLength);
@@ -188,13 +226,13 @@ class LineStat {
     // print(slopeStat);
     return ScatterSeries<XYData, String>(
       dataSource: slopeStat.$3,
-      yAxisName: _label(),
+      yAxisName: "$type",
       opacity: slopeStat.$1,
       isVisibleInLegend: slopeStat.$1 > 0.5,
       animationDuration: 500,
       xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
       yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
-      name: "${slopeStat.$2.toStringAsFixed(1)}",
+      name: slopeStat.$2.toStringAsFixed(1),
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
   }
@@ -203,7 +241,7 @@ class LineStat {
     // print("Filtered data is: ${filter.filteredData.length}");
     return LineSeries<XYData, String>(
       dataSource: filter.filteredData,
-      yAxisName: _label(),
+      yAxisName: "$type",
       animationDuration: 500,
       xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
       yValueMapper:
@@ -219,32 +257,11 @@ class LineStat {
       dataSource: filter.filteredData,
       xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
       yValueMapper: (XYData entry, _) => entry.y,
-      yAxisName: _label(),
+      yAxisName: "$type",
       name: _label(),
       pointColorMapper:
           (XYData entry, _) =>
               entry.y >= 0 ? Color(0xFFFFBBBB) : Color(0xFF99FF99),
-    );
-  }
-
-  ChartAxis axe() {
-    final (min, max) = minMax();
-    final speedAxis = type == LineType.speed || type == LineType.slopeStats;
-    return NumericAxis(
-      name: _label(),
-      minimum: min,
-      maximum: max,
-      opposedPosition: !speedAxis,
-      axisLabelFormatter: (AxisLabelRenderDetails details) {
-        if (speedAxis) {
-          return ChartAxisLabel(labelYTime(details.text), details.textStyle);
-        }
-        return ChartAxisLabel(
-          double.parse(details.text).toStringAsFixed(1),
-          details.textStyle,
-        );
-      },
-      isInversed: speedAxis,
     );
   }
 
@@ -254,7 +271,7 @@ class LineStat {
     }
     switch (type) {
       case LineType.slopeStats:
-        // return (0, 10);
+      // return (0, 10);
       case LineType.speed:
         return minMaxPace();
       case LineType.altitudeCorrected:
