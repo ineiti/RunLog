@@ -29,7 +29,11 @@ class RunStats {
     return RunStats(rawPositions: [], run: run, storage: storage);
   }
 
-  static Future<RunStats> loadRun(RunStorage storage, int runId, String altitudeURL) async {
+  static Future<RunStats> loadRun(
+    RunStorage storage,
+    int runId,
+    String altitudeURL,
+  ) async {
     final run = storage.runs[runId]!;
     final rawPos = await storage.loadTrackedData(runId, altitudeURL);
     return RunStats(rawPositions: rawPos, run: run, storage: storage);
@@ -49,12 +53,15 @@ class RunStats {
   _finalize() {
     FilterData speed = FilterData(10);
     speed.update(runningData.speed());
+    if (speed.filteredData.isEmpty) {
+      return;
+    }
     double prev = speed.filteredData.last.y;
     for (int pos = runningData.length - 2; pos >= 0; pos--) {
       var curr = speed.filteredData[pos].y;
       if (curr < minSpeedStart || prev < curr) {
         prev = curr;
-        runningData.removeAt(pos+1);
+        runningData.removeAt(pos + 1);
       } else {
         break;
       }
@@ -179,7 +186,7 @@ class RunStats {
   }
 
   void _newResampled(TrackedData td) {
-    // print("lastMov: ${lastMovement?.debug()}");
+    // print("lastMov: $lastMovement");
     // print("td: $td");
     final speed = lastMovement!.speedMS(td);
     // print("Speed: $speed");

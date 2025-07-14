@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,10 +10,18 @@ enum GTState { permissionRequest, permissionRefused, permissionGranted }
 /// to useful data to be displayed by the app.
 class GeoTracker {
   final StreamController<GTState> gtStream = StreamController.broadcast();
+  final bool simul;
   GTState? state;
 
-  GeoTracker() {
+  GeoTracker({this.simul = false}) {
     gtStream.stream.listen((s) => state = s);
+    if (simul) {
+      state = GTState.permissionRequest;
+      Timer.periodic(const Duration(seconds: 1), (timer) {
+        gtStream.add(GTState.permissionGranted);
+        timer.cancel();
+      });
+    }
     gtStream.add(GTState.permissionRequest);
     _handlePermission().then((result) {
       if (result) {
@@ -26,8 +35,33 @@ class GeoTracker {
   Stream<GTState> get streamState => gtStream.stream;
 
   Stream<Position> get streamPosition {
-    if (state != GTState.permissionGranted){
+    if (state != GTState.permissionGranted) {
       throw "Permission for position is not granted!";
+    }
+
+    if (simul) {
+      final streamPos = StreamController<Position>.broadcast();
+      var latitude = 0.0;
+      var now = DateTime.now();
+      Timer.periodic(const Duration(seconds: 2), (timer) {
+        now = now.add(Duration(seconds: 2));
+        latitude += 0.00011;
+        streamPos.add(
+          Position(
+            longitude: 0,
+            latitude: latitude,
+            timestamp: now,
+            accuracy: 1,
+            altitude: 100,
+            altitudeAccuracy: 10,
+            heading: 0,
+            headingAccuracy: 10,
+            speed: 10,
+            speedAccuracy: 5,
+          ),
+        );
+      });
+      return streamPos.stream;
     }
 
     late LocationSettings locationSettings;
@@ -40,7 +74,7 @@ class GeoTracker {
         intervalDuration: const Duration(seconds: 5),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationText:
-          "RunLog continues receiving location updates even when not in foreground",
+              "RunLog continues receiving location updates even when not in foreground",
           notificationTitle: "RunLogging your speed",
           enableWakeLock: true,
         ),
@@ -53,9 +87,7 @@ class GeoTracker {
       );
     }
 
-    return Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    );
+    return Geolocator.getPositionStream(locationSettings: locationSettings);
   }
 
   Future<bool> _handlePermission() async {

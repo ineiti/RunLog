@@ -50,20 +50,19 @@ class RunStorage {
     final allTrackedData =
         trackedDataMaps.map((map) => TrackedData.fromDb(map)).toList();
 
-    if (altitudeURL != "") {
-      // Update trackedData with real altitude reading, if available
-      final List<int> tdUpdate = [];
-      for (int i = 0; i < allTrackedData.length; i++) {
-        if (allTrackedData[i].altitudeCorrected == null) {
-          tdUpdate.add(i);
-        }
-        if (tdUpdate.length >= 100) {
-          await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
-          tdUpdate.clear();
-        }
+    // Update trackedData with real altitude reading, if available
+    final List<int> tdUpdate = [];
+    for (int i = 0; i < allTrackedData.length; i++) {
+      if (allTrackedData[i].altitudeCorrected == null) {
+        tdUpdate.add(i);
       }
-      await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
+      if (tdUpdate.length >= 100) {
+        print("Updating batch $i / ${allTrackedData.length / 100} entries");
+        await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
+        tdUpdate.clear();
+      }
     }
+    await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
 
     _trackedData[runId] = [];
     for (var data in allTrackedData) {
@@ -78,7 +77,6 @@ class RunStorage {
     List<int> tdUpdate,
     String altitudeURL,
   ) async {
-    print("Updating ${tdUpdate.length} entries");
     if (tdUpdate.isEmpty) {
       return;
     }

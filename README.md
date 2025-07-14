@@ -65,6 +65,11 @@ Probably not...
 
 # Changelog
 
+2025-07-14:
+- Fixed sound feedback
+- Fixed fetching of height
+- Fixed some off-by-one errors and crash when working on empty lists
+- Added GPS simulation for phone
 2025-07-05:
 - Added sound feedback, but need to make it configurable
 2025-06-28:

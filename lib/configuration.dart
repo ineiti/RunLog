@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class Configuration {
   final bool debug;
+  final bool simulateGPS;
   final String altitudeURL;
   static int version = 1;
 
@@ -12,26 +13,48 @@ class Configuration {
       case 1:
         return Configuration(
           debug: (conf['debug'] ?? false) as bool,
+          simulateGPS: (conf['simulateGPS'] ?? false) as bool,
           altitudeURL: (conf['altitudeURL'] ?? "") as String,
         );
       default:
-        return Configuration(debug: false, altitudeURL: "");
+        return Configuration(debug: false, simulateGPS: false, altitudeURL: "");
     }
   }
 
-  Configuration({required this.debug, required this.altitudeURL});
+  Configuration({
+    required this.debug,
+    required this.simulateGPS,
+    required this.altitudeURL,
+  });
 
   Configuration setDebut(bool debug) {
-    return Configuration(debug: debug, altitudeURL: altitudeURL);
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+    );
   }
 
   Configuration setAltitudeURL(String altitudeURL) {
-    return Configuration(debug: debug, altitudeURL: altitudeURL);
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+    );
+  }
+
+  Configuration setSimulateGPS(bool simulateGPS) {
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+    );
   }
 
   String toJson() {
     return jsonEncode({
       'debug': debug,
+      'simulateGPS': simulateGPS,
       'altitudeURL': altitudeURL,
       'version': version,
     });

@@ -30,9 +30,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   RunStats? runStats;
   StreamController<RunState> widgetController = StreamController.broadcast();
   late Stream<RSState> runStream;
-  int soundIntervalS = 15;
+  int soundIntervalS = 5;
   late int lastSoundS;
-  final SoundFeedback feedback = SoundFeedback();
+  late SoundFeedback feedback;
 
   @override
   bool get wantKeepAlive => true;
@@ -41,17 +41,16 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     lastSoundS = soundIntervalS;
-    geoTracker = GeoTracker();
-    final fb24km = SFEntry.startMinKm(6);
-    fb24km.addPoint(SpeedPoint.fromMinKm(6300, 8));
-    fb24km.addPoint(SpeedPoint.fromMinKm(7000, 6));
-    fb24km.addPoint(SpeedPoint.fromMinKm(8400, 7));
-    fb24km.addPoint(SpeedPoint.fromMinKm(8800, 6));
-    fb24km.addPoint(SpeedPoint.fromMinKm(10100, 8));
-    fb24km.addPoint(SpeedPoint.calc(10800));
-    fb24km.stop(24000);
-    fb24km.calcTotal(24 * 6 * 60);
-    feedback.entries.add(fb24km);
+    geoTracker = GeoTracker(
+      simul: widget.configurationStorage.config.simulateGPS,
+    );
+    SoundFeedback.init().then((sf) {
+      feedback = sf;
+      final fb24km = SFEntry.startMinKm(6);
+      fb24km.stop(5000);
+      fb24km.calcTotal(5 * 6 * 60);
+      feedback.entries.add(fb24km);
+    });
   }
 
   @override
@@ -98,6 +97,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       runStats!.figures.addSlope(20);
       runStream = runStats!.continuous(geoTracker.streamPosition);
       runStream.listen((state) {
+        // print("${runStats!.duration()} / $lastSoundS");
         if (runStats!.duration() >= lastSoundS) {
           feedback.playSound(0, runStats!.distance(), runStats!.duration());
           while (lastSoundS <= runStats!.duration()) {
@@ -184,9 +184,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         children: <Widget>[
           blueButton("Reset", () {
             setState(() {
-              lastSoundS = 0;
-              runStats!.reset();
-              widgetController.add(RunState.waitGPS);
+              _cancel();
             });
           }),
           blueButton("Stop", () {
@@ -261,9 +259,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   _cancel() {
-    print("Cancelling");
+    // print("Cancelling");
     runStats?.cancel();
+    runStats!.reset();
     widgetController.add(RunState.waitUser);
+    lastSoundS = 0;
   }
 
   _stop(BuildContext context) {

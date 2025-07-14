@@ -43,6 +43,18 @@ class _SettingsState extends State<Settings> {
               }
             },
           ),
+          CheckboxListTile(
+            title: Text("Simulate GPS"),
+            value: widget.configurationStorage.config.simulateGPS,
+            onChanged: (bool? value) async {
+              if (value != null) {
+                await widget.configurationStorage.updateConfig(
+                  widget.configurationStorage.config.setSimulateGPS(value),
+                );
+                setState(() {});
+              }
+            },
+          ),
           TextField(
             controller: _altitudeURL,
             decoration: const InputDecoration(

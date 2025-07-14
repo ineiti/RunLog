@@ -7,6 +7,13 @@ import "../stats/conversions.dart" as conversions;
 
 class SoundFeedback {
   List<SFEntry> entries = [];
+  final Sound sound;
+
+  static Future<SoundFeedback> init() async {
+    return SoundFeedback(sound: await Sound.init());
+  }
+
+  SoundFeedback({required this.sound});
 
   playSound(int idx, double distanceM, double currentDuration) async {
     if (idx > entries.length) {
@@ -14,8 +21,7 @@ class SoundFeedback {
     }
 
     final frequencies = entries[idx].getFrequencies(distanceM, currentDuration);
-    final playS = Sound.fromFrequencies(frequencies, 0.5, 0.5);
-    await playS.start();
+    await sound.play(frequencies, 0.5, 0.5);
   }
 }
 
@@ -23,43 +29,14 @@ class Sound {
   static int sampleRate = 22050;
   static int fade = sampleRate ~/ 4;
 
-  late AudioSession session;
-  final List<double> frequencies;
-  final int samples;
-  final double volume;
+  final AudioSession session;
+  List<double> frequencies = [];
+  int samples = 0;
+  double volume = 1;
   int index = 0;
 
-  static Sound fromFrequencies(
-    List<double> frequencies,
-    double durationS,
-    double volume,
-  ) {
-    return Sound(
-      frequencies:
-          frequencies.map((f) => f / Sound.sampleRate * 2 * pi).toList(),
-      volume: volume,
-      samples: (Sound.sampleRate * durationS).toInt(),
-    );
-  }
-
-  Sound({
-    required this.frequencies,
-    required this.volume,
-    required this.samples,
-  });
-
-  start() async {
-    _setupSession();
-    await FlutterPcmSound.release();
-    FlutterPcmSound.setLogLevel(LogLevel.none);
-    await FlutterPcmSound.setup(sampleRate: sampleRate, channelCount: 1);
-    await FlutterPcmSound.setFeedThreshold(8000);
-    FlutterPcmSound.setFeedCallback((rest) => _feed(rest == 0));
-    FlutterPcmSound.start();
-  }
-
-  _setupSession() async {
-    session = await AudioSession.instance;
+  static Future<Sound> init() async {
+    final session = await AudioSession.instance;
     await session.configure(
       AudioSessionConfiguration(
         avAudioSessionCategory: AVAudioSessionCategory.playback,
@@ -75,10 +52,40 @@ class Sound {
         androidWillPauseWhenDucked: false,
       ),
     );
-    session.setActive(true);
+    return Sound(session: session);
   }
 
-  _feed(bool done) {
+  Sound({required this.session});
+
+  play(
+    List<double> freqs,
+    double durationS,
+    double vol,
+  ) async {
+    if (index > 0){
+      // print("Playing already in progress");
+      return;
+    }
+    // print("Start playing");
+    frequencies =
+        freqs.map((f) => f / Sound.sampleRate * 2 * pi).toList();
+    volume = vol;
+    samples = (Sound.sampleRate * durationS).toInt();
+
+    await FlutterPcmSound.release();
+    // await FlutterPcmSound.setLogLevel(LogLevel.none);
+    await FlutterPcmSound.setup(sampleRate: sampleRate, channelCount: 1);
+    await FlutterPcmSound.setFeedThreshold(8000);
+    FlutterPcmSound.setFeedCallback((rest) => _feed(rest == 0));
+    index = 0;
+    FlutterPcmSound.start();
+  }
+
+  _feed(bool done) async {
+    // print("_feed: $done at $index / ${frequencies.length}");
+    if (index == 0){
+      await session.setActive(true);
+    }
     if (index < frequencies.length) {
       var s = List.generate(
         samples,
@@ -97,10 +104,13 @@ class Sound {
           s[samples - i] = (s[samples - i] * (pow(2, (i / fade)) - 1)).toInt();
         }
       }
-      FlutterPcmSound.feed((PcmArrayInt16.fromList(s)));
+      // print("feeding $index at ${DateTime.timestamp()}");
+      await FlutterPcmSound.feed((PcmArrayInt16.fromList(s)));
       index += 1;
     } else if (done) {
-      session.setActive(false);
+      // print("done ${DateTime.timestamp()}");
+      await session.setActive(false);
+      index = 0;
     }
   }
 }
