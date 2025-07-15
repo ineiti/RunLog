@@ -63,8 +63,14 @@ So I went all the way to the other side and did a Lanczos filtering.
 But I have yet to check whether I can spot the difference with a triangular filtering.
 Probably not...
 
+# Bugs
+
+- when running, then stop, it adds an empty run
+
 # Changelog
 
+2025-07-14:
+- Added configurable feedback speed
 2025-07-14:
 - Fixed sound feedback
 - Fixed fetching of height

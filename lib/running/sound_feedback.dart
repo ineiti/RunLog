@@ -27,7 +27,7 @@ class SoundFeedback {
 
 class Sound {
   static int sampleRate = 22050;
-  static int fade = sampleRate ~/ 4;
+  static int fade = sampleRate ~/ 8;
 
   final AudioSession session;
   List<double> frequencies = [];
@@ -57,23 +57,18 @@ class Sound {
 
   Sound({required this.session});
 
-  play(
-    List<double> freqs,
-    double durationS,
-    double vol,
-  ) async {
-    if (index > 0){
+  play(List<double> freqs, double durationS, double vol) async {
+    if (index > 0) {
       // print("Playing already in progress");
       return;
     }
     // print("Start playing");
-    frequencies =
-        freqs.map((f) => f / Sound.sampleRate * 2 * pi).toList();
+    frequencies = freqs.map((f) => f / Sound.sampleRate * 2 * pi).toList();
     volume = vol;
     samples = (Sound.sampleRate * durationS).toInt();
 
     await FlutterPcmSound.release();
-    // await FlutterPcmSound.setLogLevel(LogLevel.none);
+    await FlutterPcmSound.setLogLevel(LogLevel.none);
     await FlutterPcmSound.setup(sampleRate: sampleRate, channelCount: 1);
     await FlutterPcmSound.setFeedThreshold(8000);
     FlutterPcmSound.setFeedCallback((rest) => _feed(rest == 0));
@@ -83,7 +78,7 @@ class Sound {
 
   _feed(bool done) async {
     // print("_feed: $done at $index / ${frequencies.length}");
-    if (index == 0){
+    if (index == 0) {
       await session.setActive(true);
     }
     if (index < frequencies.length) {
@@ -92,17 +87,15 @@ class Sound {
         (i) => (((1 << 15) - 1) * volume * sin(i * frequencies[index])).toInt(),
       );
 
-      // Fade in and out exponentially
+      // Fade each tone in and out exponentially. This takes also care of
+      // the clicking sounds between tones because of not matching sine
+      // waves.
       var fade = Sound.fade > samples ~/ 2 ? samples ~/ 2 : Sound.fade;
-      if (index == 0) {
-        for (var i = 0; i < fade; i++) {
-          s[i] = (s[i] * (pow(2, (i / fade)) - 1)).toInt();
-        }
+      for (var i = 0; i < fade; i++) {
+        s[i] = (s[i] * (pow(2, (i / fade)) - 1)).toInt();
       }
-      if (index == frequencies.length - 1) {
-        for (var i = 1; i <= fade; i++) {
-          s[samples - i] = (s[samples - i] * (pow(2, (i / fade)) - 1)).toInt();
-        }
+      for (var i = 1; i <= fade; i++) {
+        s[samples - i] = (s[samples - i] * (pow(2, (i / fade)) - 1)).toInt();
       }
       // print("feeding $index at ${DateTime.timestamp()}");
       await FlutterPcmSound.feed((PcmArrayInt16.fromList(s)));
@@ -173,8 +166,11 @@ class SFEntry {
   }
 
   double getDurationS(double distanceM) {
-    if (targetSpeeds.length < 2) {
+    if (targetSpeeds.isEmpty) {
       return 0;
+    }
+    if (targetSpeeds.length == 1) {
+      return distanceM / targetSpeeds.first.speedMS;
     }
     double duration = 0;
     for (int i = 0; i < targetSpeeds.length - 1; i++) {

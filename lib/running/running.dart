@@ -31,6 +31,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   StreamController<RunState> widgetController = StreamController.broadcast();
   late Stream<RSState> runStream;
   int soundIntervalS = 5;
+  bool feedbackSound = false;
+  double feedbackPace = 5;
   late int lastSoundS;
   late SoundFeedback feedback;
 
@@ -46,10 +48,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     );
     SoundFeedback.init().then((sf) {
       feedback = sf;
-      final fb24km = SFEntry.startMinKm(6);
-      fb24km.stop(5000);
-      fb24km.calcTotal(5 * 6 * 60);
-      feedback.entries.add(fb24km);
     });
   }
 
@@ -83,28 +81,74 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case RunState.waitGPS:
         return _streamBuilder(geoTracker.streamState, _widgetWaitGPS);
       case RunState.waitUser:
-        return blueButton("Start Running", () => _startRunning());
+        return Column(
+          children: [
+            CheckboxListTile(
+              title: Text("Feedback sound"),
+              value: feedbackSound,
+              onChanged: (bool? value) async {
+                if (value != null) {
+                  setState(() {
+                    feedbackSound = value;
+                  });
+                }
+              },
+            ),
+            Visibility(
+              visible: feedbackSound,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                spacing: 10,
+                children: [
+                  Text("  ${feedbackPace.toStringAsFixed(1)} min/km"),
+                  Flexible(
+                    child: Slider(
+                      value: feedbackPace,
+                      onChanged: (double value) {
+                        setState(() {
+                          feedbackPace = value;
+                        });
+                      },
+                      min: 2,
+                      divisions: 80,
+                      max: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            blueButton("Start Running", () => _startRunning()),
+          ],
+        );
       case RunState.running:
         return _streamBuilder(runStream, _widgetRunning);
     }
   }
 
   _startRunning() {
+    if (feedbackSound) {
+      feedback.entries.clear();
+      if (feedback.entries.isEmpty) {
+        feedback.entries.add(SFEntry.startMinKm(feedbackPace));
+      }
+    }
     RunStats.newRun(widget.runStorage).then((rr) {
       runStats = rr;
       runStats!.figures.addSpeed(5);
       runStats!.figures.addSpeed(20);
       runStats!.figures.addSlope(20);
       runStream = runStats!.continuous(geoTracker.streamPosition);
-      runStream.listen((state) {
-        // print("${runStats!.duration()} / $lastSoundS");
-        if (runStats!.duration() >= lastSoundS) {
-          feedback.playSound(0, runStats!.distance(), runStats!.duration());
-          while (lastSoundS <= runStats!.duration()) {
-            lastSoundS += soundIntervalS;
+      if (feedbackSound) {
+        runStream.listen((state) {
+          // print("${runStats!.duration()} / $lastSoundS");
+          if (runStats!.duration() >= lastSoundS) {
+            feedback.playSound(0, runStats!.distance(), runStats!.duration());
+            while (lastSoundS <= runStats!.duration()) {
+              lastSoundS += soundIntervalS;
+            }
           }
-        }
-      });
+        });
+      }
       widgetController.add(RunState.running);
     });
   }
@@ -192,27 +236,30 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
               _stop(context);
             });
           }),
-          DropdownButton<int>(
-            value: soundIntervalS,
-            icon: const Icon(Icons.arrow_downward),
-            elevation: 16,
-            style: const TextStyle(color: Colors.deepPurple),
-            underline: Container(height: 2, color: Colors.deepPurpleAccent),
-            onChanged: (int? value) {
-              setState(() {
-                soundIntervalS = value!;
-                lastSoundS = (runStats!.duration() + soundIntervalS).toInt();
-              });
-            },
-            items:
-                [5, 15, 30, 45, 60, 3600]
-                    .map(
-                      (value) => DropdownMenuItem<int>(
-                        value: value,
-                        child: Text("$value s"),
-                      ),
-                    )
-                    .toList(),
+          Visibility(
+            visible: feedbackSound,
+            child: DropdownButton<int>(
+              value: soundIntervalS,
+              icon: const Icon(Icons.arrow_downward),
+              elevation: 16,
+              style: const TextStyle(color: Colors.deepPurple),
+              underline: Container(height: 2, color: Colors.deepPurpleAccent),
+              onChanged: (int? value) {
+                setState(() {
+                  soundIntervalS = value!;
+                  lastSoundS = (runStats!.duration() + soundIntervalS).toInt();
+                });
+              },
+              items:
+                  [5, 15, 30, 45, 60, 3600]
+                      .map(
+                        (value) => DropdownMenuItem<int>(
+                          value: value,
+                          child: Text("$value s"),
+                        ),
+                      )
+                      .toList(),
+            ),
           ),
         ],
       ),
