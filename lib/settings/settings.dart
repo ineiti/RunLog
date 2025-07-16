@@ -67,6 +67,33 @@ class _SettingsState extends State<Settings> {
               );
             },
           ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 10,
+            children: [
+              Text(
+                "  ${widget.configurationStorage.config.maxFeedbackIndex} x",
+              ),
+              Flexible(
+                child: Slider(
+                  value:
+                      widget.configurationStorage.config.maxFeedbackIndex
+                          .toDouble(),
+                  onChanged: (double value) async {
+                    await widget.configurationStorage.updateConfig(
+                      widget.configurationStorage.config.setMaxFeedbackIndex(
+                        value.toInt(),
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  min: 1,
+                  divisions: 10,
+                  max: 10,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

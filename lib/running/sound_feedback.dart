@@ -6,7 +6,8 @@ import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
 import "../stats/conversions.dart" as conversions;
 
 class SoundFeedback {
-  List<SFEntry> entries = [];
+  SFEntry _entry = SFEntry();
+  int idx = 0;
   final Sound sound;
 
   static Future<SoundFeedback> init() async {
@@ -15,13 +16,20 @@ class SoundFeedback {
 
   SoundFeedback({required this.sound});
 
-  playSound(int idx, double distanceM, double currentDuration) async {
-    if (idx > entries.length) {
+  setEntry(SFEntry entry) {
+    _entry = entry;
+    idx = 0;
+  }
+
+  playSound(int maxIndex, double distanceM, double currentDuration) async {
+    final frequencies = _entry.getFrequencies(distanceM, currentDuration);
+    // print("|freq|: ${frequencies.length} - idx: $idx");
+    if (frequencies.length < max(1, maxIndex - idx)) {
+      idx++;
       return;
     }
-
-    final frequencies = entries[idx].getFrequencies(distanceM, currentDuration);
     await sound.play(frequencies, 0.5, 0.5);
+    idx = 0;
   }
 }
 
@@ -187,13 +195,20 @@ class SFEntry {
   }
 
   List<double> getFrequencies(double distanceM, double currentDuration) {
-    var diffDuration =
-        ((currentDuration - getDurationS(distanceM)) / 5).toInt();
     final List<double> frequencies = [440];
-    while (diffDuration != 0) {
-      frequencies.add(frequencies.last * pow(2, diffDuration.sign / 12));
-      diffDuration -= diffDuration.sign;
+    var diffDuration = currentDuration - getDurationS(distanceM);
+    print("DiffDuration: $diffDuration");
+    if (diffDuration == 0) {
+      return frequencies;
     }
+    for (
+      var diffSteps = (log(diffDuration.abs()) / ln2).round() + 1;
+      diffSteps > 0;
+      diffSteps--
+    ) {
+      frequencies.add(frequencies.last * pow(2, diffDuration.sign / 12));
+    }
+    print("Frequencies: $frequencies");
     return frequencies;
   }
 }

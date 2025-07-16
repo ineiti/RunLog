@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:run_log/running/sound_feedback.dart';
@@ -34,6 +35,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   bool feedbackSound = false;
   double feedbackPace = 5;
   late int lastSoundS;
+  int lastSoundIdx = 0;
   late SoundFeedback feedback;
 
   @override
@@ -127,10 +129,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
 
   _startRunning() {
     if (feedbackSound) {
-      feedback.entries.clear();
-      if (feedback.entries.isEmpty) {
-        feedback.entries.add(SFEntry.startMinKm(feedbackPace));
-      }
+      feedback.setEntry(SFEntry.startMinKm(feedbackPace));
     }
     RunStats.newRun(widget.runStorage).then((rr) {
       runStats = rr;
@@ -139,10 +138,14 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       runStats!.figures.addSlope(20);
       runStream = runStats!.continuous(geoTracker.streamPosition);
       if (feedbackSound) {
-        runStream.listen((state) {
+        runStream.listen((state) async {
           // print("${runStats!.duration()} / $lastSoundS");
           if (runStats!.duration() >= lastSoundS) {
-            feedback.playSound(0, runStats!.distance(), runStats!.duration());
+            await feedback.playSound(
+              widget.configurationStorage.config.maxFeedbackIndex,
+              runStats!.distance(),
+              runStats!.duration(),
+            );
             while (lastSoundS <= runStats!.duration()) {
               lastSoundS += soundIntervalS;
             }
@@ -307,10 +310,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
 
   _cancel() {
     // print("Cancelling");
-    runStats?.cancel();
     runStats!.reset();
     widgetController.add(RunState.waitUser);
     lastSoundS = 0;
+    lastSoundIdx = 0;
   }
 
   _stop(BuildContext context) {

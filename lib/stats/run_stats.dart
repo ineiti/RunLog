@@ -80,10 +80,6 @@ class RunStats {
     return rrStream.stream;
   }
 
-  cancel() {
-    positionSub?.cancel();
-  }
-
   RSState get state {
     if (lastMovement == null) {
       return RSState.waitAccurateGPS;
@@ -115,11 +111,11 @@ class RunStats {
   }
 
   reset() async {
+    positionSub?.cancel();
     rawPositions = [];
     runningData = [];
     lastMovement = null;
     resampler = null;
-    run = await storage!.createRun(DateTime.now());
     runPaused = false;
   }
 

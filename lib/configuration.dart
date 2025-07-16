@@ -5,6 +5,7 @@ class Configuration {
   final bool debug;
   final bool simulateGPS;
   final String altitudeURL;
+  final int maxFeedbackIndex;
   static int version = 1;
 
   static Configuration fromJson(String json) {
@@ -15,9 +16,15 @@ class Configuration {
           debug: (conf['debug'] ?? false) as bool,
           simulateGPS: (conf['simulateGPS'] ?? false) as bool,
           altitudeURL: (conf['altitudeURL'] ?? "") as String,
+          maxFeedbackIndex: (conf['maxFeedbackIndex'] ?? 4) as int,
         );
       default:
-        return Configuration(debug: false, simulateGPS: false, altitudeURL: "");
+        return Configuration(
+          debug: false,
+          simulateGPS: false,
+          altitudeURL: "",
+          maxFeedbackIndex: 4,
+        );
     }
   }
 
@@ -25,6 +32,7 @@ class Configuration {
     required this.debug,
     required this.simulateGPS,
     required this.altitudeURL,
+    required this.maxFeedbackIndex,
   });
 
   Configuration setDebut(bool debug) {
@@ -32,6 +40,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
+      maxFeedbackIndex: maxFeedbackIndex,
     );
   }
 
@@ -40,6 +49,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
+      maxFeedbackIndex: maxFeedbackIndex,
     );
   }
 
@@ -48,6 +58,16 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
+      maxFeedbackIndex: maxFeedbackIndex,
+    );
+  }
+
+  Configuration setMaxFeedbackIndex(int maxFeedbackIndex) {
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+      maxFeedbackIndex: maxFeedbackIndex,
     );
   }
 
@@ -56,6 +76,7 @@ class Configuration {
       'debug': debug,
       'simulateGPS': simulateGPS,
       'altitudeURL': altitudeURL,
+      'maxFeedbackIndex': maxFeedbackIndex,
       'version': version,
     });
   }

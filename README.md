@@ -65,10 +65,13 @@ Probably not...
 
 # Bugs
 
-- when running, then stop, it adds an empty run
-
 # Changelog
 
+2025-07-16:
+- Bug: when running, then stop, it adds an empty run
+- Sound Feedback:
+  - Using logarithm of the difference for the number of tones
+  - Feedback frequency inversely proportional to number of tones 
 2025-07-14:
 - Added configurable feedback speed
 2025-07-14:
