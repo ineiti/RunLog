@@ -5,16 +5,16 @@ import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
 
 import "../stats/conversions.dart" as conversions;
 
-class SoundFeedback {
+class Tones {
   SFEntry _entry = SFEntry();
   int idx = 0;
   final Sound sound;
 
-  static Future<SoundFeedback> init() async {
-    return SoundFeedback(sound: await Sound.init());
+  static Future<Tones> init() async {
+    return Tones(sound: await Sound.init());
   }
 
-  SoundFeedback({required this.sound});
+  Tones({required this.sound});
 
   setEntry(SFEntry entry) {
     _entry = entry;

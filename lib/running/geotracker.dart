@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -43,9 +44,10 @@ class GeoTracker {
       final streamPos = StreamController<Position>.broadcast();
       var latitude = 0.0;
       var now = DateTime.now();
-      Timer.periodic(const Duration(seconds: 2), (timer) {
+      var timer = Timer.periodic(const Duration(seconds: 2), (timer) {
         now = now.add(Duration(seconds: 2));
-        latitude += 0.00011;
+        double targetSpeed = 5 + sin(latitude / 0.00011 / 3 + pi / 2);
+        latitude += 0.00011 * 2.7 / targetSpeed;
         streamPos.add(
           Position(
             longitude: 0,
@@ -61,6 +63,9 @@ class GeoTracker {
           ),
         );
       });
+      streamPos.onCancel = () {
+        timer.cancel();
+      };
       return streamPos.stream;
     }
 

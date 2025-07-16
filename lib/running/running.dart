@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/running/sound_feedback.dart';
+import 'package:run_log/running/tones.dart';
 import 'package:run_log/storage.dart';
 
 import '../configuration.dart';
 import '../stats/run_stats.dart';
 import '../widgets/basic.dart';
 import 'geotracker.dart';
+import 'tone_feedback.dart';
 
 class Running extends StatefulWidget {
   const Running({
@@ -31,12 +32,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   RunStats? runStats;
   StreamController<RunState> widgetController = StreamController.broadcast();
   late Stream<RSState> runStream;
-  int soundIntervalS = 5;
-  bool feedbackSound = false;
-  double feedbackPace = 5;
-  late int lastSoundS;
-  int lastSoundIdx = 0;
-  late SoundFeedback feedback;
+  late ToneFeedback feedback;
 
   @override
   bool get wantKeepAlive => true;
@@ -44,12 +40,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    lastSoundS = soundIntervalS;
     geoTracker = GeoTracker(
       simul: widget.configurationStorage.config.simulateGPS,
     );
-    SoundFeedback.init().then((sf) {
-      feedback = sf;
+    ToneFeedback.init().then((f) {
+      feedback = f;
     });
   }
 
@@ -85,40 +80,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case RunState.waitUser:
         return Column(
           children: [
-            CheckboxListTile(
-              title: Text("Feedback sound"),
-              value: feedbackSound,
-              onChanged: (bool? value) async {
-                if (value != null) {
-                  setState(() {
-                    feedbackSound = value;
-                  });
-                }
-              },
-            ),
-            Visibility(
-              visible: feedbackSound,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: 10,
-                children: [
-                  Text("  ${feedbackPace.toStringAsFixed(1)} min/km"),
-                  Flexible(
-                    child: Slider(
-                      value: feedbackPace,
-                      onChanged: (double value) {
-                        setState(() {
-                          feedbackPace = value;
-                        });
-                      },
-                      min: 2,
-                      divisions: 80,
-                      max: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ...feedback.configWidget(() {
+              setState(() {});
+            }),
             blueButton("Start Running", () => _startRunning()),
           ],
         );
@@ -128,30 +92,19 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   _startRunning() {
-    if (feedbackSound) {
-      feedback.setEntry(SFEntry.startMinKm(feedbackPace));
-    }
+    feedback.startRunning(widget.configurationStorage.config.maxFeedbackIndex);
     RunStats.newRun(widget.runStorage).then((rr) {
       runStats = rr;
       runStats!.figures.addSpeed(5);
       runStats!.figures.addSpeed(20);
       runStats!.figures.addSlope(20);
       runStream = runStats!.continuous(geoTracker.streamPosition);
-      if (feedbackSound) {
-        runStream.listen((state) async {
-          // print("${runStats!.duration()} / $lastSoundS");
-          if (runStats!.duration() >= lastSoundS) {
-            await feedback.playSound(
-              widget.configurationStorage.config.maxFeedbackIndex,
-              runStats!.distance(),
-              runStats!.duration(),
-            );
-            while (lastSoundS <= runStats!.duration()) {
-              lastSoundS += soundIntervalS;
-            }
-          }
-        });
-      }
+      runStream.listen((state) async {
+        await feedback.updateRunning(
+          runStats!.duration(),
+          runStats!.distance(),
+        );
+      });
       widgetController.add(RunState.running);
     });
   }
@@ -229,41 +182,14 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         direction: Axis.horizontal,
         spacing: 10,
         children: <Widget>[
-          blueButton("Reset", () {
-            setState(() {
-              _cancel();
-            });
-          }),
           blueButton("Stop", () {
             setState(() {
               _stop(context);
             });
           }),
-          Visibility(
-            visible: feedbackSound,
-            child: DropdownButton<int>(
-              value: soundIntervalS,
-              icon: const Icon(Icons.arrow_downward),
-              elevation: 16,
-              style: const TextStyle(color: Colors.deepPurple),
-              underline: Container(height: 2, color: Colors.deepPurpleAccent),
-              onChanged: (int? value) {
-                setState(() {
-                  soundIntervalS = value!;
-                  lastSoundS = (runStats!.duration() + soundIntervalS).toInt();
-                });
-              },
-              items:
-                  [5, 15, 30, 45, 60, 3600]
-                      .map(
-                        (value) => DropdownMenuItem<int>(
-                          value: value,
-                          child: Text("$value s"),
-                        ),
-                      )
-                      .toList(),
-            ),
-          ),
+          feedback.runningWidget(runStats!.duration(), () {
+            setState(() {});
+          }),
         ],
       ),
       Column(
@@ -312,8 +238,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     // print("Cancelling");
     runStats!.reset();
     widgetController.add(RunState.waitUser);
-    lastSoundS = 0;
-    lastSoundIdx = 0;
   }
 
   _stop(BuildContext context) {

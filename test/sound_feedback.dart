@@ -1,5 +1,5 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:run_log/running/sound_feedback.dart';
+import 'package:run_log/running/tones.dart';
 import 'package:run_log/stats/conversions.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/stats/run_stats.dart';
