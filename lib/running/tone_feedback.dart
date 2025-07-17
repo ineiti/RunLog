@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:run_log/running/tones.dart';
 
+import '../stats/conversions.dart';
+
 class ToneFeedback {
   int _soundIntervalS = 5;
   bool _feedbackSound = false;
@@ -53,7 +55,7 @@ class ToneFeedback {
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 10,
           children: [
-            Text("  ${_feedbackPace.toStringAsFixed(1)} min/km"),
+            Text("  ${minSec(_feedbackPace)} min/km"),
             Flexible(
               child: Slider(
                 value: _feedbackPace,
@@ -62,7 +64,7 @@ class ToneFeedback {
                   setState();
                 },
                 min: 2,
-                divisions: 80,
+                divisions: 96,
                 max: 10,
               ),
             ),

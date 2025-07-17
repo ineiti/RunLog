@@ -26,9 +26,12 @@ double toSpeedMS(double minKm){
 }
 
 String labelYTime(String s) {
-  final value = double.parse(s);
-  final min = value.toInt();
-  final sec = ((value - min) * 60).round();
+  return minSec(double.parse(s));
+}
+
+String minSec(double minutes){
+  final min = minutes.toInt();
+  final sec = ((minutes - min) * 60).round();
   return "$min' ${sec > 0 ? " $sec''" : ""}";
 }
 
