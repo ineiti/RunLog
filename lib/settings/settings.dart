@@ -72,12 +72,12 @@ class _SettingsState extends State<Settings> {
             spacing: 10,
             children: [
               Text(
-                "  ${widget.configurationStorage.config.maxFeedbackIndex} x",
+                "  ${widget.configurationStorage.config.maxFeedbackSoundWait} x",
               ),
               Flexible(
                 child: Slider(
                   value:
-                      widget.configurationStorage.config.maxFeedbackIndex
+                      widget.configurationStorage.config.maxFeedbackSoundWait
                           .toDouble(),
                   onChanged: (double value) async {
                     await widget.configurationStorage.updateConfig(

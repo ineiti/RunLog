@@ -1,3 +1,4 @@
+import "dart:convert";
 import "dart:math";
 
 import "package:audio_session/audio_session.dart";
@@ -21,10 +22,10 @@ class Tones {
     idx = 0;
   }
 
-  playSound(int maxIndex, double distanceM, double currentDuration) async {
+  playSound(int maxSoundWait, double distanceM, double currentDuration) async {
     final frequencies = _entry.getFrequencies(distanceM, currentDuration);
     // print("|freq|: ${frequencies.length} - idx: $idx");
-    if (frequencies.length < max(1, maxIndex - idx)) {
+    if (frequencies.length < max(1, maxSoundWait - idx)) {
       idx++;
       return;
     }
@@ -136,6 +137,14 @@ class SFEntry {
     var sf = SFEntry();
     sf.addPoint(SpeedPoint(distanceM: 0, speedMS: 0));
     return sf;
+  }
+
+  static SFEntry fromJson(String s){
+    return SFEntry();
+  }
+
+  String toJson(){
+    return jsonEncode({});
   }
 
   stop(double distanceM) {

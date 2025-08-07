@@ -313,7 +313,7 @@ class RunStorage {
           await _performDBUpgrade(db, version + 1);
         }
       },
-      version: 2,
+      version: 3,
     );
   }
 
@@ -350,6 +350,16 @@ class RunStorage {
       case 2:
         db.execute('''
         ALTER TABLE TrackedData ADD COLUMN altitude_corrected REAL
+        ''');
+      case 3:
+        db.execute('''
+        ALTER TABLE Runs ADD COLUMN feedback_type TEXT
+        ''');
+        db.execute('''
+        ALTER TABLE Runs ADD COLUMN feedback_param REAL
+        ''');
+        db.execute('''
+        ALTER TABLE Runs ADD COLUMN feedback_run INTEGER
         ''');
     }
   }

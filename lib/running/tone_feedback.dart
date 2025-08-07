@@ -2,36 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:run_log/running/tones.dart';
 
 import '../stats/conversions.dart';
+import '../stats/run_data.dart';
+import 'feedback.dart';
 
 class ToneFeedback {
   int _soundIntervalS = 5;
-  bool _feedbackSound = false;
+  FeedbackType _feedbackSound = FeedbackType.none;
   double _feedbackPace = 5;
-  int _lastSoundS = 0;
-  int _maxFeedbackIndex = 4;
+  int _feedbackDuration = 0;
+  Run? _feedbackRun;
+  int _nextSoundS = 0;
+  int _maxFeedbackSoundWait = 4;
   final Tones _feedback;
 
   static Future<ToneFeedback> init() async {
-    return ToneFeedback(feedback: await Tones.init());
+    return ToneFeedback(await Tones.init());
   }
 
-  ToneFeedback({required Tones feedback}) : _feedback = feedback;
+  ToneFeedback(this._feedback);
 
-  startRunning(int maxFeedbackIndex) async {
-    _lastSoundS = _soundIntervalS;
-    _maxFeedbackIndex = maxFeedbackIndex;
-    if (_feedbackSound) {
-      _feedback.setEntry(SFEntry.startMinKm(_feedbackPace));
+  startRunning(int maxFeedbackSoundWait) async {
+    _nextSoundS = _soundIntervalS;
+    _maxFeedbackSoundWait = maxFeedbackSoundWait;
+    switch (_feedbackSound) {
+      case FeedbackType.none:
+        break;
+      case FeedbackType.pace:
+        _feedback.setEntry(SFEntry.startMinKm(_feedbackPace));
+      case FeedbackType.runDuration:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case FeedbackType.runPace:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 
   updateRunning(double durationS, double distanceM) async {
-    if (_feedbackSound) {
+    if (_feedbackSound != FeedbackType.none) {
       // print("${runStats!.duration()} / $lastSoundS");
-      if (durationS >= _lastSoundS) {
-        await _feedback.playSound(_maxFeedbackIndex, distanceM, durationS);
-        while (_lastSoundS <= durationS) {
-          _lastSoundS += _soundIntervalS;
+      if (durationS >= _nextSoundS) {
+        await _feedback.playSound(_maxFeedbackSoundWait, distanceM, durationS);
+        while (_nextSoundS <= durationS) {
+          _nextSoundS += _soundIntervalS;
         }
       }
     }
@@ -39,44 +52,170 @@ class ToneFeedback {
 
   List<Widget> configWidget(VoidCallback setState) {
     return [
-      CheckboxListTile(
-        title: Text("Feedback sound"),
-        value: _feedbackSound,
-        onChanged: (bool? value) async {
-          if (value != null) {
-            _feedbackSound = value;
-            setState();
-          }
-        },
+      Row(
+        children: [
+          Text("  Tone Feedback: "),
+          DropdownButton<FeedbackType>(
+            value: _feedbackSound,
+            icon: const Icon(Icons.arrow_downward),
+            elevation: 16,
+            style: const TextStyle(color: Colors.deepPurple),
+            underline: Container(height: 2, color: Colors.deepPurpleAccent),
+            onChanged: (FeedbackType? value) {
+              _feedbackSound = value!;
+              setState();
+            },
+            items:
+                FeedbackType.values
+                    .map(
+                      (value) => DropdownMenuItem<FeedbackType>(
+                        value: value,
+                        child: Text(ftDisplayString(value)),
+                      ),
+                    )
+                    .toList(),
+          ),
+        ],
       ),
       Visibility(
-        visible: _feedbackSound,
-        child: Row(
+        visible: _feedbackSound != FeedbackType.none,
+        child: _configParam(setState),
+      ),
+    ];
+  }
+
+  Widget _configParam(VoidCallback setState) {
+    if (_feedbackSound == FeedbackType.none) {
+      return Text("Shouldn't happen");
+    }
+    final List<Widget> col = [];
+    if (_feedbackSound == FeedbackType.pace ||
+        _feedbackSound == FeedbackType.runPace) {
+      col.add(
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 10,
           children: [
-            Text("  ${minSec(_feedbackPace)} min/km"),
             Flexible(
+              flex: 2,
+              fit: FlexFit.tight,
+              child: Text("  ${minSec(_feedbackPace)} min/km"),
+            ),
+            Flexible(
+              flex: 5,
+              fit: FlexFit.tight,
               child: Slider(
                 value: _feedbackPace,
                 onChanged: (double value) {
                   _feedbackPace = value;
                   setState();
                 },
-                min: 2,
-                divisions: 96,
-                max: 10,
+                min: 5,
+                divisions: 24,
+                max: 7,
               ),
             ),
           ],
         ),
-      ),
-    ];
+      );
+    } else {
+      col.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 10,
+          children: [
+            _dropdown(
+              List.generate(10, (i) => i),
+              () => _feedbackDuration ~/ 3600,
+              (value) {
+                _feedbackDuration %= 3600;
+                _feedbackDuration += value * 3600;
+                setState();
+              },
+            ),
+            _dropdown(
+              List.generate(60, (i) => i),
+              () => (_feedbackDuration ~/ 60) % 60,
+              (value) {
+                final minutes = (_feedbackDuration ~/ 60) % 60;
+                _feedbackDuration += (value - minutes) * 60;
+                setState();
+              },
+            ),
+            _dropdown(
+              List.generate(12, (i) => 5 * i),
+              () => _feedbackDuration % 60,
+              (value) {
+                final seconds = _feedbackDuration % 60;
+                _feedbackDuration += value - seconds;
+                setState();
+              },
+            ),
+          ],
+        ),
+      );
+    }
+    if (_feedbackSound == FeedbackType.runDuration ||
+        _feedbackSound == FeedbackType.runPace) {
+
+      col.add(
+        DropdownButton(
+          value: value(),
+          icon: const Icon(Icons.arrow_downward),
+          elevation: 16,
+          style: const TextStyle(color: Colors.deepPurple),
+          underline: Container(height: 2, color: Colors.deepPurpleAccent),
+          onChanged: (int? value) {
+            if (value != null) {
+              update(value);
+            }
+          },
+          items:
+              values
+                  .map(
+                    (value) => DropdownMenuItem<int>(
+                      value: value,
+                      child: Text(value.toString()),
+                    ),
+                  )
+                  .toList(),
+        ),
+      );
+    }
+    return Column(children: col);
+  }
+
+  Widget _dropdown(
+    List<int> values,
+    int Function() value,
+    void Function(int) update,
+  ) {
+    return DropdownButton(
+      value: value(),
+      icon: const Icon(Icons.arrow_downward),
+      elevation: 16,
+      style: const TextStyle(color: Colors.deepPurple),
+      underline: Container(height: 2, color: Colors.deepPurpleAccent),
+      onChanged: (int? value) {
+        if (value != null) {
+          update(value);
+        }
+      },
+      items:
+          values
+              .map(
+                (value) => DropdownMenuItem<int>(
+                  value: value,
+                  child: Text(value.toString()),
+                ),
+              )
+              .toList(),
+    );
   }
 
   Widget runningWidget(double durationS, VoidCallback setState) {
     return Visibility(
-      visible: _feedbackSound,
+      visible: _feedbackSound != FeedbackType.none,
       child: DropdownButton<int>(
         value: _soundIntervalS,
         icon: const Icon(Icons.arrow_downward),
@@ -85,7 +224,7 @@ class ToneFeedback {
         underline: Container(height: 2, color: Colors.deepPurpleAccent),
         onChanged: (int? value) {
           _soundIntervalS = value!;
-          _lastSoundS = (durationS + _soundIntervalS).toInt();
+          _nextSoundS = (durationS + _soundIntervalS).toInt();
           setState();
         },
         items:
@@ -101,3 +240,4 @@ class ToneFeedback {
     );
   }
 }
+

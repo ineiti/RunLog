@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/running/tones.dart';
 import 'package:run_log/storage.dart';
 
 import '../configuration.dart';
@@ -92,7 +90,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   _startRunning() {
-    feedback.startRunning(widget.configurationStorage.config.maxFeedbackIndex);
+    feedback.startRunning(widget.configurationStorage.config.maxFeedbackSoundWait);
     RunStats.newRun(widget.runStorage).then((rr) {
       runStats = rr;
       runStats!.figures.addSpeed(5);

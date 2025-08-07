@@ -1,15 +1,21 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
+import 'package:run_log/running/tone_feedback.dart';
+
+import '../running/feedback.dart';
 
 class Run {
   int id;
   DateTime startTime;
   int duration;
   double totalDistance;
-  int caloriesBurned;
-  String weather;
+  int? caloriesBurned;
+  String? weather;
   int? avgHeartRate;
   int? avgStepsPerMin;
+  FeedbackType? feedbackType;
+  double? feedbackParam;
+  int? feedbackRun;
 
   static Run now(int id) {
     return Run(id: id, startTime: DateTime.now());
@@ -20,10 +26,13 @@ class Run {
     required this.startTime,
     this.duration = 0,
     this.totalDistance = 0,
-    this.caloriesBurned = 0,
-    this.weather = "",
+    this.caloriesBurned,
+    this.weather,
     this.avgHeartRate,
     this.avgStepsPerMin,
+    this.feedbackType,
+    this.feedbackParam,
+    this.feedbackRun,
   });
 
   factory Run.fromMap(Map<String, dynamic> dbMap) {
@@ -34,10 +43,13 @@ class Run {
       ),
       duration: dbMap['duration'] as int,
       totalDistance: dbMap['total_distance'] as double,
-      caloriesBurned: dbMap['calories_burned'] as int,
-      weather: dbMap['weather'] as String,
+      caloriesBurned: dbMap['calories_burned'] as int?,
+      weather: dbMap['weather'] as String?,
       avgHeartRate: dbMap['avg_heart_rate'] as int?,
-      avgStepsPerMin: dbMap['avg_steps_per_min'] as int,
+      avgStepsPerMin: dbMap['avg_steps_per_min'] as int?,
+      feedbackType: ftFromString(dbMap['feedback_type']),
+      feedbackParam: dbMap['feedback_param'] as double?,
+      feedbackRun: dbMap['feedback_run'] as int?,
     );
   }
 
@@ -63,6 +75,9 @@ class Run {
       "weather": weather,
       "avg_heart_rate": avgHeartRate,
       "avg_steps_per_min": avgStepsPerMin,
+      "feedback_type": ftToString(feedbackType),
+      "feedback_param": feedbackParam,
+      "feedback_run": feedbackRun,
     };
   }
 

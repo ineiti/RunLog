@@ -72,7 +72,7 @@ Probably not...
 - Add "Export all" and test it
 - Add "Export to file / Share" for both exports
 2025-07-16:
-- Bug: when running, then stop, it adds an empty run
+- Fixed bug: when running, then stop, it adds an empty run
 - Sound Feedback:
   - Using logarithm of the difference for the number of tones
   - Feedback frequency inversely proportional to number of tones 
