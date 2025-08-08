@@ -67,6 +67,10 @@ Probably not...
 
 # Changelog
 
+2025-08-08:
+- Rewriting creation of dummy-entries
+- Add "Export all" and test it
+- Add "Export to file / Share" for both exports
 2025-07-16:
 - Bug: when running, then stop, it adds an empty run
 - Sound Feedback:

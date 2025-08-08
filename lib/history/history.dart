@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -57,6 +56,12 @@ class _HistoryState extends State<History> {
       body: Column(
         children: <Widget>[
           _debugRuns(),
+          blueButton(
+            "Export All",
+            () => setState(() {
+              _exportAll(context);
+            }),
+          ),
           runs.isNotEmpty ? _courseList() : Text("No runs yet"),
         ],
       ),
@@ -111,12 +116,6 @@ class _HistoryState extends State<History> {
                 padding: const EdgeInsets.all(12.0),
                 child: Row(
                   children: [
-                    // Image.network(
-                    //   item.imageUrl,
-                    //   width: 80,
-                    //   height: 80,
-                    //   fit: BoxFit.cover,
-                    // ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -147,13 +146,15 @@ class _HistoryState extends State<History> {
   }
 
   _createTwoTracks() async {
-    await _dbPrefill(
+    await DebugStorage.dbPrefill(
+      widget.runStorage,
       Duration(hours: 1),
       200,
       [3, .1, .2, .1, .3, .1, .2, .3, .2],
       [0, 1, 5, 2, 1, 2, 5, 2, 5, 3, 5],
     );
-    await _dbPrefill(
+    await DebugStorage.dbPrefill(
+      widget.runStorage,
       Duration(hours: 5),
       100,
       [4, .2, .1, .4, .1, .2],
@@ -161,74 +162,16 @@ class _HistoryState extends State<History> {
     );
   }
 
-  _dbPrefill(
-    Duration before,
-    int points,
-    List<double> speeds,
-    List<double> altitudes,
-  ) async {
-    var run = await widget.runStorage.createRun(
-      DateTime.now().subtract(before),
-    );
-    final track = _createTracker(
-      run.id,
-      run.startTime,
-      points,
-      speeds,
-      altitudes,
-    );
-    for (var td in track) {
-      await widget.runStorage.addTrackedData(td);
-    }
-    run.duration = track.last.timestamp - track.first.timestamp;
-    run.totalDistance = track.last.latitude * 6e6 / 180 * pi;
-    await widget.runStorage.updateRun(run);
-  }
-
-  List<TrackedData> _createTracker(
-    int id,
-    DateTime start,
-    int points,
-    List<double> speed,
-    List<double> altitude,
-  ) {
-    final speeds = _cosSeries(points, speed);
-    final distances = _integrateList(speeds);
-    final altitudes = _cosSeries(points, altitude);
-    return List.generate(
-      points,
-      (i) => TrackedData(
-        runId: id,
-        timestamp: start.millisecondsSinceEpoch + i * 1000,
-        latitude: distances[i] / 6e6 / pi * 180,
-        longitude: 0,
-        altitude: altitudes[i],
-        gpsAccuracy: 5,
-      ),
-    );
-  }
-
-  List<double> _integrateList(List<double> list) {
-    List<double> result = [];
-    double sum = 0;
-    for (var num in list) {
-      sum += num;
-      result.add(sum);
-    }
-    return result;
-  }
-
-  List<double> _cosSeries(int points, List<double> arg) {
-    return List.generate(
-      points,
-      (i) => arg.asMap().entries.fold(
-        0,
-        (prev, s) => prev + s.value * cos(s.key * i / points * 2 * pi),
-      ),
-    );
-  }
-
   _dbDelete() async {
-    await widget.runStorage.resetDB();
+    await widget.runStorage.cleanDB();
+  }
+
+  _exportAll(BuildContext context) async {
+    final name =
+        "runLog-${DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now())}.rlog";
+    final content = await widget.runStorage.exportAll();
+    if (context.mounted) {
+      showFileActionDialog(context, 'application/octet-stream', name, content);
+    }
   }
 }

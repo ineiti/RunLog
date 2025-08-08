@@ -89,7 +89,7 @@ class _DetailPageState extends State<DetailPage> {
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          blueButton("Export", () => _trackExport()),
+          blueButton("Export", () => _trackExport(context)),
           blueButton("Delete", () => _trackDelete(context)),
         ],
       ),
@@ -125,17 +125,10 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  _trackExport() async {
-    final content = rr!.rawPositions.toGPX();
+  _trackExport(BuildContext context) async {
     final name =
         "run-${DateFormat('yyyy-MM-dd_HH-mm').format(widget.run.startTime)}.gpx";
-    final params = ShareParams(
-      files: [
-        XFile.fromData(utf8.encode(content), mimeType: 'application/gpx+xml'),
-      ],
-      fileNameOverrides: [name],
-    );
-
-    await SharePlus.instance.share(params);
+    final content = rr!.rawPositions.toGPX();
+    showFileActionDialog(context, 'application/gpx+xml', name, content);
   }
 }

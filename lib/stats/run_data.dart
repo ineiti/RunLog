@@ -26,7 +26,7 @@ class Run {
     this.avgStepsPerMin,
   });
 
-  factory Run.fromDb(Map<String, dynamic> dbMap) {
+  factory Run.fromMap(Map<String, dynamic> dbMap) {
     return Run(
       id: dbMap['id'] as int,
       startTime: DateTime.fromMillisecondsSinceEpoch(
@@ -78,10 +78,33 @@ class Run {
   String toString() {
     return "$id: $startTime";
   }
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      duration.hashCode ^
+      totalDistance.hashCode ^
+      startTime.hashCode ^
+      startTime.hashCode ^
+      avgHeartRate.hashCode ^
+      avgStepsPerMin.hashCode ^
+      caloriesBurned.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is Run &&
+        other.id == id &&
+        other.duration == duration &&
+        other.totalDistance == totalDistance &&
+        other.startTime == startTime &&
+        other.avgHeartRate == avgHeartRate &&
+        other.avgStepsPerMin == avgStepsPerMin &&
+        other.caloriesBurned == caloriesBurned;
+  }
 }
 
 class TrackedData {
-  final int runId;
+  int runId;
   int timestamp;
   double latitude;
   double longitude;
@@ -105,7 +128,7 @@ class TrackedData {
     this.id,
   });
 
-  factory TrackedData.fromDb(Map<String, dynamic> dbMap) {
+  factory TrackedData.fromMap(Map<String, dynamic> dbMap) {
     return TrackedData(
       id: dbMap['id'] as int,
       runId: dbMap['run_id'] as int,

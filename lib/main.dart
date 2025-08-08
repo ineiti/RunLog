@@ -53,17 +53,14 @@ class _MyAppState extends State<MyApp> {
         await ReceiveSharingIntent.instance.getInitialMedia();
     if (initialFiles.isNotEmpty) {
       SharedMediaFile initialFile = initialFiles.first;
-      if (initialFile.path.endsWith('.gpx')) {
-        _processGPXFile(runStorage, initialFile.path, altitudeURL);
-      }
+      await _processFile(runStorage, initialFile.path, altitudeURL);
     }
 
     // For files shared while the app is running
     ReceiveSharingIntent.instance.getMediaStream().listen(
-      (List<SharedMediaFile> files) {
-        if (files.isNotEmpty && files.first.path.endsWith('.gpx')) {
-          _processGPXFile(runStorage, files.first.path, altitudeURL);
-          _processGPXFile(runStorage, files.first.path, altitudeURL);
+      (List<SharedMediaFile> files) async {
+        if (files.isNotEmpty) {
+          await _processFile(runStorage, files.first.path, altitudeURL);
         }
       },
       onError: (err) {
@@ -72,7 +69,20 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  void _processGPXFile(
+  _processFile(
+    RunStorage runStorage,
+    String filePath,
+    String altitudeURL,
+  ) async {
+    if (filePath.endsWith('.gpx')) {
+      await _processGPXFile(runStorage, filePath, altitudeURL);
+    }
+    if (filePath.endsWith('.rlog')) {
+      await _processRLogFile(runStorage, filePath);
+    }
+  }
+
+  _processGPXFile(
     RunStorage runStorage,
     String filePath,
     String altitudeURL,
@@ -90,6 +100,13 @@ class _MyAppState extends State<MyApp> {
     runStorage.updateRun(newRun);
     RunStats rr = await RunStats.loadRun(runStorage, newRun.id, altitudeURL);
     await rr.updateStats();
+  }
+
+  _processRLogFile(RunStorage runStorage, String filePath) async {
+    File rlogFile = File(filePath);
+    String content = await rlogFile.readAsString();
+    print("Content is: $content");
+    await runStorage.importAll(content);
   }
 
   @override
