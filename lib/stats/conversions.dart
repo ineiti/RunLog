@@ -18,8 +18,8 @@ double toPaceMinKm(double mps) {
   return 1000 / 60 / mps;
 }
 
-double toSpeedMS(double minKm){
-  if (minKm <= 0){
+double toSpeedMS(double minKm) {
+  if (minKm <= 0) {
     return minKm;
   }
   return 1000 / 60 / minKm;
@@ -29,10 +29,16 @@ String labelYTime(String s) {
   return minSec(double.parse(s));
 }
 
-String minSec(double minutes){
+String minSec(double minutes) {
   final min = minutes.toInt();
   final sec = ((minutes - min) * 60).round();
   return "$min' ${sec > 0 ? " $sec''" : ""}";
+}
+
+String minSecFix(double minutes, int fixMin) {
+  final min = minutes.toInt();
+  final sec = ((minutes - min) * 60).round();
+  return "${min.toStringAsFixed(0).padLeft(fixMin, "0")}' ${sec.toStringAsFixed(0).padLeft(2, '0')}''";
 }
 
 String distanceStr(double m) {

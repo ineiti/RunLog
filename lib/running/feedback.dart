@@ -2,15 +2,15 @@ import 'dart:convert';
 
 import 'package:run_log/running/tones.dart';
 
-enum FeedbackType { none, pace, runDuration, runPace }
+enum FeedbackType { none, pace }
 
 enum _FeedbackFields { type, paceMinKm, durationS, target }
 
 class Feedback {
-  FeedbackType _type;
-  double _paceMinKm;
-  double _durationS;
-  SFEntry _target;
+  final FeedbackType _type;
+  final double _paceMinKm;
+  final double _durationS;
+  final SFEntry _target;
 
   static Feedback init(){
     return Feedback.fromJson("{}");
@@ -43,11 +43,7 @@ String ftDisplayString(FeedbackType ft) {
     case FeedbackType.none:
       return "No Feedback";
     case FeedbackType.pace:
-      return "Fixed Pace";
-    case FeedbackType.runDuration:
-      return "Duration Previous Run";
-    case FeedbackType.runPace:
-      return "Pace Previous Run";
+      return "Preset Pace";
   }
 }
 
@@ -57,10 +53,6 @@ String? ftToString(FeedbackType? ft) {
       return "None";
     case FeedbackType.pace:
       return "Pace";
-    case FeedbackType.runDuration:
-      return "RunDuration";
-    case FeedbackType.runPace:
-      return "RunPace";
     default:
       return null;
   }
@@ -73,9 +65,6 @@ FeedbackType? ftFromString(String? s) {
     case "Pace":
       return FeedbackType.pace;
     case "RunDuration":
-      return FeedbackType.runDuration;
-    case "RunPace":
-      return FeedbackType.runPace;
     default:
       return null;
   }

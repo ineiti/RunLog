@@ -57,9 +57,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Text("RunLog"),
           ),
-          body: Center(
+          body: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: <Widget>[_runWidget(snapshot.data)],
             ),
           ),
@@ -78,7 +79,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case RunState.waitUser:
         return Column(
           children: [
-            ...feedback.configWidget(() {
+            ...feedback.configWidget(widget.configurationStorage, () {
               setState(() {});
             }),
             blueButton("Start Running", () => _startRunning()),
@@ -90,7 +91,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   _startRunning() {
-    feedback.startRunning(widget.configurationStorage.config.maxFeedbackSoundWait);
+    feedback.startRunning(
+      widget.configurationStorage.config.maxFeedbackSoundWait,
+    );
     RunStats.newRun(widget.runStorage).then((rr) {
       runStats = rr;
       runStats!.figures.addSpeed(5);

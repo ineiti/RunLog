@@ -6,6 +6,8 @@ class Configuration {
   final bool simulateGPS;
   final String altitudeURL;
   final int maxFeedbackSoundWait;
+  final double minFeedbackPace;
+  final double maxFeedbackPace;
   static int version = 1;
 
   static Configuration fromJson(String json) {
@@ -17,6 +19,8 @@ class Configuration {
           simulateGPS: (conf['simulateGPS'] ?? false) as bool,
           altitudeURL: (conf['altitudeURL'] ?? "") as String,
           maxFeedbackSoundWait: (conf['maxFeedbackSoundWait'] ?? 4) as int,
+          minFeedbackPace: (conf['minFeedbackPace'] ?? 4.0) as double,
+          maxFeedbackPace: (conf['maxFeedbackPace'] ?? 8.0) as double,
         );
       default:
         return Configuration(
@@ -24,6 +28,8 @@ class Configuration {
           simulateGPS: false,
           altitudeURL: "",
           maxFeedbackSoundWait: 4,
+          minFeedbackPace: 4,
+          maxFeedbackPace: 8,
         );
     }
   }
@@ -33,14 +39,18 @@ class Configuration {
     required this.simulateGPS,
     required this.altitudeURL,
     required this.maxFeedbackSoundWait,
+    required this.minFeedbackPace,
+    required this.maxFeedbackPace,
   });
 
-  Configuration setDebut(bool debug) {
+  Configuration setDebug(bool debug) {
     return Configuration(
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
       maxFeedbackSoundWait: maxFeedbackSoundWait,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
     );
   }
 
@@ -50,6 +60,8 @@ class Configuration {
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
       maxFeedbackSoundWait: maxFeedbackSoundWait,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
     );
   }
 
@@ -59,6 +71,8 @@ class Configuration {
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
       maxFeedbackSoundWait: maxFeedbackSoundWait,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
     );
   }
 
@@ -68,6 +82,30 @@ class Configuration {
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
       maxFeedbackSoundWait: maxFeedbackSoundWait,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
+    );
+  }
+
+  Configuration setMinFeedbackPace(double minFeedbackPace) {
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
+    );
+  }
+
+  Configuration setMaxFeedbackPace(double maxFeedbackPace) {
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
     );
   }
 
@@ -77,6 +115,8 @@ class Configuration {
       'simulateGPS': simulateGPS,
       'altitudeURL': altitudeURL,
       'maxFeedbackSoundWait': maxFeedbackSoundWait,
+      'minFeedbackPace': minFeedbackPace,
+      'maxFeedbackPace': maxFeedbackPace,
       'version': version,
     });
   }

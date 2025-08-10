@@ -278,9 +278,6 @@ class RunStorage {
     db.delete('Runs');
     db.delete('TrackedData');
     db.delete('sqlite_sequence');
-    // await deleteDatabase(await _dbPath());
-    // db.close();
-    // db = await _getDB();
     runs = {};
     trackedData = {};
   }

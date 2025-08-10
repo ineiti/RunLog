@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:run_log/running/tones.dart';
 
+import '../configuration.dart';
 import '../stats/conversions.dart';
 import '../stats/run_data.dart';
 import 'feedback.dart';
@@ -29,12 +30,6 @@ class ToneFeedback {
         break;
       case FeedbackType.pace:
         _feedback.setEntry(SFEntry.startMinKm(_feedbackPace));
-      case FeedbackType.runDuration:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-      case FeedbackType.runPace:
-        // TODO: Handle this case.
-        throw UnimplementedError();
     }
   }
 
@@ -50,11 +45,14 @@ class ToneFeedback {
     }
   }
 
-  List<Widget> configWidget(VoidCallback setState) {
+  List<Widget> configWidget(
+    ConfigurationStorage config,
+    VoidCallback setState,
+  ) {
     return [
       Row(
         children: [
-          Text("  Tone Feedback: "),
+          Text("Tone Feedback: "),
           DropdownButton<FeedbackType>(
             value: _feedbackSound,
             icon: const Icon(Icons.arrow_downward),
@@ -79,110 +77,96 @@ class ToneFeedback {
       ),
       Visibility(
         visible: _feedbackSound != FeedbackType.none,
-        child: _configParam(setState),
+        child: _configParam(config, setState),
       ),
     ];
   }
 
-  Widget _configParam(VoidCallback setState) {
+  Widget _configParam(ConfigurationStorage config, VoidCallback setState) {
     if (_feedbackSound == FeedbackType.none) {
       return Text("Shouldn't happen");
     }
     final List<Widget> col = [];
-    if (_feedbackSound == FeedbackType.pace ||
-        _feedbackSound == FeedbackType.runPace) {
-      col.add(
+    col.add(
+      _paceSlider(
+        setState,
+        "Overall Pace",
+        config.config.minFeedbackPace,
+        config.config.maxFeedbackPace,
+      ),
+    );
+    return Column(children: col);
+  }
+
+  Widget _paceSlider(
+    VoidCallback setState,
+    String label,
+    double from,
+    double to,
+  ) {
+    final divisions = ((to - from) * 12).round();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [Text(label)]),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 10,
+          // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // spacing: 10,
           children: [
+            Text("${minSecFix(_feedbackPace, 2)} / km"),
             Flexible(
-              flex: 2,
-              fit: FlexFit.tight,
-              child: Text("  ${minSec(_feedbackPace)} min/km"),
-            ),
-            Flexible(
-              flex: 5,
-              fit: FlexFit.tight,
+              flex: 1,
               child: Slider(
                 value: _feedbackPace,
                 onChanged: (double value) {
                   _feedbackPace = value;
                   setState();
                 },
-                min: 5,
-                divisions: 24,
-                max: 7,
+                min: from,
+                divisions: divisions,
+                max: to,
               ),
             ),
           ],
         ),
-      );
-    } else {
-      col.add(
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 10,
-          children: [
-            _dropdown(
-              List.generate(10, (i) => i),
-              () => _feedbackDuration ~/ 3600,
-              (value) {
-                _feedbackDuration %= 3600;
-                _feedbackDuration += value * 3600;
-                setState();
-              },
-            ),
-            _dropdown(
-              List.generate(60, (i) => i),
-              () => (_feedbackDuration ~/ 60) % 60,
-              (value) {
-                final minutes = (_feedbackDuration ~/ 60) % 60;
-                _feedbackDuration += (value - minutes) * 60;
-                setState();
-              },
-            ),
-            _dropdown(
-              List.generate(12, (i) => 5 * i),
-              () => _feedbackDuration % 60,
-              (value) {
-                final seconds = _feedbackDuration % 60;
-                _feedbackDuration += value - seconds;
-                setState();
-              },
-            ),
-          ],
-        ),
-      );
-    }
-    if (_feedbackSound == FeedbackType.runDuration ||
-        _feedbackSound == FeedbackType.runPace) {
+      ],
+    );
+  }
 
-      col.add(
-        DropdownButton(
-          value: value(),
-          icon: const Icon(Icons.arrow_downward),
-          elevation: 16,
-          style: const TextStyle(color: Colors.deepPurple),
-          underline: Container(height: 2, color: Colors.deepPurpleAccent),
-          onChanged: (int? value) {
-            if (value != null) {
-              update(value);
-            }
+  Widget _timeDropdown(VoidCallback setState) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      spacing: 10,
+      children: [
+        _dropdown(
+          List.generate(10, (i) => i),
+          () => _feedbackDuration ~/ 3600,
+          (value) {
+            _feedbackDuration %= 3600;
+            _feedbackDuration += value * 3600;
+            setState();
           },
-          items:
-              values
-                  .map(
-                    (value) => DropdownMenuItem<int>(
-                      value: value,
-                      child: Text(value.toString()),
-                    ),
-                  )
-                  .toList(),
         ),
-      );
-    }
-    return Column(children: col);
+        _dropdown(
+          List.generate(60, (i) => i),
+          () => (_feedbackDuration ~/ 60) % 60,
+          (value) {
+            final minutes = (_feedbackDuration ~/ 60) % 60;
+            _feedbackDuration += (value - minutes) * 60;
+            setState();
+          },
+        ),
+        _dropdown(
+          List.generate(12, (i) => 5 * i),
+          () => _feedbackDuration % 60,
+          (value) {
+            final seconds = _feedbackDuration % 60;
+            _feedbackDuration += value - seconds;
+            setState();
+          },
+        ),
+      ],
+    );
   }
 
   Widget _dropdown(
@@ -240,4 +224,3 @@ class ToneFeedback {
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../configuration.dart';
+import '../stats/conversions.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key, required this.configurationStorage});
@@ -22,6 +23,13 @@ class _SettingsState extends State<Settings> {
 
   @override
   Widget build(BuildContext context) {
+    final feedPaceMin =
+        (widget.configurationStorage.config.minFeedbackPace * 12).round() / 12;
+    final feedPaceMax =
+        (widget.configurationStorage.config.maxFeedbackPace * 12).round() / 12;
+    final divisionsMin = ((feedPaceMax - 1) * 12).round();
+    final divisionsMax = ((10 - feedPaceMin) * 12).round();
+    print("$feedPaceMin..$feedPaceMax - $divisionsMin / $divisionsMax");
     // print("Items are: ${runs.length} - ${widget.runStorage.runs}");
     // print(widget.runStorage);
     return Scaffold(
@@ -37,7 +45,7 @@ class _SettingsState extends State<Settings> {
             onChanged: (bool? value) async {
               if (value != null) {
                 await widget.configurationStorage.updateConfig(
-                  widget.configurationStorage.config.setDebut(value),
+                  widget.configurationStorage.config.setDebug(value),
                 );
                 setState(() {});
               }
@@ -89,6 +97,56 @@ class _SettingsState extends State<Settings> {
                   },
                   min: 1,
                   divisions: 10,
+                  max: 10,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 10,
+            children: [
+              Text(
+                "MinPace  ${minSecFix(widget.configurationStorage.config.minFeedbackPace, 2)}",
+              ),
+              Flexible(
+                child: Slider(
+                  value: widget.configurationStorage.config.minFeedbackPace,
+                  onChanged: (double value) async {
+                    await widget.configurationStorage.updateConfig(
+                      widget.configurationStorage.config.setMinFeedbackPace(
+                        value,
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  min: 1,
+                  divisions: divisionsMin,
+                  max: feedPaceMax,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 10,
+            children: [
+              Text(
+                "MaxPace ${minSecFix(widget.configurationStorage.config.maxFeedbackPace, 2)}",
+              ),
+              Flexible(
+                child: Slider(
+                  value: widget.configurationStorage.config.maxFeedbackPace,
+                  onChanged: (double value) async {
+                    await widget.configurationStorage.updateConfig(
+                      widget.configurationStorage.config.setMaxFeedbackPace(
+                        value,
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  min: feedPaceMin,
+                  divisions: divisionsMax,
                   max: 10,
                 ),
               ),
