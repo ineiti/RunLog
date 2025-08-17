@@ -1,8 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
+
+import '../stats/conversions.dart';
 
 Widget blueButton(String s, VoidCallback click) {
   return TextButton(
@@ -17,46 +15,36 @@ Widget blueButton(String s, VoidCallback click) {
   );
 }
 
-void showFileActionDialog(BuildContext context, String mimeType, String name, String content) {
-  showModalBottomSheet(
-    context: context,
-    builder: (BuildContext context) {
-      return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('Share File'),
-              onTap: () async {
-                Navigator.pop(context);
-                final params = ShareParams(
-                  files: [
-                    XFile.fromData(
-                      utf8.encode(content),
-                      mimeType: mimeType,
-                    ),
-                  ],
-                  fileNameOverrides: [name],
-                );
-                await SharePlus.instance.share(params);
-              },
+Widget paceSlider(
+    ValueChanged<double> onPaceChanged,
+    double pace,
+    String label,
+    double from,
+    double to,
+    ) {
+  final divisions = ((to - from) * 12).round();
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [Text(label)]),
+      Row(
+        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // spacing: 10,
+        children: [
+          Text("${minSecFix(pace, 2)} / km"),
+          Flexible(
+            flex: 1,
+            child: Slider(
+              value: pace,
+              onChanged: onPaceChanged,
+              min: from,
+              divisions: divisions,
+              max: to,
             ),
-            ListTile(
-              leading: const Icon(Icons.save_alt),
-              title: const Text('Save to Device'),
-              onTap: () async {
-                Navigator.pop(context);
-                await FilePicker.platform.saveFile(
-                  dialogTitle: 'Where to store the file:',
-                  fileName: name,
-                  bytes: utf8.encode(content),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    },
+          ),
+        ],
+      ),
+    ],
   );
 }
+

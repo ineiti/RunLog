@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:run_log/running/feedback_track.dart';
 import 'package:run_log/running/tones.dart';
 
 import '../configuration.dart';
-import '../stats/conversions.dart';
 import '../stats/run_data.dart';
 import 'feedback.dart';
 
@@ -14,6 +16,12 @@ class ToneFeedback {
   Run? _feedbackRun;
   int _nextSoundS = 0;
   int _maxFeedbackSoundWait = 4;
+  double _feedbackWarmupMin = 0;
+  int _feedbackIntervals = 0;
+  double _feedbackIntervalFastMin = 2;
+  double _feedbackIntervalSlowMin = 2;
+  double _feedbackIntervalFastPace = 4;
+  double _feedbackIntervalSlowPace = 6;
   final Tones _feedback;
 
   static Future<ToneFeedback> init() async {
@@ -86,51 +94,7 @@ class ToneFeedback {
     if (_feedbackSound == FeedbackType.none) {
       return Text("Shouldn't happen");
     }
-    final List<Widget> col = [];
-    col.add(
-      _paceSlider(
-        setState,
-        "Overall Pace",
-        config.config.minFeedbackPace,
-        config.config.maxFeedbackPace,
-      ),
-    );
-    return Column(children: col);
-  }
-
-  Widget _paceSlider(
-    VoidCallback setState,
-    String label,
-    double from,
-    double to,
-  ) {
-    final divisions = ((to - from) * 12).round();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [Text(label)]),
-        Row(
-          // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          // spacing: 10,
-          children: [
-            Text("${minSecFix(_feedbackPace, 2)} / km"),
-            Flexible(
-              flex: 1,
-              child: Slider(
-                value: _feedbackPace,
-                onChanged: (double value) {
-                  _feedbackPace = value;
-                  setState();
-                },
-                min: from,
-                divisions: divisions,
-                max: to,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+    return PaceWidget(updateEntries: StreamController());
   }
 
   Widget _timeDropdown(VoidCallback setState) {

@@ -1,15 +1,13 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:run_log/configuration.dart';
 import 'package:run_log/stats/conversions.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../stats/run_data.dart';
 import '../widgets/basic.dart';
+import '../widgets/dialogs.dart';
 
 class DetailPage extends StatefulWidget {
   const DetailPage({
