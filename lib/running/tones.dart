@@ -22,6 +22,10 @@ class Tones {
     idx = 0;
   }
 
+  bool hasEntry(){
+    return _entry.targetSpeeds.isNotEmpty;
+  }
+
   playSound(int maxSoundWait, double distanceM, double currentDuration) async {
     final frequencies = _entry.getFrequencies(distanceM, currentDuration);
     // print("|freq|: ${frequencies.length} - idx: $idx");
@@ -139,11 +143,19 @@ class SFEntry {
     return sf;
   }
 
-  static SFEntry fromJson(String s){
+  static SFEntry fromJson(String s) {
     return SFEntry();
   }
 
-  String toJson(){
+  static SFEntry fromPoints(List<SpeedPoint> points) {
+    final sf = SFEntry();
+    for (final point in points) {
+      sf.addPoint(point);
+    }
+    return sf;
+  }
+
+  String toJson() {
     return jsonEncode({});
   }
 

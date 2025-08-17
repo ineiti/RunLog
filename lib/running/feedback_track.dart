@@ -6,7 +6,7 @@ import 'package:run_log/running/tones.dart';
 import '../widgets/basic.dart';
 
 class PaceWidget extends StatefulWidget {
-  final StreamController<List<SFEntry>> updateEntries;
+  final StreamController<SFEntry> updateEntries;
 
   const PaceWidget({super.key, required this.updateEntries});
 
@@ -15,60 +15,207 @@ class PaceWidget extends StatefulWidget {
 }
 
 class _PaceWidgetState extends State<PaceWidget> {
-  final _values = _PaceGlobal();
+  final _values = _Container();
 
   @override
   Widget build(BuildContext context) {
     widget.updateEntries.add(
-      _values.entries
-          .map((e) => e.getEntries(_values))
-          .expand((l) => l)
-          .toList(),
-    );
-    return Expanded(
-      flex: 0,
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: _values.entries.length,
-        itemBuilder: (context, index) {
-          final entry = _values.entries[index];
-          return Card(
-            child: InkWell(
-              onTap:
-                  () => setState(() {
-                    entry.tap(context, _values);
-                  }),
-              child: entry.getWidget(() {
-                setState(() {});
-              }, _values),
-            ),
-          );
-        },
+      SFEntry.fromPoints(
+        _values.entries.map((e) => e.getPoints()).expand((l) => l).toList(),
       ),
+    );
+    return Column(
+      children: [
+        blueButton("Clear", () {
+          setState(() {
+            _values.entries = [_PaceAdder(_values, 0)];
+          });
+        }),
+        ListView.builder(
+          shrinkWrap: true,
+          itemCount: _values.entries.length,
+          itemBuilder: (context, index) {
+            final entry = _values.entries[index];
+            return Card(
+              child: Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                child: InkWell(
+                  onTap:
+                      () => setState(() {
+                        entry.tap(context);
+                      }),
+                  child: entry.getWidget(() {
+                    setState(() {});
+                  }),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
-class _PaceGlobal {
+class _Container {
   List<_PaceEntryImp> entries = [];
   _Overall overall = _Overall();
 
-  _PaceGlobal() {
-    entries = [overall, _Warmup(), _Fill(), _Interval(), _Fill(), _Sprint()];
+  _Container() {
+    entries = [_PaceAdder(this, 0)];
   }
 }
 
 abstract class _PaceEntryImp {
-  Widget getWidget(VoidCallback setState, _PaceGlobal values);
+  Widget getWidget(VoidCallback setState);
 
-  List<SFEntry> getEntries(_PaceGlobal values);
+  List<SpeedPoint> getPoints();
 
-  tap(BuildContext context, _PaceGlobal values);
+  tap(BuildContext context);
 }
 
-class _Warmup implements _PaceEntryImp {
+enum _Entries { adder, pace, paceLength, intervals }
+
+class _PaceAdder implements _PaceEntryImp {
+  final _Container values;
+  int position;
+
+  _PaceAdder(this.values, this.position);
+
   @override
-  Widget getWidget(VoidCallback setState, _PaceGlobal values) {
+  Widget getWidget(VoidCallback setState) {
+    return DropdownButton(
+      value: _Entries.adder,
+      icon: const Icon(Icons.arrow_downward),
+      elevation: 16,
+      style: const TextStyle(color: Colors.deepPurple),
+      underline: Container(height: 2, color: Colors.deepPurpleAccent),
+      onChanged: (_Entries? value) {
+        if (value != null) {
+          _insertEntry(value);
+          setState();
+        }
+      },
+      items:
+          _validEntries()
+              .map(
+                (value) => DropdownMenuItem<_Entries>(
+                  value: value,
+                  child: Text(value.toString()),
+                ),
+              )
+              .toList(),
+    );
+  }
+
+  @override
+  List<SpeedPoint> getPoints() {
+    return [];
+  }
+
+  @override
+  tap(BuildContext context) {}
+
+  _insertEntry(_Entries entry) {
+    _PaceEntryImp? imp;
+    switch (entry) {
+      case _Entries.adder:
+        return;
+      case _Entries.pace:
+        imp = _Pace();
+        if (values.entries.length == 1) {
+          position++;
+        }
+      case _Entries.paceLength:
+        imp = _PaceLength();
+        if (values.entries.length == 1) {
+          values.entries.add(_PaceAdder(values, position + 2));
+          position++;
+        }
+      case _Entries.intervals:
+        imp = _PaceIntervals(values);
+    }
+    values.entries.insert(position, imp);
+  }
+
+  // TODO: Correctly restrict possible values.
+  List<_Entries> _validEntries() {
+    return _Entries.values;
+  }
+}
+
+class _Pace implements _PaceEntryImp {
+  double _pace = 6;
+
+  _Pace();
+
+  @override
+  Widget getWidget(VoidCallback setState) {
+    return paceSlider(
+      (value) {
+        _pace = value;
+        setState();
+      },
+      _pace,
+      "Pace",
+      4,
+      8,
+    );
+  }
+
+  @override
+  List<SpeedPoint> getPoints() {
+    return [];
+  }
+
+  @override
+  tap(BuildContext context) {}
+}
+
+class _PaceLength implements _PaceEntryImp {
+  double _pace = 6;
+  final TimeHMS _duration = TimeHMS("Duration", 0, 10, 0);
+
+  _PaceLength();
+
+  @override
+  Widget getWidget(VoidCallback setState) {
+    return Column(
+      children: [
+        paceSlider(
+          (value) {
+            _pace = value;
+            setState();
+          },
+          _pace,
+          "Pace",
+          4,
+          8,
+        ),
+        _duration.dropdownWidget(setState),
+      ],
+    );
+  }
+
+  @override
+  List<SpeedPoint> getPoints() {
+    return [];
+  }
+
+  @override
+  tap(BuildContext context) {}
+}
+
+class _PaceIntervals implements _PaceEntryImp {
+  _Container values;
+
+  _PaceIntervals(this.values);
+
+  @override
+  Widget getWidget(VoidCallback setState) {
     if (values.overall._active) {
       return Text("Warmup");
     } else {
@@ -77,57 +224,12 @@ class _Warmup implements _PaceEntryImp {
   }
 
   @override
-  List<SFEntry> getEntries(_PaceGlobal values) {
+  List<SpeedPoint> getPoints() {
     return [];
   }
 
   @override
-  tap(BuildContext context, _PaceGlobal values) {}
-}
-
-class _Sprint implements _PaceEntryImp {
-  @override
-  Widget getWidget(VoidCallback setState, _PaceGlobal values) {
-    return Text("Sprint");
-  }
-
-  @override
-  List<SFEntry> getEntries(_PaceGlobal values) {
-    return [];
-  }
-
-  @override
-  tap(BuildContext context, _PaceGlobal values) {}
-}
-
-class _Fill implements _PaceEntryImp {
-  @override
-  Widget getWidget(VoidCallback setState, _PaceGlobal values) {
-    return Text("Fill up run");
-  }
-
-  @override
-  List<SFEntry> getEntries(_PaceGlobal values) {
-    return [];
-  }
-
-  @override
-  tap(BuildContext context, _PaceGlobal values) {}
-}
-
-class _Interval implements _PaceEntryImp {
-  @override
-  Widget getWidget(VoidCallback setState, _PaceGlobal values) {
-    return Text("Interval training");
-  }
-
-  @override
-  List<SFEntry> getEntries(_PaceGlobal values) {
-    return [];
-  }
-
-  @override
-  tap(BuildContext context, _PaceGlobal values) {}
+  tap(BuildContext context) {}
 }
 
 class _Overall implements _PaceEntryImp {
@@ -135,12 +237,12 @@ class _Overall implements _PaceEntryImp {
   double _feedbackPace = 6;
 
   @override
-  List<SFEntry> getEntries(_PaceGlobal values) {
+  List<SpeedPoint> getPoints() {
     return [];
   }
 
   @override
-  Widget getWidget(VoidCallback setState, _PaceGlobal values) {
+  Widget getWidget(VoidCallback setState) {
     if (!_active) {
       return Text("Click to set overall pace");
     } else {
@@ -163,7 +265,7 @@ class _Overall implements _PaceEntryImp {
   }
 
   @override
-  tap(BuildContext context, _PaceGlobal values) {
+  tap(BuildContext context) {
     _active = !_active;
   }
 }

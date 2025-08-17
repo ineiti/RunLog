@@ -59,9 +59,15 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
           ),
           body: Container(
             margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: _runWidget(snapshot.data),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: _runWidget(snapshot.data),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -77,12 +83,12 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case RunState.waitGPS:
         return [_streamBuilder(geoTracker.streamState, _widgetWaitGPS)];
       case RunState.waitUser:
-        return  [
-            ...feedback.configWidget(widget.configurationStorage, () {
-              setState(() {});
-            }),
-            blueButton("Start Running", () => _startRunning()),
-          ];
+        return [
+          feedback.configWidget(widget.configurationStorage, () {
+            setState(() {});
+          }),
+          blueButton("Start Running", () => _startRunning()),
+        ];
       case RunState.running:
         return [_streamBuilder(runStream, _widgetRunning)];
     }
