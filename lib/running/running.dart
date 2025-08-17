@@ -57,40 +57,36 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Text("RunLog"),
           ),
-          body: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: _runWidget(snapshot.data),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          body: _runWidget(snapshot.data),
         );
       },
     );
   }
 
-  List<Widget> _runWidget(RunState? rs) {
+  Widget _runWidget(RunState? rs) {
     switch (rs) {
       case null:
         widgetController.add(RunState.waitGPS);
-        return [Text("Initializing")];
+        return Text("Initializing");
       case RunState.waitGPS:
-        return [_streamBuilder(geoTracker.streamState, _widgetWaitGPS)];
+        return _streamBuilder(geoTracker.streamState, _widgetWaitGPS);
       case RunState.waitUser:
-        return [
-          feedback.configWidget(widget.configurationStorage, () {
-            setState(() {});
-          }),
-          blueButton("Start Running", () => _startRunning()),
-        ];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Column(
+            children: [
+              Flexible(
+                flex: 1,
+                child: feedback.configWidget(widget.configurationStorage, () {
+                  setState(() {});
+                }),
+              ),
+              blueButton("Start Running", () => _startRunning()),
+            ],
+          ),
+        );
       case RunState.running:
-        return [_streamBuilder(runStream, _widgetRunning)];
+        return _streamBuilder(runStream, _widgetRunning);
     }
   }
 

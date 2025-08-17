@@ -31,29 +31,32 @@ class _PaceWidgetState extends State<PaceWidget> {
             _values.entries = [_PaceAdder(_values, 0)];
           });
         }),
-        ListView.builder(
-          shrinkWrap: true,
-          itemCount: _values.entries.length,
-          itemBuilder: (context, index) {
-            final entry = _values.entries[index];
-            return Card(
-              child: Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
+        Flexible(
+          flex: 1,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _values.entries.length,
+            itemBuilder: (context, index) {
+              final entry = _values.entries[index];
+              return Card(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                  child: InkWell(
+                    onTap:
+                        () => setState(() {
+                          entry.tap(context);
+                        }),
+                    child: entry.getWidget(() {
+                      setState(() {});
+                    }),
+                  ),
                 ),
-                child: InkWell(
-                  onTap:
-                      () => setState(() {
-                        entry.tap(context);
-                      }),
-                  child: entry.getWidget(() {
-                    setState(() {});
-                  }),
-                ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
