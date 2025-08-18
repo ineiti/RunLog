@@ -127,7 +127,7 @@ class LengthKmM {
     this.m = (m % 1000) ~/ 100 * 100;
   }
 
-  getM() {
+  int getM() {
     return km * 1000 + m;
   }
 }

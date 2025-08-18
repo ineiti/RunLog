@@ -232,6 +232,11 @@ class SFEntry {
     print("Frequencies: $frequencies");
     return frequencies;
   }
+
+  @override
+  String toString() {
+    return "[$targetSpeeds]";
+  }
 }
 
 class SpeedPoint {
