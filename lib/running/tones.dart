@@ -251,6 +251,10 @@ class SpeedPoint {
     return SpeedPoint(distanceM: distanceM, speedMS: 0);
   }
 
+  static SpeedPoint speed(double speedMS) {
+    return SpeedPoint(distanceM: 0, speedMS: speedMS);
+  }
+
   @override
   String toString() {
     return "($distanceM, ${conversions.toPaceMinKm(speedMS).toStringAsFixed(3)})";

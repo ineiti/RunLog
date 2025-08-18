@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../stats/conversions.dart';
@@ -65,17 +67,68 @@ class TimeHMS {
         dropdown(List.generate(10, (i) => i), hours, (value) {
           hours = value;
           setState();
-        }, (value) => "$value s"),
+        }, (value) => "$value h"),
         dropdown(List.generate(60, (i) => i), minutes, (value) {
           minutes = value;
           setState();
-        }, (value) => "$value s"),
+        }, (value) => "$value m"),
         dropdown(List.generate(12, (i) => 5 * i), seconds, (value) {
           seconds = value;
           setState();
         }, (value) => "$value s"),
       ],
     );
+  }
+
+  int getSec() {
+    return (hours * 60 + minutes) * 60 + seconds;
+  }
+
+  setHMS(int h, int m, int s) {
+    hours = h;
+    minutes = m;
+    seconds = s;
+  }
+
+  setSec(int s) {
+    seconds = (s % 60) ~/ 5 * 5;
+    minutes = (s ~/ 60) % 60;
+    hours = s ~/ 3600;
+  }
+}
+
+class LengthKmM {
+  int km;
+  int m;
+  final String label;
+
+  LengthKmM(this.label, this.km, this.m);
+
+  Widget dropdownWidget(VoidCallback setState) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      spacing: 10,
+      children: [
+        Text(label),
+        dropdown(List.generate(40, (i) => i), km, (value) {
+          km = value;
+          setState();
+        }, (value) => "$value km"),
+        dropdown(List.generate(10, (i) => 100 * i), m, (value) {
+          m = value;
+          setState();
+        }, (value) => "$value m"),
+      ],
+    );
+  }
+
+  setM(int m) {
+    km = m ~/ 1000;
+    this.m = (m % 1000) ~/ 100 * 100;
+  }
+
+  getM() {
+    return km * 1000 + m;
   }
 }
 

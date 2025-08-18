@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:run_log/running/tones.dart';
+import 'package:run_log/stats/conversions.dart';
 
 import '../widgets/basic.dart';
 
@@ -44,15 +45,9 @@ class _PaceWidgetState extends State<PaceWidget> {
                     horizontal: 10,
                     vertical: 10,
                   ),
-                  child: InkWell(
-                    onTap:
-                        () => setState(() {
-                          entry.tap(context);
-                        }),
-                    child: entry.getWidget(() {
-                      setState(() {});
-                    }),
-                  ),
+                  child: entry.getWidget(() {
+                    setState(() {});
+                  }),
                 ),
               );
             },
@@ -65,7 +60,6 @@ class _PaceWidgetState extends State<PaceWidget> {
 
 class _Container {
   List<_PaceEntryImp> entries = [];
-  _Overall overall = _Overall();
 
   _Container() {
     entries = [_PaceAdder(this, 0)];
@@ -73,11 +67,11 @@ class _Container {
 }
 
 abstract class _PaceEntryImp {
+  _Entries get type;
+
   Widget getWidget(VoidCallback setState);
 
   List<SpeedPoint> getPoints();
-
-  tap(BuildContext context);
 }
 
 enum _Entries { adder, pace, paceLength, intervals }
@@ -120,49 +114,61 @@ class _PaceAdder implements _PaceEntryImp {
   }
 
   @override
-  tap(BuildContext context) {}
+  _Entries get type => _Entries.adder;
 
   _insertEntry(_Entries entry) {
     _PaceEntryImp? imp;
+    int newPos = position;
     switch (entry) {
       case _Entries.adder:
         return;
       case _Entries.pace:
         imp = _Pace();
         if (values.entries.length == 1) {
-          position++;
+          newPos++;
         }
       case _Entries.paceLength:
         imp = _PaceLength();
         if (values.entries.length == 1) {
           values.entries.add(_PaceAdder(values, position + 2));
-          position++;
+          newPos++;
         }
       case _Entries.intervals:
         imp = _PaceIntervals(values);
+        if (values.entries.length == 1) {
+          values.entries.add(_PaceAdder(values, position + 2));
+          newPos++;
+        }
     }
-    values.entries.insert(position, imp);
+    values.entries.insert(newPos, imp);
   }
 
-  // TODO: Correctly restrict possible values.
   List<_Entries> _validEntries() {
+    print("Position is $position");
+    if (values.entries.any((e) => e.type == _Entries.pace) ||
+        (position == 0 && values.entries.length > 1)) {
+      return _Entries.values.where((v) => v != _Entries.pace).toList();
+    }
     return _Entries.values;
   }
 }
 
 class _Pace implements _PaceEntryImp {
-  double _pace = 6;
+  double _paceMinKm = 6;
 
   _Pace();
+
+  @override
+  _Entries get type => _Entries.pace;
 
   @override
   Widget getWidget(VoidCallback setState) {
     return paceSlider(
       (value) {
-        _pace = value;
+        _paceMinKm = value;
         setState();
       },
-      _pace,
+      _paceMinKm,
       "Pace",
       4,
       8,
@@ -171,18 +177,22 @@ class _Pace implements _PaceEntryImp {
 
   @override
   List<SpeedPoint> getPoints() {
-    return [];
+    return [SpeedPoint.speed(toSpeedMS(_paceMinKm))];
   }
-
-  @override
-  tap(BuildContext context) {}
 }
+
+enum _PLDuDi { duration, distance }
 
 class _PaceLength implements _PaceEntryImp {
   double _pace = 6;
-  final TimeHMS _duration = TimeHMS("Duration", 0, 10, 0);
+  final TimeHMS _duration = TimeHMS("Duration", 0, 12, 0);
+  final LengthKmM _distance = LengthKmM("Distance", 2, 0);
+  _PLDuDi _dudi = _PLDuDi.duration;
 
   _PaceLength();
+
+  @override
+  _Entries get type => _Entries.paceLength;
 
   @override
   Widget getWidget(VoidCallback setState) {
@@ -191,14 +201,23 @@ class _PaceLength implements _PaceEntryImp {
         paceSlider(
           (value) {
             _pace = value;
-            setState();
+            _updateDuDi(setState, null)();
           },
           _pace,
-          "Pace",
+          "Pace Duration",
           4,
           8,
         ),
-        _duration.dropdownWidget(setState),
+        _duDiWidget(
+          setState,
+          _PLDuDi.duration,
+          _duration.dropdownWidget(_updateDuDi(setState, _PLDuDi.duration)),
+        ),
+        _duDiWidget(
+          setState,
+          _PLDuDi.distance,
+          _distance.dropdownWidget(_updateDuDi(setState, _PLDuDi.distance)),
+        ),
       ],
     );
   }
@@ -208,67 +227,69 @@ class _PaceLength implements _PaceEntryImp {
     return [];
   }
 
-  @override
-  tap(BuildContext context) {}
+  Widget _duDiWidget(VoidCallback setState, _PLDuDi dudi, Widget w) {
+    final color = _dudi == dudi ? Colors.tealAccent : Colors.transparent;
+    return InkWell(
+      onTap: () {
+        _dudi = dudi;
+        setState();
+      },
+      child: Container(color: color, width: double.infinity, child: w),
+    );
+  }
+
+  VoidCallback _updateDuDi(VoidCallback setState, _PLDuDi? source) {
+    return () {
+      if (source != null) {
+        _dudi = source;
+      }
+      final paceSM = _pace * 60 / 1000;
+      switch (_dudi) {
+        case _PLDuDi.duration:
+          _distance.setM((_duration.getSec() / paceSM).toInt());
+        case _PLDuDi.distance:
+          _duration.setSec((paceSM * _distance.getM()).toInt());
+      }
+      setState();
+    };
+  }
 }
 
 class _PaceIntervals implements _PaceEntryImp {
   _Container values;
+  int _repetitions = 4;
+  final _PaceLength _first = _PaceLength();
+  final _PaceLength _second = _PaceLength();
 
   _PaceIntervals(this.values);
 
   @override
+  _Entries get type => _Entries.intervals;
+
+  @override
   Widget getWidget(VoidCallback setState) {
-    if (values.overall._active) {
-      return Text("Warmup");
-    } else {
-      return Text("Cooldown");
-    }
+    return Column(
+      // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      // crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Intervals: "),
+            dropdown(List.generate(20, (i) => i), _repetitions, (v) {
+              _repetitions = v;
+              setState();
+            }, (v) => "$v x"),
+          ],
+        ),
+        _first.getWidget(setState), _second.getWidget(setState),
+        // Text("456"),
+      ],
+    );
   }
 
   @override
   List<SpeedPoint> getPoints() {
     return [];
-  }
-
-  @override
-  tap(BuildContext context) {}
-}
-
-class _Overall implements _PaceEntryImp {
-  bool _active = false;
-  double _feedbackPace = 6;
-
-  @override
-  List<SpeedPoint> getPoints() {
-    return [];
-  }
-
-  @override
-  Widget getWidget(VoidCallback setState) {
-    if (!_active) {
-      return Text("Click to set overall pace");
-    } else {
-      // if (_feedbackPace < config.config.minFeedbackPace) {
-      //   _feedbackPace = config.config.minFeedbackPace;
-      // } else if (_feedbackPace > config.config.maxFeedbackPace) {
-      //   _feedbackPace = config.config.maxFeedbackPace;
-      // }
-      return paceSlider(
-        (newValue) {
-          _feedbackPace = newValue;
-          setState();
-        },
-        _feedbackPace,
-        "Overall Pace",
-        4,
-        6,
-      );
-    }
-  }
-
-  @override
-  tap(BuildContext context) {
-    _active = !_active;
   }
 }

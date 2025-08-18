@@ -8,18 +8,18 @@ import '../configuration.dart';
 
 class ToneFeedback {
   int _soundIntervalS = 5;
-  PaceWidget _pace;
+  final PaceWidget _pace;
   final StreamController<SFEntry> _paceUpdates;
   int _nextSoundS = 0;
   int _maxFeedbackSoundWait = 4;
   final Tones _feedback;
 
   static Future<ToneFeedback> init() async {
-    final _paceUpdates = StreamController<SFEntry>();
+    final paceUpdates = StreamController<SFEntry>();
     return ToneFeedback(
       await Tones.init(),
-      _paceUpdates,
-      PaceWidget(updateEntries: _paceUpdates),
+      paceUpdates,
+      PaceWidget(updateEntries: paceUpdates),
     );
   }
 

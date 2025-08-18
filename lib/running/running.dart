@@ -57,7 +57,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Text("RunLog"),
           ),
-          body: _runWidget(snapshot.data),
+          body: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: _runWidget(snapshot.data),
+          ),
         );
       },
     );
@@ -71,19 +74,16 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case RunState.waitGPS:
         return _streamBuilder(geoTracker.streamState, _widgetWaitGPS);
       case RunState.waitUser:
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          child: Column(
-            children: [
-              Flexible(
-                flex: 1,
-                child: feedback.configWidget(widget.configurationStorage, () {
-                  setState(() {});
-                }),
-              ),
-              blueButton("Start Running", () => _startRunning()),
-            ],
-          ),
+        return Column(
+          children: [
+            Flexible(
+              flex: 1,
+              child: feedback.configWidget(widget.configurationStorage, () {
+                setState(() {});
+              }),
+            ),
+            blueButton("Start Running", () => _startRunning()),
+          ],
         );
       case RunState.running:
         return _streamBuilder(runStream, _widgetRunning);
