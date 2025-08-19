@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:run_log/running/feedback.dart';
 import 'package:run_log/running/feedback_track.dart';
 import 'package:run_log/running/tones.dart';
 
@@ -9,13 +10,13 @@ import '../configuration.dart';
 class ToneFeedback {
   int _soundIntervalS = 5;
   final PaceWidget _pace;
-  final StreamController<SFEntry> _paceUpdates;
+  final StreamController<FeedbackContainer> _paceUpdates;
   int _nextSoundS = 0;
   int _maxFeedbackSoundWait = 4;
-  final Tones _feedback;
+  final Tones _tones;
 
   static Future<ToneFeedback> init() async {
-    final paceUpdates = StreamController<SFEntry>();
+    final paceUpdates = StreamController<FeedbackContainer>();
     return ToneFeedback(
       await Tones.init(),
       paceUpdates,
@@ -23,8 +24,8 @@ class ToneFeedback {
     );
   }
 
-  ToneFeedback(this._feedback, this._paceUpdates, this._pace){
-    _paceUpdates.stream.listen((update) => _feedback.setEntry(update));
+  ToneFeedback(this._tones, this._paceUpdates, this._pace){
+    _paceUpdates.stream.listen((update) => _tones.setEntry(update.target));
   }
 
   startRunning(int maxFeedbackSoundWait) async {
@@ -33,10 +34,10 @@ class ToneFeedback {
   }
 
   updateRunning(double durationS, double distanceM) async {
-    if (_feedback.hasEntry()) {
+    if (_tones.hasEntry()) {
       // print("${runStats!.duration()} / $lastSoundS");
       if (durationS >= _nextSoundS) {
-        await _feedback.playSound(_maxFeedbackSoundWait, distanceM, durationS);
+        await _tones.playSound(_maxFeedbackSoundWait, distanceM, durationS);
         while (_nextSoundS <= durationS) {
           _nextSoundS += _soundIntervalS;
         }
@@ -53,7 +54,7 @@ class ToneFeedback {
 
   Widget runningWidget(double durationS, VoidCallback setState) {
     return Visibility(
-      visible: _feedback.hasEntry(),
+      visible: _tones.hasEntry(),
       child: DropdownButton<int>(
         value: _soundIntervalS,
         icon: const Icon(Icons.arrow_downward),

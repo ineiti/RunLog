@@ -55,13 +55,24 @@ class _HistoryState extends State<History> {
         title: Text("History"),
       ),
       body: Column(
+        // mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          _debugRuns(),
-          blueButton(
-            "Export All",
-            () => setState(() {
-              _exportAll(context);
-            }),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Column(
+                children: [
+                  _debugRuns(),
+                  blueButton(
+                    "Export All",
+                    () => setState(() {
+                      _exportAll(context);
+                    }),
+                  ),
+                ],
+              ),
+            ],
           ),
           runs.isNotEmpty ? _courseList() : Text("No runs yet"),
         ],

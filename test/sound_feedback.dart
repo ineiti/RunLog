@@ -88,13 +88,4 @@ void main() {
     fb24km.calcTotal(24 * 6 * 60);
     print(fb24km.targetSpeeds);
   });
-
-  test('Get frequencies', () {});
-
-  test('Convert FeedbackType', () {
-    for (var fb in FeedbackType.values) {
-      expect(ftFromString(ftToString(fb)), fb);
-    }
-    expect(ftFromString("something"), null);
-  });
 }

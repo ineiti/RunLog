@@ -350,13 +350,7 @@ class RunStorage {
         ''');
       case 3:
         db.execute('''
-        ALTER TABLE Runs ADD COLUMN feedback_type TEXT
-        ''');
-        db.execute('''
-        ALTER TABLE Runs ADD COLUMN feedback_param REAL
-        ''');
-        db.execute('''
-        ALTER TABLE Runs ADD COLUMN feedback_run INTEGER
+        ALTER TABLE Runs ADD COLUMN feedback TEXT
         ''');
     }
   }

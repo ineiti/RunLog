@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:run_log/running/feedback.dart';
 import 'package:run_log/running/tones.dart';
 import 'package:run_log/stats/conversions.dart';
 
 import '../widgets/basic.dart';
 
 class PaceWidget extends StatefulWidget {
-  final StreamController<SFEntry> updateEntries;
+  final StreamController<FeedbackContainer> updateEntries;
 
   const PaceWidget({super.key, required this.updateEntries});
 
@@ -27,7 +28,7 @@ class _PaceWidgetState extends State<PaceWidget> {
   @override
   Widget build(BuildContext context) {
     print("Points are: $_points");
-    widget.updateEntries.add(_points);
+    widget.updateEntries.add(FeedbackContainer.fromPace(_points));
     return Column(
       children: [
         blueButton("Clear", () {

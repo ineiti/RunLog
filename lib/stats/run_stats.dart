@@ -6,6 +6,7 @@ import 'package:run_log/stats/filter_data.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/storage.dart';
 
+import '../running/geotracker.dart';
 import 'figures.dart';
 
 enum RSState { waitAccurateGPS, waitRunning, running, paused }
@@ -235,7 +236,10 @@ class Resampler {
   int sampleInterval;
   TrackedData lastMovement;
 
-  Resampler(this.lastMovement, {this.sampleInterval = 5000}) {
+  Resampler(
+    this.lastMovement, {
+    this.sampleInterval = GeoTracker.intervalSeconds * 1000,
+  }) {
     tsReference = lastMovement.timestamp;
   }
 

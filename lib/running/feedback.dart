@@ -2,70 +2,55 @@ import 'dart:convert';
 
 import 'package:run_log/running/tones.dart';
 
-enum FeedbackType { none, pace }
+enum FeedbackType { none, pace, slope }
 
-enum _FeedbackFields { type, paceMinKm, durationS, target }
+enum _FeedbackFields { type, slopeMult, target }
 
-class Feedback {
-  final FeedbackType _type;
-  final double _paceMinKm;
-  final double _durationS;
-  final SFEntry _target;
+class FeedbackContainer {
+  final FeedbackType type;
+  final double slopeMult;
+  final SFEntry target;
 
-  static Feedback init(){
-    return Feedback.fromJson("{}");
+  static FeedbackContainer fromPace(SFEntry target){
+    return FeedbackContainer(FeedbackType.pace, 1, target);
   }
 
-  static Feedback fromJson(String s) {
+  static FeedbackContainer fromSlopeMult(SFEntry target, double slopeMult){
+    return FeedbackContainer(FeedbackType.pace, slopeMult, target);
+  }
+
+  static FeedbackContainer empty(){
+    return FeedbackContainer.fromJson("{}");
+  }
+
+  static FeedbackContainer fromJson(String s) {
     final map = jsonDecode(s);
-    return Feedback(
+    return FeedbackContainer(
       map[_FeedbackFields.type.name] ?? FeedbackType.none,
-      map[_FeedbackFields.paceMinKm.name] ?? 5,
-      map[_FeedbackFields.durationS.name] ?? 0,
+      map[_FeedbackFields.slopeMult.name] ?? 1,
       map[_FeedbackFields.target.name] ?? SFEntry(),
     );
   }
 
-  Feedback(this._type, this._paceMinKm, this._durationS, this._target);
+  FeedbackContainer(this.type, this.slopeMult, this.target);
 
   String toJson() {
     return jsonEncode({
-      _FeedbackFields.type.name: _type.name,
-      _FeedbackFields.paceMinKm.name: _paceMinKm,
-      _FeedbackFields.durationS.name: _durationS,
-      _FeedbackFields.target.name: _target.toJson(),
+      _FeedbackFields.type.name: type.name,
+      _FeedbackFields.slopeMult.name: slopeMult,
+      _FeedbackFields.target.name: target.toJson(),
     });
   }
-}
 
-String ftDisplayString(FeedbackType ft) {
-  switch (ft) {
-    case FeedbackType.none:
-      return "No Feedback";
-    case FeedbackType.pace:
-      return "Preset Pace";
-  }
-}
 
-String? ftToString(FeedbackType? ft) {
-  switch (ft) {
-    case FeedbackType.none:
-      return "None";
-    case FeedbackType.pace:
-      return "Pace";
-    default:
-      return null;
-  }
-}
-
-FeedbackType? ftFromString(String? s) {
-  switch (s) {
-    case "None":
-      return FeedbackType.none;
-    case "Pace":
-      return FeedbackType.pace;
-    case "RunDuration":
-    default:
-      return null;
+  String displayString() {
+    switch (type) {
+      case FeedbackType.none:
+        return "No Feedback";
+      case FeedbackType.pace:
+        return "Preset Pace";
+      case FeedbackType.slope:
+        return "Slope Adjust";
+    }
   }
 }

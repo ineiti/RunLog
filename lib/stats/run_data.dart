@@ -1,6 +1,5 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
-import 'package:run_log/running/tone_feedback.dart';
 
 import '../running/feedback.dart';
 
@@ -13,9 +12,7 @@ class Run {
   String? weather;
   int? avgHeartRate;
   int? avgStepsPerMin;
-  FeedbackType? feedbackType;
-  double? feedbackParam;
-  int? feedbackRun;
+  FeedbackContainer? feedback;
 
   static Run now(int id) {
     return Run(id: id, startTime: DateTime.now());
@@ -30,9 +27,7 @@ class Run {
     this.weather,
     this.avgHeartRate,
     this.avgStepsPerMin,
-    this.feedbackType,
-    this.feedbackParam,
-    this.feedbackRun,
+    this.feedback,
   });
 
   factory Run.fromMap(Map<String, dynamic> dbMap) {
@@ -47,9 +42,7 @@ class Run {
       weather: dbMap['weather'] as String?,
       avgHeartRate: dbMap['avg_heart_rate'] as int?,
       avgStepsPerMin: dbMap['avg_steps_per_min'] as int?,
-      feedbackType: ftFromString(dbMap['feedback_type']),
-      feedbackParam: dbMap['feedback_param'] as double?,
-      feedbackRun: dbMap['feedback_run'] as int?,
+      feedback: FeedbackContainer.fromJson(dbMap['feedback'] ?? "{}"),
     );
   }
 
@@ -75,9 +68,7 @@ class Run {
       "weather": weather,
       "avg_heart_rate": avgHeartRate,
       "avg_steps_per_min": avgStepsPerMin,
-      "feedback_type": ftToString(feedbackType),
-      "feedback_param": feedbackParam,
-      "feedback_run": feedbackRun,
+      "feedback": feedback?.toJson(),
     };
   }
 
