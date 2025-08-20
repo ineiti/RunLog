@@ -28,7 +28,11 @@ class _PaceWidgetState extends State<PaceWidget> {
   @override
   Widget build(BuildContext context) {
     print("Points are: $_points");
-    widget.updateEntries.add(FeedbackContainer.fromPace(_points));
+    var pointsSum = _points.clone();
+    pointsSum.calcSum();
+    widget.updateEntries.add(
+      FeedbackContainer.fromPace(pointsSum),
+    );
     return Column(
       children: [
         blueButton("Clear", () {
@@ -247,7 +251,7 @@ class _PaceLength implements _PaceEntryImp {
 
   @override
   List<SpeedPoint> getPoints() {
-    switch (_dudi){
+    switch (_dudi) {
       case _PLDuDi.duration:
         return [SpeedPoint.fromMinKm(_duration.getSec() / _paceSM, _pace)];
       case _PLDuDi.distance:

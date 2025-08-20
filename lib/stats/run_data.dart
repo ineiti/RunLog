@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
+import 'package:run_log/stats/conversions.dart';
 
 import '../running/feedback.dart';
 
@@ -78,6 +79,10 @@ class Run {
 
   double avgSpeed() {
     return totalDistance / duration * 1000;
+  }
+
+  double avgPace(){
+    return toPaceMinKm(avgSpeed());
   }
 
   @override

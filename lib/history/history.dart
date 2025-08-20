@@ -141,7 +141,7 @@ class _HistoryState extends State<History> {
                           ),
                           Text(
                             "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration / 1000)}: "
-                            "${run.avgSpeed().toStringAsFixed(1)}m/s",
+                            "${minSec(run.avgPace())} min/km",
                           ),
                         ],
                       ),

@@ -8,7 +8,7 @@ import 'package:run_log/running/tones.dart';
 import '../configuration.dart';
 
 class ToneFeedback {
-  int _soundIntervalS = 5;
+  int _soundIntervalS = 15;
   final PaceWidget _pace;
   final StreamController<FeedbackContainer> _paceUpdates;
   int _nextSoundS = 0;

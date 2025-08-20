@@ -1,13 +1,15 @@
+import 'dart:math';
+
 String timeHMS(double s) {
   final hours = (s / 60 / 60).toInt();
   final mins = (s / 60 % 60).toInt();
   final sec = (s % 60).toInt();
   if (hours > 0) {
-    return "${hours}h ${mins}m ${sec}s";
+    return "${hours}h ${mins}min ${sec}sec";
   } else if (mins > 0) {
-    return "${mins}m ${sec}s";
+    return "${mins}min ${sec}sec";
   } else {
-    return "${sec}s";
+    return "${sec}sec";
   }
 }
 
@@ -30,9 +32,12 @@ String labelYTime(String s) {
 }
 
 String minSec(double minutes) {
+  if (!minutes.isFinite){
+    return "NaN";
+  }
   final min = minutes.toInt();
   final sec = ((minutes - min) * 60).round();
-  return "$min' ${sec > 0 ? " $sec''" : ""}";
+  return "$min' ${sec > 0 ? "$sec''" : ""}";
 }
 
 String minSecFix(double minutes, int fixMin) {
