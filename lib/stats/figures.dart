@@ -157,8 +157,8 @@ class LineStat {
   }
 
   LineStat({required this.type, required int filterLength}) {
-    filter = FilterData.subSampled(filterLength, 200);
-    second = FilterData.subSampled(filterLength, 200);
+    filter = FilterData.subSampled(filterLength, 500);
+    second = FilterData.subSampled(filterLength, 500);
   }
 
   updateData(List<TimeData> runningData) {

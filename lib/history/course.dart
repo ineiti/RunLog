@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:isolate';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:run_log/configuration.dart';
@@ -25,33 +28,42 @@ class DetailPage extends StatefulWidget {
   State<StatefulWidget> createState() => _DetailPageState();
 }
 
+enum _DetailSteps { load, calc, show }
+
 class _DetailPageState extends State<DetailPage> {
+  late Stream<_DetailSteps> steps;
+  late StreamController<_DetailSteps> source;
   RunStats? rr;
 
   @override
   void initState() {
     super.initState();
-    RunStats.loadRun(
+    source = StreamController<_DetailSteps>();
+    steps = source.stream;
+    source.add(_DetailSteps.load);
+    Timer(Duration(milliseconds: 20), _startCalc);
+  }
+
+  void _startCalc() async {
+    final runStats = await RunStats.loadRun(
       widget.storage,
       widget.run.id,
       widget.configurationStorage.config.altitudeURL,
-    ).then((runStats) {
-      setState(() {
-        rr = runStats;
-        var fl = rr!.runningData.length ~/ 20;
-        // rr!.figureAddSlope(40);
-        rr!.figureAddSpeed(fl);
-        rr!.figureAddSlope(fl);
-        // rr.figureAddSpeed(2);
-        // rr.figureAddSpeed(100);
-        // rr!.figureAddAltitude(10);
-        // rr!.figureAddAltitudeCorrected(10);
-        rr!.figureAddFigure();
-        // rr!.figureAddAltitude(10);
-        // rr!.figureAddAltitudeCorrected(10);
-        rr!.figureAddSlopeStats(fl);
-      });
+    );
+    source.add(_DetailSteps.calc);
+    rr = await Isolate.run(() {
+      var fl = runStats.runningData.length ~/ 20;
+      runStats.figureAddSpeed(fl);
+      // runStats.figureAddAltitude(fl);
+      // runStats.figureAddAltitudeCorrected(fl);
+      runStats.figureAddSlope(fl);
+      runStats.figureAddFigure();
+      runStats.figureAddSlopeStats(fl);
+      runStats.figuresUpdate();
+      return runStats;
     });
+
+    source.add(_DetailSteps.show);
   }
 
   @override
@@ -62,19 +74,33 @@ class _DetailPageState extends State<DetailPage> {
           DateFormat('dd MMMM yyyy - HH:mm').format(widget.run.startTime),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Text(
-              "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
-              "${minSec(widget.run.avgPace())} min/km",
-            ),
-            const SizedBox(height: 10),
-            ..._figures(),
-          ],
-        ),
+      body: StreamBuilder(
+        stream: steps,
+        builder: (context, snapshot) {
+          switch (snapshot.data) {
+            case null:
+              return Center(child: Text("Nothing to see here"));
+            case _DetailSteps.load:
+              return Center(child: Text("Loading"));
+            case _DetailSteps.calc:
+              return Center(child: Text("Calculating"));
+            case _DetailSteps.show:
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
+                      "${minSec(widget.run.avgPace())} min/km",
+                    ),
+                    const SizedBox(height: 10),
+                    ..._figures(),
+                  ],
+                ),
+              );
+          }
+        },
       ),
     );
   }

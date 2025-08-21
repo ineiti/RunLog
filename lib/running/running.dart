@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:run_log/storage.dart';
 
 import '../configuration.dart';
@@ -29,7 +30,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late GeoTracker geoTracker;
   RunStats? runStats;
   StreamController<RunState> widgetController = StreamController.broadcast();
-  late Stream<RSState> runStream;
+  late StreamController<RSState> runStateStream;
+  StreamSubscription<Position>? geoListen;
   late ToneFeedback feedback;
 
   @override
@@ -38,6 +40,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
+    runStateStream = StreamController.broadcast();
     geoTracker = GeoTracker(
       simul: widget.configurationStorage.config.simulateGPS,
     );
@@ -86,7 +89,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
           ],
         );
       case RunState.running:
-        return _streamBuilder(runStream, _widgetRunning);
+        return _streamBuilder(runStateStream.stream, _widgetRunning);
     }
   }
 
@@ -99,12 +102,15 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       runStats!.figures.addSpeed(5);
       runStats!.figures.addSpeed(20);
       runStats!.figures.addSlope(20);
-      runStream = runStats!.continuous(geoTracker.streamPosition);
-      runStream.listen((state) async {
+
+      geoListen = geoTracker.streamPosition.listen((pos) async {
+        runStats!.addPosition(pos);
         await feedback.updateRunning(
           runStats!.duration(),
           runStats!.distance(),
         );
+        await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
+        runStateStream.add(runStats!.state);
       });
       widgetController.add(RunState.running);
     });
@@ -126,8 +132,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetWaitGPS(BuildContext context, GTState? s) {
-    // print("_widgetWaitGPS($s) - ${geoTracker.state}");
-    // print("${s ?? geoTracker.state}");
     switch (s ?? geoTracker.state) {
       case null:
         return [_stats("Starting up")];
@@ -142,7 +146,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetRunning(BuildContext context, RSState? s) {
-    // print("RRState is $s");
     switch (s ?? runStats?.state) {
       case null:
         return [_stats("Waiting for GPS")];
@@ -236,8 +239,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   _cancel() {
-    // print("Cancelling");
     runStats!.reset();
+    geoListen?.cancel();
     widgetController.add(RunState.waitUser);
   }
 

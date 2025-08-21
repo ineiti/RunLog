@@ -18,9 +18,8 @@ class GeoTracker {
     gtStream.stream.listen((s) => state = s);
     if (simul) {
       state = GTState.permissionRequest;
-      Timer.periodic(const Duration(seconds: 1), (timer) {
+      Timer(const Duration(seconds: 1), () {
         gtStream.add(GTState.permissionGranted);
-        timer.cancel();
       });
     }
     gtStream.add(GTState.permissionRequest);
