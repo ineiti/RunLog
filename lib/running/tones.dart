@@ -169,8 +169,11 @@ class SFEntry {
   }
 
   calcSum() {
-    for (int i = 1; i < targetSpeeds.length; i++) {
-      targetSpeeds[i].distanceM += targetSpeeds[i-1].distanceM;
+    double total = 0;
+    for (int i = 0; i < targetSpeeds.length; i++) {
+      double newTotal = total + targetSpeeds[i].distanceM;
+      targetSpeeds[i].distanceM = total;
+      total = newTotal;
     }
   }
 
