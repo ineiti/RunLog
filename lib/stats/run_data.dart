@@ -2,7 +2,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
 
 import '../stats/conversions.dart';
-import '../tabs/running/feedback.dart';
+import '../feedback/feedback.dart';
 
 class Run {
   int id;

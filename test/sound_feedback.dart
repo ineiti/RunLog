@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:run_log/tabs/running/tones.dart';
+import 'package:run_log/feedback/tones.dart';
 import 'package:run_log/stats/conversions.dart';
 
 void main() {

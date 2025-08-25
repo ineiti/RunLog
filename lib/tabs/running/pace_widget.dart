@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'feedback.dart';
-import 'tones.dart';
+import '../../feedback/feedback.dart';
+import '../../feedback/tones.dart';
 import '../../stats/conversions.dart';
 
 import '../basic.dart';
@@ -27,7 +27,6 @@ class _PaceWidgetState extends State<PaceWidget> {
 
   @override
   Widget build(BuildContext context) {
-    print("Points are: $_points");
     var pointsSum = _points.clone();
     pointsSum.calcSum();
     widget.updateEntries.add(
