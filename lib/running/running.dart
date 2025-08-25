@@ -95,7 +95,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
 
   _startRunning() {
     feedback.startRunning(
-      widget.configurationStorage.config.maxFeedbackSoundWait,
+      widget.configurationStorage.config.maxFeedbackSilence,
     );
     RunStats.newRun(widget.runStorage).then((rr) {
       runStats = rr;

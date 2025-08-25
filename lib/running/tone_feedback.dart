@@ -12,7 +12,7 @@ class ToneFeedback {
   final PaceWidget _pace;
   final StreamController<FeedbackContainer> _paceUpdates;
   int _nextSoundS = 0;
-  int _maxFeedbackSoundWait = 4;
+  int _maxFeedbackSilence = 4;
   final Tones _tones;
 
   static Future<ToneFeedback> init() async {
@@ -28,16 +28,16 @@ class ToneFeedback {
     _paceUpdates.stream.listen((update) => _tones.setEntry(update.target));
   }
 
-  startRunning(int maxFeedbackSoundWait) async {
+  startRunning(int maxFeedbackSilence) async {
     _nextSoundS = _soundIntervalS;
-    _maxFeedbackSoundWait = maxFeedbackSoundWait;
+    _maxFeedbackSilence = maxFeedbackSilence;
   }
 
   updateRunning(double durationS, double distanceM) async {
     if (_tones.hasEntry()) {
       // print("${runStats!.duration()} / $lastSoundS");
       if (durationS >= _nextSoundS) {
-        await _tones.playSound(_maxFeedbackSoundWait, distanceM, durationS);
+        await _tones.playSound(_maxFeedbackSilence, distanceM, durationS);
         while (_nextSoundS <= durationS) {
           _nextSoundS += _soundIntervalS;
         }

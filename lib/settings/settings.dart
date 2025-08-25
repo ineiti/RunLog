@@ -82,12 +82,12 @@ class _SettingsState extends State<Settings> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Feedback delay multiplicator"),
+                Text("Max. feedback silence"),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "${widget.configurationStorage.config.maxFeedbackSoundWait} x",
+                      "${widget.configurationStorage.config.maxFeedbackSilence} x",
                     ),
                     Flexible(
                       child: Slider(
@@ -95,7 +95,7 @@ class _SettingsState extends State<Settings> {
                             widget
                                 .configurationStorage
                                 .config
-                                .maxFeedbackSoundWait
+                                .maxFeedbackSilence
                                 .toDouble(),
                         onChanged: (double value) async {
                           await widget.configurationStorage.updateConfig(

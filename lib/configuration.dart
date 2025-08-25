@@ -1,33 +1,47 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum _Fields {
+  config,
+  version,
+  debug,
+  simulateGPS,
+  altitudeURL,
+  maxFeedbackSilence,
+  minFeedbackPace,
+  maxFeedbackPace,
+}
+
 class Configuration {
   final bool debug;
   final bool simulateGPS;
   final String altitudeURL;
-  final int maxFeedbackSoundWait;
+  final int maxFeedbackSilence;
   final double minFeedbackPace;
   final double maxFeedbackPace;
   static int version = 1;
 
   static Configuration fromJson(String json) {
     var conf = jsonDecode(json);
-    switch ((conf['version'] ?? 0) as int) {
+    switch ((conf[_Fields.version.name] ?? 0) as int) {
       case 1:
         return Configuration(
-          debug: (conf['debug'] ?? false) as bool,
-          simulateGPS: (conf['simulateGPS'] ?? false) as bool,
-          altitudeURL: (conf['altitudeURL'] ?? "") as String,
-          maxFeedbackSoundWait: (conf['maxFeedbackSoundWait'] ?? 4) as int,
-          minFeedbackPace: (conf['minFeedbackPace'] ?? 4.0) as double,
-          maxFeedbackPace: (conf['maxFeedbackPace'] ?? 8.0) as double,
+          debug: (conf[_Fields.debug.name] ?? false) as bool,
+          simulateGPS: (conf[_Fields.simulateGPS.name] ?? false) as bool,
+          altitudeURL: (conf[_Fields.altitudeURL.name] ?? "") as String,
+          maxFeedbackSilence:
+              (conf[_Fields.maxFeedbackSilence.name] ?? 4) as int,
+          minFeedbackPace:
+              (conf[_Fields.minFeedbackPace.name] ?? 4.0) as double,
+          maxFeedbackPace:
+              (conf[_Fields.maxFeedbackPace.name] ?? 8.0) as double,
         );
       default:
         return Configuration(
           debug: false,
           simulateGPS: false,
           altitudeURL: "",
-          maxFeedbackSoundWait: 4,
+          maxFeedbackSilence: 4,
           minFeedbackPace: 4,
           maxFeedbackPace: 8,
         );
@@ -38,7 +52,7 @@ class Configuration {
     required this.debug,
     required this.simulateGPS,
     required this.altitudeURL,
-    required this.maxFeedbackSoundWait,
+    required this.maxFeedbackSilence,
     required this.minFeedbackPace,
     required this.maxFeedbackPace,
   });
@@ -48,7 +62,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
-      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
     );
@@ -59,7 +73,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
-      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
     );
@@ -70,7 +84,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
-      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
     );
@@ -81,7 +95,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
-      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      maxFeedbackSilence: maxFeedbackSoundWait,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
     );
@@ -92,7 +106,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
-      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
     );
@@ -103,7 +117,7 @@ class Configuration {
       debug: debug,
       simulateGPS: simulateGPS,
       altitudeURL: altitudeURL,
-      maxFeedbackSoundWait: maxFeedbackSoundWait,
+      maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
     );
@@ -111,13 +125,13 @@ class Configuration {
 
   String toJson() {
     return jsonEncode({
-      'debug': debug,
-      'simulateGPS': simulateGPS,
-      'altitudeURL': altitudeURL,
-      'maxFeedbackSoundWait': maxFeedbackSoundWait,
-      'minFeedbackPace': minFeedbackPace,
-      'maxFeedbackPace': maxFeedbackPace,
-      'version': version,
+      _Fields.debug.name: debug,
+      _Fields.simulateGPS.name: simulateGPS,
+      _Fields.altitudeURL.name: altitudeURL,
+      _Fields.maxFeedbackSilence.name: maxFeedbackSilence,
+      _Fields.minFeedbackPace.name: minFeedbackPace,
+      _Fields.maxFeedbackPace.name: maxFeedbackPace,
+      _Fields.version.name: version,
     });
   }
 }
@@ -128,14 +142,14 @@ class ConfigurationStorage {
 
   static Future<ConfigurationStorage> loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
-    final config = Configuration.fromJson(prefs.getString("config") ?? "{}");
+    final config = Configuration.fromJson(prefs.getString(_Fields.config.name) ?? "{}");
     return ConfigurationStorage(config: config, prefs: prefs);
   }
 
   ConfigurationStorage({required this.config, required this.prefs});
 
   updateConfig(Configuration newConfig) async {
-    await prefs.setString("config", newConfig.toJson());
+    await prefs.setString(_Fields.config.name, newConfig.toJson());
     config = newConfig;
   }
 }

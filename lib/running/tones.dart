@@ -27,12 +27,12 @@ class Tones {
     return _entry.targetSpeeds.isNotEmpty;
   }
 
-  playSound(int maxSoundWait, double distanceM, double currentDuration) async {
+  playSound(int maxSilence, double distanceM, double currentDuration) async {
     final frequencies = _entry.getFrequencies(distanceM, currentDuration);
     print(
       "|freq|: ${frequencies.length} - idx: $idx - lastLength: $lastLength",
     );
-    if (idx < maxSoundWait && frequencies.length == lastLength) {
+    if (idx < maxSilence && frequencies.length == lastLength) {
       print("Silenced feedback");
       idx++;
       return;
