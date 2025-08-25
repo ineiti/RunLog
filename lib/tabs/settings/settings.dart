@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:run_log/widgets/basic.dart';
+import 'package:run_log/tabs/basic.dart';
 
 import '../../configuration.dart';
 

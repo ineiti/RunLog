@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../storage.dart';
 import '../../configuration.dart';
 import '../../stats/run_stats.dart';
-import '../../widgets/basic.dart';
+import '../basic.dart';
 import 'geotracker.dart';
 import 'tone_feedback.dart';
 

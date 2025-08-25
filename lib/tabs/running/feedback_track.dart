@@ -5,7 +5,7 @@ import 'feedback.dart';
 import 'tones.dart';
 import '../../stats/conversions.dart';
 
-import '../../widgets/basic.dart';
+import '../basic.dart';
 
 class PaceWidget extends StatefulWidget {
   final StreamController<FeedbackContainer> updateEntries;

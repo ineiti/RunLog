@@ -7,8 +7,8 @@ import '../../configuration.dart';
 import '../../stats/conversions.dart';
 import '../../stats/run_data.dart';
 import '../../storage.dart';
-import '../../widgets/basic.dart';
-import '../../widgets/dialogs.dart';
+import '../basic.dart';
+import '../dialogs.dart';
 import 'course.dart';
 
 class History extends StatefulWidget {

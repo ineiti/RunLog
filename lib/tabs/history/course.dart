@@ -9,8 +9,8 @@ import '../../stats/conversions.dart';
 import '../../stats/run_stats.dart';
 import '../../storage.dart';
 import '../../stats/run_data.dart';
-import '../../widgets/basic.dart';
-import '../../widgets/dialogs.dart';
+import '../basic.dart';
+import '../dialogs.dart';
 
 class DetailPage extends StatefulWidget {
   const DetailPage({
