@@ -1,15 +1,19 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
+import 'package:run_log/stats/conversions.dart';
+
+import '../running/feedback.dart';
 
 class Run {
   int id;
   DateTime startTime;
   int duration;
   double totalDistance;
-  int caloriesBurned;
-  String weather;
+  int? caloriesBurned;
+  String? weather;
   int? avgHeartRate;
   int? avgStepsPerMin;
+  FeedbackContainer? feedback;
 
   static Run now(int id) {
     return Run(id: id, startTime: DateTime.now());
@@ -20,10 +24,11 @@ class Run {
     required this.startTime,
     this.duration = 0,
     this.totalDistance = 0,
-    this.caloriesBurned = 0,
-    this.weather = "",
+    this.caloriesBurned,
+    this.weather,
     this.avgHeartRate,
     this.avgStepsPerMin,
+    this.feedback,
   });
 
   factory Run.fromMap(Map<String, dynamic> dbMap) {
@@ -34,10 +39,11 @@ class Run {
       ),
       duration: dbMap['duration'] as int,
       totalDistance: dbMap['total_distance'] as double,
-      caloriesBurned: dbMap['calories_burned'] as int,
-      weather: dbMap['weather'] as String,
+      caloriesBurned: dbMap['calories_burned'] as int?,
+      weather: dbMap['weather'] as String?,
       avgHeartRate: dbMap['avg_heart_rate'] as int?,
-      avgStepsPerMin: dbMap['avg_steps_per_min'] as int,
+      avgStepsPerMin: dbMap['avg_steps_per_min'] as int?,
+      feedback: FeedbackContainer.fromJson(dbMap['feedback'] ?? "{}"),
     );
   }
 
@@ -63,6 +69,7 @@ class Run {
       "weather": weather,
       "avg_heart_rate": avgHeartRate,
       "avg_steps_per_min": avgStepsPerMin,
+      "feedback": feedback?.toJson(),
     };
   }
 
@@ -72,6 +79,10 @@ class Run {
 
   double avgSpeed() {
     return totalDistance / duration * 1000;
+  }
+
+  double avgPace(){
+    return toPaceMinKm(avgSpeed());
   }
 
   @override

@@ -4,8 +4,9 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:run_log/stats/conversions.dart';
 import 'package:run_log/stats/filter_data.dart';
 import 'package:run_log/stats/run_data.dart';
-import 'package:run_log/storage.dart';
 
+import '../running/geotracker.dart';
+import '../storage.dart';
 import 'figures.dart';
 
 enum RSState { waitAccurateGPS, waitRunning, running, paused }
@@ -15,18 +16,16 @@ class RunStats {
   List<TimeData> runningData = [];
   Figures figures = Figures();
   TrackedData? lastMovement;
-  RunStorage? storage;
   Resampler? resampler;
   Run run;
   double minAccuracy = 10;
   double minSpeedStart = toSpeedMS(8);
   double minSpeedRun = toSpeedMS(16);
   bool runPaused = false;
-  StreamSubscription<geo.Position>? positionSub;
 
   static Future<RunStats> newRun(RunStorage storage) async {
     final run = await storage.createRun(DateTime.now());
-    return RunStats(rawPositions: [], run: run, storage: storage);
+    return RunStats(rawPositions: [], run: run);
   }
 
   static Future<RunStats> loadRun(
@@ -36,10 +35,13 @@ class RunStats {
   ) async {
     final run = storage.runs[runId]!;
     final rawPos = await storage.loadTrackedData(runId, altitudeURL);
-    return RunStats(rawPositions: rawPos, run: run, storage: storage);
+    return RunStats(rawPositions: rawPos, run: run);
   }
 
-  RunStats({required this.rawPositions, required this.run, this.storage}) {
+  RunStats({
+    required this.rawPositions,
+    required this.run,
+  }) {
     if (rawPositions.isNotEmpty) {
       for (TrackedData td in rawPositions) {
         _newTracked(td);
@@ -66,18 +68,6 @@ class RunStats {
         break;
       }
     }
-    figures.updateData(runningData);
-  }
-
-  Stream<RSState> continuous(Stream<geo.Position> positions) {
-    StreamController<RSState> rrStream = StreamController.broadcast();
-
-    positionSub = positions.listen((pos) {
-      addPosition(pos);
-      rrStream.add(state);
-    });
-
-    return rrStream.stream;
   }
 
   RSState get state {
@@ -110,8 +100,7 @@ class RunStats {
         .fold(0, (dist, e) => dist + e.mps * resampler!.sampleInterval / 1000);
   }
 
-  reset() async {
-    positionSub?.cancel();
+  reset() {
     rawPositions = [];
     runningData = [];
     lastMovement = null;
@@ -119,11 +108,9 @@ class RunStats {
     runPaused = false;
   }
 
-  updateStats() async {
+  updateStats() {
     run.duration = (duration() * 1000).toInt();
     run.totalDistance = distance();
-    // print(storage);
-    storage!.updateRun(run);
   }
 
   void figureClean() {
@@ -132,37 +119,35 @@ class RunStats {
 
   void figureAddSpeed(int n2) {
     figures.addSpeed(n2);
-    figures.updateData(runningData);
   }
 
   void figureAddAltitude(int n2) {
     figures.addAltitude(n2);
-    figures.updateData(runningData);
   }
 
   void figureAddAltitudeCorrected(int n2) {
     figures.addAltitudeCorrected(n2);
-    figures.updateData(runningData);
   }
 
   void figureAddSlope(int n2) {
     figures.addSlope(n2);
-    figures.updateData(runningData);
   }
 
   void figureAddSlopeStats(int n2) {
     figures.addSlopeStats(n2);
-    figures.updateData(runningData);
   }
 
   void figureAddFigure() {
     figures.addFigure();
   }
 
+  void figuresUpdate() {
+    figures.updateData(runningData);
+  }
+
   void addPosition(geo.Position pos) {
     final td = run.tdFromPosition(pos);
     rawPositions.add(td);
-    storage?.addTrackedData(td);
     updateStats();
     _newTracked(td);
   }
@@ -235,7 +220,10 @@ class Resampler {
   int sampleInterval;
   TrackedData lastMovement;
 
-  Resampler(this.lastMovement, {this.sampleInterval = 5000}) {
+  Resampler(
+    this.lastMovement, {
+    this.sampleInterval = GeoTracker.intervalSeconds * 1000,
+  }) {
     tsReference = lastMovement.timestamp;
   }
 

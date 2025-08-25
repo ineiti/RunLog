@@ -8,6 +8,7 @@ import 'package:run_log/stats/conversions.dart';
 import '../stats/run_data.dart';
 import '../storage.dart';
 import '../widgets/basic.dart';
+import '../widgets/dialogs.dart';
 import 'course.dart';
 
 class History extends StatefulWidget {
@@ -54,13 +55,24 @@ class _HistoryState extends State<History> {
         title: Text("History"),
       ),
       body: Column(
+        // mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          _debugRuns(),
-          blueButton(
-            "Export All",
-            () => setState(() {
-              _exportAll(context);
-            }),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Column(
+                children: [
+                  _debugRuns(),
+                  blueButton(
+                    "Export All",
+                    () => setState(() {
+                      _exportAll(context);
+                    }),
+                  ),
+                ],
+              ),
+            ],
           ),
           runs.isNotEmpty ? _courseList() : Text("No runs yet"),
         ],
@@ -129,7 +141,7 @@ class _HistoryState extends State<History> {
                           ),
                           Text(
                             "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration / 1000)}: "
-                            "${run.avgSpeed().toStringAsFixed(1)}m/s",
+                            "${minSec(run.avgPace())} min/km",
                           ),
                         ],
                       ),

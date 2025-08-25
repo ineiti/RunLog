@@ -1,3 +1,4 @@
+import "dart:convert";
 import "dart:math";
 
 import "package:audio_session/audio_session.dart";
@@ -8,6 +9,7 @@ import "../stats/conversions.dart" as conversions;
 class Tones {
   SFEntry _entry = SFEntry();
   int idx = 0;
+  int lastLength = 0;
   final Sound sound;
 
   static Future<Tones> init() async {
@@ -21,13 +23,22 @@ class Tones {
     idx = 0;
   }
 
-  playSound(int maxIndex, double distanceM, double currentDuration) async {
+  bool hasEntry() {
+    return _entry.targetSpeeds.isNotEmpty;
+  }
+
+  playSound(int maxSilence, double distanceM, double currentDuration) async {
     final frequencies = _entry.getFrequencies(distanceM, currentDuration);
-    // print("|freq|: ${frequencies.length} - idx: $idx");
-    if (frequencies.length < max(1, maxIndex - idx)) {
+    print(
+      "|freq|: ${frequencies.length} - idx: $idx - lastLength: $lastLength",
+    );
+    if (idx < maxSilence && frequencies.length == lastLength) {
+      print("Silenced feedback");
       idx++;
       return;
     }
+
+    lastLength = frequencies.length;
     await sound.play(frequencies, 0.5, 0.5);
     idx = 0;
   }
@@ -119,6 +130,7 @@ class Sound {
 class SFEntry {
   List<SpeedPoint> targetSpeeds = [];
   double frequencyS = 30;
+  int currIndex = 0;
 
   static SFEntry startMinKm(double start) {
     var sf = SFEntry();
@@ -138,12 +150,37 @@ class SFEntry {
     return sf;
   }
 
+  static SFEntry fromJson(String s) {
+    return SFEntry();
+  }
+
+  static SFEntry fromPoints(List<SpeedPoint> points) {
+    final sf = SFEntry();
+    for (final point in points) {
+      sf.addPoint(point);
+    }
+    return sf;
+  }
+
+  String toJson() {
+    return jsonEncode({});
+  }
+
   stop(double distanceM) {
     addPoint(SpeedPoint(distanceM: distanceM, speedMS: 0));
   }
 
   addPoint(SpeedPoint sp) {
     targetSpeeds.add(sp);
+  }
+
+  calcSum() {
+    double total = 0;
+    for (int i = 0; i < targetSpeeds.length; i++) {
+      double newTotal = total + targetSpeeds[i].distanceM;
+      targetSpeeds[i].distanceM = total;
+      total = newTotal;
+    }
   }
 
   calcTotal(double totalDurationS) {
@@ -174,42 +211,71 @@ class SFEntry {
   }
 
   double getDurationS(double distanceM) {
+    return getIndexDurationS(distanceM).$2;
+  }
+
+  (int, double) getIndexDurationS(double distanceM) {
     if (targetSpeeds.isEmpty) {
-      return 0;
+      return (0, 0);
     }
     if (targetSpeeds.length == 1) {
-      return distanceM / targetSpeeds.first.speedMS;
+      return (0, distanceM / targetSpeeds.first.speedMS);
     }
     double duration = 0;
     for (int i = 0; i < targetSpeeds.length - 1; i++) {
       final now = targetSpeeds[i];
       final after = targetSpeeds[i + 1].distanceM;
       if (after >= distanceM) {
-        return duration + (distanceM - now.distanceM) / now.speedMS;
+        return (i, duration + (distanceM - now.distanceM) / now.speedMS);
       } else {
         duration += (after - now.distanceM) / now.speedMS;
       }
     }
-    return duration +
-        (distanceM - targetSpeeds.last.distanceM) / targetSpeeds.last.speedMS;
+    return (
+      targetSpeeds.length - 1,
+      duration +
+          (distanceM - targetSpeeds.last.distanceM) / targetSpeeds.last.speedMS,
+    );
   }
 
   List<double> getFrequencies(double distanceM, double currentDuration) {
     final List<double> frequencies = [440];
-    var diffDuration = currentDuration - getDurationS(distanceM);
-    print("DiffDuration: $diffDuration");
-    if (diffDuration == 0) {
-      return frequencies;
+    final (index, targetDuration) = getIndexDurationS(distanceM);
+    if (index != currIndex) {
+      frequencies.add(440);
+      final sign =
+          (targetSpeeds[index].speedMS - targetSpeeds[currIndex].speedMS).sign;
+      print("Changing targetSpeed: $sign");
+      frequencies.add(440.0 * pow(2, sign / 12));
+      frequencies.add(0);
+      frequencies.add(0);
+      frequencies.add(440);
+      currIndex = index;
     }
+    var diffDuration = currentDuration - targetDuration;
+    print("Index: $currIndex/$index - DiffDuration: $diffDuration");
     for (
-      var diffSteps = (log(diffDuration.abs()) / ln2).round() + 1;
-      diffSteps > 0;
+      var diffSteps = (log(diffDuration.abs()) / ln2).floor();
+      diffSteps >= 0;
       diffSteps--
     ) {
       frequencies.add(frequencies.last * pow(2, diffDuration.sign / 12));
     }
     print("Frequencies: $frequencies");
     return frequencies;
+  }
+
+  @override
+  String toString() {
+    return "[$targetSpeeds]";
+  }
+
+  SFEntry clone() {
+    final sf = SFEntry();
+    for (final point in targetSpeeds) {
+      sf.addPoint(point.clone());
+    }
+    return sf;
   }
 }
 
@@ -230,8 +296,16 @@ class SpeedPoint {
     return SpeedPoint(distanceM: distanceM, speedMS: 0);
   }
 
+  static SpeedPoint speed(double speedMS) {
+    return SpeedPoint(distanceM: 0, speedMS: speedMS);
+  }
+
   @override
   String toString() {
     return "($distanceM, ${conversions.toPaceMinKm(speedMS).toStringAsFixed(3)})";
+  }
+
+  SpeedPoint clone() {
+    return SpeedPoint(distanceM: distanceM, speedMS: speedMS);
   }
 }

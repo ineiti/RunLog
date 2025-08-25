@@ -3,28 +3,32 @@ import 'dart:math';
 class FilterData {
   List<XYData> filteredData = [];
   late List<double> lanczos;
+  int filteredSize = 0;
   double min = double.infinity;
   double max = -double.infinity;
+
+  static FilterData subSampled(int filterN2, int maxSize) {
+    var fd = FilterData(filterN2);
+    fd.filteredSize = maxSize;
+    return fd;
+  }
 
   FilterData(int filterN2) {
     lanczos = _lanczos(filterN2);
   }
 
   update(List<XYData> raw) {
-    // TODO: only update the necessary elements, depending on the size of lanczos.
-    final data = _filterValues(raw.map((s) => s.y).toList());
-    filteredData =
-        raw
-            .asMap()
-            .entries
-            .map((entry) => XYData(entry.value.dt, data[entry.key]))
-            .toList();
-  }
-
-  List<double> _filterValues(List<double> values) {
     min = double.infinity;
     max = -double.infinity;
-    return List.generate(values.length, (i) => _applyLanczos(values, i));
+    final values = raw.map((s) => s.y).toList();
+    int length = values.length;
+    if (filteredSize > 0 && filteredSize < length) {
+      length = filteredSize;
+    }
+    filteredData = List.generate(length, (i) {
+      final pos = i * values.length ~/ length;
+      return XYData(raw[pos].dt, _applyLanczos(values, pos));
+    });
   }
 
   // Applies the lanczos filter to 'values' and keeps the peak at 'pos'.

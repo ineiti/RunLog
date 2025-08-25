@@ -278,9 +278,6 @@ class RunStorage {
     db.delete('Runs');
     db.delete('TrackedData');
     db.delete('sqlite_sequence');
-    // await deleteDatabase(await _dbPath());
-    // db.close();
-    // db = await _getDB();
     runs = {};
     trackedData = {};
   }
@@ -313,7 +310,7 @@ class RunStorage {
           await _performDBUpgrade(db, version + 1);
         }
       },
-      version: 2,
+      version: 3,
     );
   }
 
@@ -350,6 +347,10 @@ class RunStorage {
       case 2:
         db.execute('''
         ALTER TABLE TrackedData ADD COLUMN altitude_corrected REAL
+        ''');
+      case 3:
+        db.execute('''
+        ALTER TABLE Runs ADD COLUMN feedback TEXT
         ''');
     }
   }

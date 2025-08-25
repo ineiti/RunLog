@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -12,15 +11,15 @@ enum GTState { permissionRequest, permissionRefused, permissionGranted }
 class GeoTracker {
   final StreamController<GTState> gtStream = StreamController.broadcast();
   final bool simul;
+  static const intervalSeconds = 1;
   GTState? state;
 
   GeoTracker({this.simul = false}) {
     gtStream.stream.listen((s) => state = s);
     if (simul) {
       state = GTState.permissionRequest;
-      Timer.periodic(const Duration(seconds: 1), (timer) {
+      Timer(const Duration(seconds: 1), () {
         gtStream.add(GTState.permissionGranted);
-        timer.cancel();
       });
     }
     gtStream.add(GTState.permissionRequest);
@@ -44,10 +43,11 @@ class GeoTracker {
       final streamPos = StreamController<Position>.broadcast();
       var latitude = 0.0;
       var now = DateTime.now();
-      var timer = Timer.periodic(const Duration(seconds: 2), (timer) {
-        now = now.add(Duration(seconds: 2));
+      final interval = Duration(seconds: intervalSeconds);
+      var timer = Timer.periodic(interval, (timer) {
+        now = now.add(interval);
         double targetSpeed = 5 + sin(latitude / 0.00011 / 3 + pi / 2);
-        latitude += 0.00011 * 2.7 / targetSpeed;
+        latitude += 0.00011 * 1.3 * intervalSeconds / targetSpeed;
         streamPos.add(
           Position(
             longitude: 0,
@@ -76,7 +76,7 @@ class GeoTracker {
         accuracy: LocationAccuracy.best,
         distanceFilter: 0,
         forceLocationManager: true,
-        intervalDuration: const Duration(seconds: 5),
+        intervalDuration: const Duration(seconds: intervalSeconds),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationText:
               "RunLog continues receiving location updates even when not in foreground",

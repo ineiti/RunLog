@@ -1,3 +1,4 @@
+import 'package:run_log/running/feedback.dart';
 import 'package:run_log/running/tones.dart';
 import 'package:run_log/stats/conversions.dart';
 import 'package:test/test.dart';
@@ -26,7 +27,7 @@ void main() {
     expectMS(speeds[0].speedMS, 5);
     expectMS(speeds[1].speedMS, 10);
     expectMS(speeds[2].speedMS, 5);
-    expectMS(speeds[3].speedMS, 20/3);
+    expectMS(speeds[3].speedMS, 20 / 3);
   });
 
   test('Create List - 2', () {
@@ -74,7 +75,7 @@ void main() {
     expectFloat(entry.getDurationS(4000), 40 * 60);
   });
 
-  test('Valle de joux', (){
+  test('Valle de joux', () {
     final fb24km = SFEntry.startMinKm(6);
     fb24km.addPoint(SpeedPoint.calc(2000));
     fb24km.addPoint(SpeedPoint.fromMinKm(6300, 8));
@@ -87,6 +88,4 @@ void main() {
     fb24km.calcTotal(24 * 6 * 60);
     print(fb24km.targetSpeeds);
   });
-
-  test('Get frequencies', () {});
 }

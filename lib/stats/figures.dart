@@ -157,8 +157,8 @@ class LineStat {
   }
 
   LineStat({required this.type, required int filterLength}) {
-    filter = FilterData(filterLength);
-    second = FilterData(filterLength);
+    filter = FilterData.subSampled(filterLength, 500);
+    second = FilterData.subSampled(filterLength, 500);
   }
 
   updateData(List<TimeData> runningData) {
@@ -226,7 +226,6 @@ class LineStat {
   }
 
   CartesianSeries _slopeStats((double, double, List<XYData>) slopeStat) {
-    // print(slopeStat);
     return ScatterSeries<XYData, String>(
       dataSource: slopeStat.$3,
       yAxisName: "$type",
@@ -313,7 +312,6 @@ class LineStat {
       case LineType.altitude:
         return "Alt${_filter()}";
       case LineType.slope:
-        // print("Slope: ${filter.filteredData}");
         return "Slope${_filter()}";
       case LineType.slopeStats:
         return "SlopeStat";

@@ -1,82 +1,60 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:run_log/running/feedback.dart';
+import 'package:run_log/running/feedback_track.dart';
 import 'package:run_log/running/tones.dart';
 
-import '../stats/conversions.dart';
+import '../configuration.dart';
 
 class ToneFeedback {
-  int _soundIntervalS = 5;
-  bool _feedbackSound = false;
-  double _feedbackPace = 5;
-  int _lastSoundS = 0;
-  int _maxFeedbackIndex = 4;
-  final Tones _feedback;
+  int _soundIntervalS = 15;
+  final PaceWidget _pace;
+  final StreamController<FeedbackContainer> _paceUpdates;
+  int _nextSoundS = 0;
+  int _maxFeedbackSilence = 4;
+  final Tones _tones;
 
   static Future<ToneFeedback> init() async {
-    return ToneFeedback(feedback: await Tones.init());
+    final paceUpdates = StreamController<FeedbackContainer>();
+    return ToneFeedback(
+      await Tones.init(),
+      paceUpdates,
+      PaceWidget(updateEntries: paceUpdates),
+    );
   }
 
-  ToneFeedback({required Tones feedback}) : _feedback = feedback;
+  ToneFeedback(this._tones, this._paceUpdates, this._pace){
+    _paceUpdates.stream.listen((update) => _tones.setEntry(update.target));
+  }
 
-  startRunning(int maxFeedbackIndex) async {
-    _lastSoundS = _soundIntervalS;
-    _maxFeedbackIndex = maxFeedbackIndex;
-    if (_feedbackSound) {
-      _feedback.setEntry(SFEntry.startMinKm(_feedbackPace));
-    }
+  startRunning(int maxFeedbackSilence) async {
+    _nextSoundS = _soundIntervalS;
+    _maxFeedbackSilence = maxFeedbackSilence;
   }
 
   updateRunning(double durationS, double distanceM) async {
-    if (_feedbackSound) {
+    if (_tones.hasEntry()) {
       // print("${runStats!.duration()} / $lastSoundS");
-      if (durationS >= _lastSoundS) {
-        await _feedback.playSound(_maxFeedbackIndex, distanceM, durationS);
-        while (_lastSoundS <= durationS) {
-          _lastSoundS += _soundIntervalS;
+      if (durationS >= _nextSoundS) {
+        await _tones.playSound(_maxFeedbackSilence, distanceM, durationS);
+        while (_nextSoundS <= durationS) {
+          _nextSoundS += _soundIntervalS;
         }
       }
     }
   }
 
-  List<Widget> configWidget(VoidCallback setState) {
-    return [
-      CheckboxListTile(
-        title: Text("Feedback sound"),
-        value: _feedbackSound,
-        onChanged: (bool? value) async {
-          if (value != null) {
-            _feedbackSound = value;
-            setState();
-          }
-        },
-      ),
-      Visibility(
-        visible: _feedbackSound,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 10,
-          children: [
-            Text("  ${minSec(_feedbackPace)} min/km"),
-            Flexible(
-              child: Slider(
-                value: _feedbackPace,
-                onChanged: (double value) {
-                  _feedbackPace = value;
-                  setState();
-                },
-                min: 2,
-                divisions: 96,
-                max: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ];
+  Widget configWidget(
+    ConfigurationStorage config,
+    VoidCallback setState,
+  ) {
+    return _pace;
   }
 
   Widget runningWidget(double durationS, VoidCallback setState) {
     return Visibility(
-      visible: _feedbackSound,
+      visible: _tones.hasEntry(),
       child: DropdownButton<int>(
         value: _soundIntervalS,
         icon: const Icon(Icons.arrow_downward),
@@ -85,7 +63,7 @@ class ToneFeedback {
         underline: Container(height: 2, color: Colors.deepPurpleAccent),
         onChanged: (int? value) {
           _soundIntervalS = value!;
-          _lastSoundS = (durationS + _soundIntervalS).toInt();
+          _nextSoundS = (durationS + _soundIntervalS).toInt();
           setState();
         },
         items:
