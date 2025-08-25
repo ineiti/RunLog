@@ -9,6 +9,7 @@ import "../stats/conversions.dart" as conversions;
 class Tones {
   SFEntry _entry = SFEntry();
   int idx = 0;
+  int lastLength = 0;
   final Sound sound;
 
   static Future<Tones> init() async {
@@ -28,11 +29,16 @@ class Tones {
 
   playSound(int maxSoundWait, double distanceM, double currentDuration) async {
     final frequencies = _entry.getFrequencies(distanceM, currentDuration);
-    // print("|freq|: ${frequencies.length} - idx: $idx");
-    if (frequencies.length < max(1, maxSoundWait - idx)) {
+    print(
+      "|freq|: ${frequencies.length} - idx: $idx - lastLength: $lastLength",
+    );
+    if (idx < maxSoundWait && frequencies.length == lastLength) {
+      print("Silenced feedback");
       idx++;
       return;
     }
+
+    lastLength = frequencies.length;
     await sound.play(frequencies, 0.5, 0.5);
     idx = 0;
   }
@@ -264,7 +270,7 @@ class SFEntry {
     return "[$targetSpeeds]";
   }
 
-  SFEntry clone(){
+  SFEntry clone() {
     final sf = SFEntry();
     for (final point in targetSpeeds) {
       sf.addPoint(point.clone());
@@ -299,7 +305,7 @@ class SpeedPoint {
     return "($distanceM, ${conversions.toPaceMinKm(speedMS).toStringAsFixed(3)})";
   }
 
-  SpeedPoint clone(){
+  SpeedPoint clone() {
     return SpeedPoint(distanceM: distanceM, speedMS: speedMS);
   }
 }
