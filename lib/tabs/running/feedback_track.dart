@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/running/feedback.dart';
-import 'package:run_log/running/tones.dart';
-import 'package:run_log/stats/conversions.dart';
+import 'feedback.dart';
+import 'tones.dart';
+import '../../stats/conversions.dart';
 
-import '../widgets/basic.dart';
+import '../../widgets/basic.dart';
 
 class PaceWidget extends StatefulWidget {
   final StreamController<FeedbackContainer> updateEntries;

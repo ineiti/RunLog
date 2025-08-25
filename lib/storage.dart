@@ -6,8 +6,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
-import 'package:run_log/stats/run_data.dart';
 import 'package:sqflite/sqflite.dart';
+
+import '../../stats/run_data.dart';
 
 class RunStorage {
   static var dbName = "running_log.db";

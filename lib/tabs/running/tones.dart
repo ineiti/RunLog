@@ -4,7 +4,7 @@ import "dart:math";
 import "package:audio_session/audio_session.dart";
 import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
 
-import "../stats/conversions.dart" as conversions;
+import "../../stats/conversions.dart" as conversions;
 
 class Tones {
   SFEntry _entry = SFEntry();

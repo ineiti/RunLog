@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/running/feedback.dart';
-import 'package:run_log/running/feedback_track.dart';
-import 'package:run_log/running/tones.dart';
+import 'feedback.dart';
+import 'feedback_track.dart';
+import 'tones.dart';
 
-import '../configuration.dart';
+import '../../configuration.dart';
 
 class ToneFeedback {
   int _soundIntervalS = 15;

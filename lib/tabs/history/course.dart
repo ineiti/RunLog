@@ -3,14 +3,14 @@ import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:run_log/configuration.dart';
-import 'package:run_log/stats/conversions.dart';
-import 'package:run_log/stats/run_stats.dart';
-import 'package:run_log/storage.dart';
 
-import '../stats/run_data.dart';
-import '../widgets/basic.dart';
-import '../widgets/dialogs.dart';
+import '../../configuration.dart';
+import '../../stats/conversions.dart';
+import '../../stats/run_stats.dart';
+import '../../storage.dart';
+import '../../stats/run_data.dart';
+import '../../widgets/basic.dart';
+import '../../widgets/dialogs.dart';
 
 class DetailPage extends StatefulWidget {
   const DetailPage({

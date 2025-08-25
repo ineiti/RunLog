@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart' as geo;
-import 'package:run_log/stats/conversions.dart';
-import 'package:run_log/stats/filter_data.dart';
-import 'package:run_log/stats/run_data.dart';
 
-import '../running/geotracker.dart';
+import '../../stats/conversions.dart';
+import '../../stats/filter_data.dart';
+import '../../stats/run_data.dart';
+import '../tabs/running/geotracker.dart';
 import '../storage.dart';
 import 'figures.dart';
 
@@ -38,10 +38,7 @@ class RunStats {
     return RunStats(rawPositions: rawPos, run: run);
   }
 
-  RunStats({
-    required this.rawPositions,
-    required this.run,
-  }) {
+  RunStats({required this.rawPositions, required this.run}) {
     if (rawPositions.isNotEmpty) {
       for (TrackedData td in rawPositions) {
         _newTracked(td);

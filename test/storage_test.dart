@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:run_log/storage.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'package:run_log/storage.dart';
 
 void main() {
   test('Exporting and re-importing all', () async {

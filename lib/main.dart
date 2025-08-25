@@ -3,14 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+
 import 'package:run_log/configuration.dart';
-import 'package:run_log/running/running.dart';
-import 'package:run_log/settings/settings.dart';
+import 'package:run_log/tabs/running/running.dart';
+import 'package:run_log/tabs/settings/settings.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
-
-import 'history/history.dart';
+import 'package:run_log/tabs/history/history.dart';
 
 Future main() async {
   await dotenv.load(fileName: ".env");

@@ -1,8 +1,8 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
-import 'package:run_log/stats/conversions.dart';
 
-import '../running/feedback.dart';
+import '../stats/conversions.dart';
+import '../tabs/running/feedback.dart';
 
 class Run {
   int id;

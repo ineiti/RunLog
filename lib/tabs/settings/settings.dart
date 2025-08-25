@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:run_log/widgets/basic.dart';
 
-import '../configuration.dart';
-import '../stats/conversions.dart';
+import '../../configuration.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key, required this.configurationStorage});
