@@ -232,7 +232,7 @@ class LineStat {
       opacity: slopeStat.$1,
       isVisibleInLegend: slopeStat.$1 > 0.5,
       animationDuration: 500,
-      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
       name: slopeStat.$2.toStringAsFixed(1),
       dataLabelSettings: DataLabelSettings(isVisible: false),
@@ -245,7 +245,7 @@ class LineStat {
       dataSource: filter.filteredData,
       yAxisName: "$type",
       animationDuration: 500,
-      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper:
           (XYData entry, _) =>
               type == LineType.speed ? toPaceMinKm(entry.y) : entry.y,
@@ -257,7 +257,7 @@ class LineStat {
   CartesianSeries _serieSlope() {
     return ColumnSeries<XYData, String>(
       dataSource: filter.filteredData,
-      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper: (XYData entry, _) => entry.y,
       yAxisName: "$type",
       name: _label(),

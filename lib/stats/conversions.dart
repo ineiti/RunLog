@@ -1,5 +1,3 @@
-import 'dart:math';
-
 String timeHMS(double s) {
   final hours = (s / 60 / 60).toInt();
   final mins = (s / 60 % 60).toInt();
@@ -11,6 +9,23 @@ String timeHMS(double s) {
   } else {
     return "${sec}sec";
   }
+}
+
+String shortHMS(double s) {
+  final hours = (s / 60 / 60).toInt();
+  final mins = (s / 60 % 60).toInt();
+  final sec = (s % 60).toInt();
+  if (hours > 0) {
+    return "${hours}h ${_intTwo(mins)}' ${_intTwo(sec)}''";
+  } else if (mins > 0) {
+    return "${_intTwo(mins)}' ${_intTwo(sec)}''";
+  } else {
+    return "${_intTwo(sec)}''";
+  }
+}
+
+String _intTwo(int i){
+  return i.toString().padLeft(2, "0");
 }
 
 double toPaceMinKm(double mps) {

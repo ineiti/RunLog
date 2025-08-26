@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:run_log/stats/conversions.dart';
 
 import '../../storage.dart';
 import '../../configuration.dart';
@@ -210,14 +211,14 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     } else if (speed == 0) {
       return "Paused";
     }
-    return "${speed.toStringAsFixed(1)} min/km";
+    return "${shortHMS(speed * 60)}/km";
   }
 
   String _fmtSpeedOverall() {
     double dist = runStats!.distance();
     double dur = runStats!.duration();
     if (dist > 0 && dur > 0) {
-      return _speedStrMinKm(dist / dur);
+      return "${shortHMS(_speedMinKm(dist / dur) * 60)}/km";
     } else {
       return "Waiting";
     }
@@ -228,10 +229,6 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       return mps;
     }
     return 1000 / 60 / mps;
-  }
-
-  String _speedStrMinKm(double mps) {
-    return "${_speedMinKm(mps).toStringAsFixed(1)} min/km";
   }
 
   Widget _stats(String s) {
