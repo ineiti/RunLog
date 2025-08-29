@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/running/feedback.dart';
-import 'package:run_log/running/feedback_track.dart';
-import 'package:run_log/running/tones.dart';
+import '../../feedback/feedback.dart';
+import 'pace_widget.dart';
+import '../../feedback/tones.dart';
 
-import '../configuration.dart';
+import '../../configuration.dart';
 
 class ToneFeedback {
   int _soundIntervalS = 15;
@@ -35,7 +35,6 @@ class ToneFeedback {
 
   updateRunning(double durationS, double distanceM) async {
     if (_tones.hasEntry()) {
-      // print("${runStats!.duration()} / $lastSoundS");
       if (durationS >= _nextSoundS) {
         await _tones.playSound(_maxFeedbackSilence, distanceM, durationS);
         while (_nextSoundS <= durationS) {

@@ -3,14 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+
 import 'package:run_log/configuration.dart';
-import 'package:run_log/running/running.dart';
-import 'package:run_log/settings/settings.dart';
+import 'package:run_log/tabs/running/running.dart';
+import 'package:run_log/tabs/settings/settings.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
-
-import 'history/history.dart';
+import 'package:run_log/tabs/history/history.dart';
 
 Future main() async {
   await dotenv.load(fileName: ".env");
@@ -75,7 +75,7 @@ class _MyAppState extends State<MyApp> {
     String altitudeURL,
   ) async {
     if (filePath.endsWith('.gpx')) {
-      await _processGPXFile(runStorage, filePath, altitudeURL);
+      await _processGPXFile(runStorage, filePath);
     }
     if (filePath.endsWith('.rlog')) {
       await _processRLogFile(runStorage, filePath);
@@ -85,7 +85,6 @@ class _MyAppState extends State<MyApp> {
   _processGPXFile(
     RunStorage runStorage,
     String filePath,
-    String altitudeURL,
   ) async {
     File gpxFile = File(filePath);
     String content = await gpxFile.readAsString();
@@ -98,7 +97,7 @@ class _MyAppState extends State<MyApp> {
       newData.first.timestamp,
     );
     runStorage.updateRun(newRun);
-    RunStats rr = await RunStats.loadRun(runStorage, newRun.id, altitudeURL);
+    RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
     await rr.updateStats();
   }
 

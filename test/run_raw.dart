@@ -1,7 +1,8 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:test/test.dart';
+
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/stats/run_stats.dart';
-import 'package:test/test.dart';
 
 void main() {
   test('Waiting for accuracy', () {

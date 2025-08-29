@@ -133,6 +133,7 @@ class LineStat {
   LineType type;
   late FilterData filter;
   late FilterData second;
+  static const maxPoints = 500;
 
   static ChartAxis axe(LineType type, (double, double) mm) {
     final (min, max) = mm;
@@ -157,8 +158,8 @@ class LineStat {
   }
 
   LineStat({required this.type, required int filterLength}) {
-    filter = FilterData.subSampled(filterLength, 500);
-    second = FilterData.subSampled(filterLength, 500);
+    filter = FilterData.subSampled(filterLength, maxPoints);
+    second = FilterData.subSampled(filterLength, maxPoints);
   }
 
   updateData(List<TimeData> runningData) {
@@ -232,7 +233,7 @@ class LineStat {
       opacity: slopeStat.$1,
       isVisibleInLegend: slopeStat.$1 > 0.5,
       animationDuration: 500,
-      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
       name: slopeStat.$2.toStringAsFixed(1),
       dataLabelSettings: DataLabelSettings(isVisible: false),
@@ -245,7 +246,7 @@ class LineStat {
       dataSource: filter.filteredData,
       yAxisName: "$type",
       animationDuration: 500,
-      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper:
           (XYData entry, _) =>
               type == LineType.speed ? toPaceMinKm(entry.y) : entry.y,
@@ -257,7 +258,7 @@ class LineStat {
   CartesianSeries _serieSlope() {
     return ColumnSeries<XYData, String>(
       dataSource: filter.filteredData,
-      xValueMapper: (XYData entry, _) => timeHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper: (XYData entry, _) => entry.y,
       yAxisName: "$type",
       name: _label(),
@@ -323,7 +324,7 @@ class LineStat {
     if (len == 1) {
       return "";
     }
-    return " (${len * 5}s)";
+    return " (${len}s)";
   }
 }
 

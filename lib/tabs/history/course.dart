@@ -3,14 +3,14 @@ import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:run_log/configuration.dart';
-import 'package:run_log/stats/conversions.dart';
-import 'package:run_log/stats/run_stats.dart';
-import 'package:run_log/storage.dart';
 
-import '../stats/run_data.dart';
-import '../widgets/basic.dart';
-import '../widgets/dialogs.dart';
+import '../../configuration.dart';
+import '../../stats/conversions.dart';
+import '../../stats/run_stats.dart';
+import '../../storage.dart';
+import '../../stats/run_data.dart';
+import '../basic.dart';
+import '../dialogs.dart';
 
 class DetailPage extends StatefulWidget {
   const DetailPage({
@@ -44,12 +44,8 @@ class _DetailPageState extends State<DetailPage> {
     Timer(Duration(milliseconds: 20), _startCalc);
   }
 
-  void _startCalc() async {
-    final runStats = await RunStats.loadRun(
-      widget.storage,
-      widget.run.id,
-      widget.configurationStorage.config.altitudeURL,
-    );
+  Future<void> _startCalc() async {
+    final runStats = await RunStats.loadRun(widget.storage, widget.run.id);
     source.add(_DetailSteps.calc);
     rr = await Isolate.run(() {
       var fl = runStats.runningData.length ~/ 20;
@@ -92,7 +88,7 @@ class _DetailPageState extends State<DetailPage> {
                   children: [
                     Text(
                       "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
-                      "${minSec(widget.run.avgPace())} min/km",
+                      "${minSecFix(widget.run.avgPace(), 1)} min/km",
                     ),
                     const SizedBox(height: 10),
                     ..._figures(),
@@ -109,14 +105,16 @@ class _DetailPageState extends State<DetailPage> {
     if (rr == null) {
       return [Text("Loading data")];
     }
+    final children = [
+      blueButton("Export", () => _trackExport(context)),
+      blueButton("Delete", () => _trackDelete(context)),
+      blueButton("Height", () => _trackHeight(context)),
+    ];
+    if (widget.configurationStorage.config.debug) {
+      children.add(blueButton("Clear", () => _trackClear(context)));
+    }
     return [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          blueButton("Export", () => _trackExport(context)),
-          blueButton("Delete", () => _trackDelete(context)),
-        ],
-      ),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: children),
       const SizedBox(height: 10),
       ...rr!.figures.runStats(),
     ];
@@ -154,5 +152,52 @@ class _DetailPageState extends State<DetailPage> {
         "run-${DateFormat('yyyy-MM-dd_HH-mm').format(widget.run.startTime)}.gpx";
     final content = rr!.rawPositions.toGPX();
     showFileActionDialog(context, 'application/gpx+xml', name, content);
+  }
+
+  _trackHeight(BuildContext context) async {
+    StreamController<(int, int)> currentUpdate = StreamController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevents closing by tapping outside
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // Important for proper sizing
+            children: [
+              CircularProgressIndicator(), // The progress bar
+              SizedBox(height: 16),
+              StreamBuilder(
+                stream: currentUpdate.stream,
+                builder: (context, snapshot) {
+                  return Text(
+                    'Fetching Heights ${snapshot.data?.$1} / ${snapshot.data?.$2}',
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    await widget.storage.updateHeightData(
+      rr!.run.id,
+      widget.configurationStorage.config.altitudeURL,
+      (c, t) {
+        if (t > 0) {
+          setState(() {
+            currentUpdate.add((c, t));
+          });
+        } else {
+          Navigator.pop(context);
+        }
+      },
+    );
+  }
+
+  _trackClear(BuildContext context) async {
+    await widget.storage.clearHeightData(rr!.run.id);
+    await _startCalc();
   }
 }

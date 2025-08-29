@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:run_log/configuration.dart';
-import 'package:run_log/stats/conversions.dart';
 
-import '../stats/run_data.dart';
-import '../storage.dart';
-import '../widgets/basic.dart';
-import '../widgets/dialogs.dart';
+import '../../configuration.dart';
+import '../../stats/conversions.dart';
+import '../../stats/run_data.dart';
+import '../../storage.dart';
+import '../basic.dart';
+import '../dialogs.dart';
 import 'course.dart';
 
 class History extends StatefulWidget {
@@ -140,8 +140,8 @@ class _HistoryState extends State<History> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           Text(
-                            "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration / 1000)}: "
-                            "${minSec(run.avgPace())} min/km",
+                            "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration.toDouble())}: "
+                            "${minSecFix(run.avgPace(), 1)} min/km",
                           ),
                         ],
                       ),

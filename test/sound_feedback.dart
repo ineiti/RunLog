@@ -1,7 +1,7 @@
-import 'package:run_log/running/feedback.dart';
-import 'package:run_log/running/tones.dart';
-import 'package:run_log/stats/conversions.dart';
 import 'package:test/test.dart';
+
+import 'package:run_log/feedback/tones.dart';
+import 'package:run_log/stats/conversions.dart';
 
 void main() {
   expectFloat(double a, double b) {

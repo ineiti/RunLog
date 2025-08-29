@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:run_log/running/feedback.dart';
-import 'package:run_log/running/tones.dart';
-import 'package:run_log/stats/conversions.dart';
+import '../../feedback/feedback.dart';
+import '../../feedback/tones.dart';
+import '../../stats/conversions.dart';
 
-import '../widgets/basic.dart';
+import '../basic.dart';
 
 class PaceWidget extends StatefulWidget {
   final StreamController<FeedbackContainer> updateEntries;
@@ -27,7 +27,6 @@ class _PaceWidgetState extends State<PaceWidget> {
 
   @override
   Widget build(BuildContext context) {
-    print("Points are: $_points");
     var pointsSum = _points.clone();
     pointsSum.calcSum();
     widget.updateEntries.add(

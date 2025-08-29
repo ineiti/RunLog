@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:run_log/running/tones.dart';
+import 'tones.dart';
 
 enum FeedbackType { none, pace, slope }
 
