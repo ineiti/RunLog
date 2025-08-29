@@ -24,7 +24,7 @@ String shortHMS(double s) {
   }
 }
 
-String _intTwo(int i){
+String _intTwo(int i) {
   return i.toString().padLeft(2, "0");
 }
 
@@ -47,7 +47,7 @@ String labelYTime(String s) {
 }
 
 String minSec(double minutes) {
-  if (!minutes.isFinite){
+  if (!minutes.isFinite) {
     return "NaN";
   }
   final min = minutes.toInt();

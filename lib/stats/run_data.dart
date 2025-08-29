@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
+import 'package:run_log/stats/run_stats.dart';
+import 'package:run_log/storage.dart';
 
 import '../stats/conversions.dart';
 import '../feedback/feedback.dart';
@@ -78,11 +80,21 @@ class Run {
   }
 
   double avgSpeed() {
-    return totalDistance / duration * 1000;
+    return totalDistance / duration;
   }
 
   double avgPace(){
     return toPaceMinKm(avgSpeed());
+  }
+
+  Future<void> ensureStats(RunStorage rs) async {
+    // if (duration == 0 || totalDistance == 0){
+    if (duration == 0){
+      final td = await rs.loadTrackedData(id);
+      final stats = RunStats(rawPositions: td, run: this);
+      duration = stats.duration().toInt();
+      totalDistance = stats.distance();
+    }
   }
 
   @override

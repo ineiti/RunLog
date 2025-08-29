@@ -140,8 +140,8 @@ class _HistoryState extends State<History> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           Text(
-                            "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration / 1000)}: "
-                            "${minSec(run.avgPace())} min/km",
+                            "${distanceStr(run.totalDistance)} in ${timeHMS(run.duration.toDouble())}: "
+                            "${minSecFix(run.avgPace(), 1)} min/km",
                           ),
                         ],
                       ),

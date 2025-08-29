@@ -31,28 +31,36 @@ class RunStorage {
   Future<void> loadRuns() async {
     final runMaps = await db.query('Runs');
     final runList = runMaps.map((map) => Run.fromMap(map)).toList();
-    runs = {for (var run in runList) run.id: run};
+    for (var run in runList) {
+      await run.ensureStats(this);
+      runs[run.id] = run;
+    }
 
     updateRuns.add([]);
   }
 
-  Future<List<TrackedData>> loadTrackedData(
-    int runId,
-    String altitudeURL,
-  ) async {
-    // if (_trackedData.containsKey(runId)) {
-    //   return _trackedData[runId]!;
-    // }
+  Future<List<TrackedData>> loadTrackedData(int runId) async {
+    if (trackedData.containsKey(runId)) {
+      return trackedData[runId]!;
+    }
 
     final trackedDataMaps = await db.query(
       'TrackedData',
       where: "run_id = ?",
       whereArgs: [runId],
     );
-    // print("Got ${trackedDataMaps.length} entries - ${trackedDataMaps[0]}");
-    final allTrackedData =
+    trackedData[runId] =
         trackedDataMaps.map((map) => TrackedData.fromMap(map)).toList();
 
+    return trackedData[runId]!;
+  }
+
+  Future<List<TrackedData>> updateHeightData(
+    int runId,
+    String altitudeURL,
+    void Function(int, int)? state,
+  ) async {
+    final allTrackedData = await loadTrackedData(runId);
     // Update trackedData with real altitude reading, if available
     final List<int> tdUpdate = [];
     for (int i = 0; i < allTrackedData.length; i++) {
@@ -60,25 +68,37 @@ class RunStorage {
         tdUpdate.add(i);
       }
       if (tdUpdate.length >= 100) {
-        print("Updating batch $i / ${allTrackedData.length / 100} entries");
+        if (state != null) {
+          state(i ~/ 100, allTrackedData.length ~/ 100);
+        }
         await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
         tdUpdate.clear();
       }
     }
     await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
 
-    trackedData[runId] = [];
-    for (var data in allTrackedData) {
-      trackedData[runId]!.add(data);
+    if (state != null) {
+      state(0, 0);
     }
 
-    return trackedData[runId]!;
+    return allTrackedData;
+  }
+
+  Future<List<TrackedData>> clearHeightData(int runId) async {
+    final allTrackedData = await loadTrackedData(runId);
+    await db.transaction((txn) async {
+      for (var td in allTrackedData) {
+        td.altitudeCorrected = null;
+        await _updateTD(txn, td);
+      }
+    });
+    return allTrackedData;
   }
 
   Future<String> exportAll() async {
     List<Map<String, dynamic>> content = [];
     for (var run in runs.entries) {
-      final track = await loadTrackedData(run.key, "");
+      final track = await loadTrackedData(run.key);
       content.add({
         'run': run.value.toMap(),
         'track': track.map((t) => t.toMap()).toList(),
@@ -117,20 +137,25 @@ class RunStorage {
       return;
     }
     try {
-      final acs = await _fetchAltitudes(
-        tdUpdate
-            .map(
-              (i) => (allTrackedData[i].latitude, allTrackedData[i].longitude),
-            )
-            .toList(),
-        altitudeURL,
-      );
-      if (acs.length == tdUpdate.length) {
-        for (int i in tdUpdate) {
-          allTrackedData[i].altitudeCorrected = acs.removeAt(0);
-          await _updateTD(allTrackedData[i]);
+      await db.transaction((txn) async {
+        final acs = await _fetchAltitudes(
+          tdUpdate
+              .map(
+                (i) => (
+                  allTrackedData[i].latitude,
+                  allTrackedData[i].longitude,
+                ),
+              )
+              .toList(),
+          altitudeURL,
+        );
+        if (acs.length == tdUpdate.length) {
+          for (int i in tdUpdate) {
+            allTrackedData[i].altitudeCorrected = acs.removeAt(0);
+            await _updateTD(txn, allTrackedData[i]);
+          }
         }
-      }
+      });
     } catch (e) {
       print("Couldn't fetch entries: $e");
     }
@@ -148,7 +173,6 @@ class RunStorage {
         (altitudeURL != ""
             ? altitudeURL
             : 'https://api.opendata.org/v1/eudem25m');
-    print("Getting altitudes from $url");
     final response = await http.get(
       Uri.parse("$url$locations"),
       headers: {'Accept': 'application/json'},
@@ -177,11 +201,6 @@ class RunStorage {
         return elevations;
       } catch (e) {
         print("Error while converting: $e - $results");
-        for (final r in results) {
-          if (r["elevation"] == null) {
-            print(r);
-          }
-        }
         return [];
       }
     } else {
@@ -260,13 +279,11 @@ class RunStorage {
   }
 
   updateRun(Run run) async {
-    // print("Updating ${run.id} out of $runs in $this");
     await db.update('Runs', run.toMap(), where: "id = ?", whereArgs: [run.id]);
     runs[run.id] = run;
   }
 
-  _updateTD(TrackedData td) async {
-    // print("Updating ${run.id} out of $runs in $this");
+  _updateTD(DatabaseExecutor db, TrackedData td) async {
     await db.update(
       'TrackedData',
       td.toMap(),

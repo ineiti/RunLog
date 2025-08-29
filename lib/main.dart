@@ -75,7 +75,7 @@ class _MyAppState extends State<MyApp> {
     String altitudeURL,
   ) async {
     if (filePath.endsWith('.gpx')) {
-      await _processGPXFile(runStorage, filePath, altitudeURL);
+      await _processGPXFile(runStorage, filePath);
     }
     if (filePath.endsWith('.rlog')) {
       await _processRLogFile(runStorage, filePath);
@@ -85,7 +85,6 @@ class _MyAppState extends State<MyApp> {
   _processGPXFile(
     RunStorage runStorage,
     String filePath,
-    String altitudeURL,
   ) async {
     File gpxFile = File(filePath);
     String content = await gpxFile.readAsString();
@@ -98,7 +97,7 @@ class _MyAppState extends State<MyApp> {
       newData.first.timestamp,
     );
     runStorage.updateRun(newRun);
-    RunStats rr = await RunStats.loadRun(runStorage, newRun.id, altitudeURL);
+    RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
     await rr.updateStats();
   }
 
