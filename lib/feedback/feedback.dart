@@ -11,24 +11,28 @@ class FeedbackContainer {
   final double slopeMult;
   final SFEntry target;
 
-  static FeedbackContainer fromPace(SFEntry target){
+  static FeedbackContainer fromPace(SFEntry target) {
     return FeedbackContainer(FeedbackType.pace, 1, target);
   }
 
-  static FeedbackContainer fromSlopeMult(SFEntry target, double slopeMult){
+  static FeedbackContainer fromSlopeMult(SFEntry target, double slopeMult) {
     return FeedbackContainer(FeedbackType.pace, slopeMult, target);
   }
 
-  static FeedbackContainer empty(){
+  static FeedbackContainer empty() {
     return FeedbackContainer.fromJson("{}");
   }
 
   static FeedbackContainer fromJson(String s) {
     final map = jsonDecode(s);
+    final fbt = FeedbackType.values.firstWhere(
+      (e) => e.name == map[_FeedbackFields.type.name],
+      orElse: () => FeedbackType.none,
+    );
     return FeedbackContainer(
-      map[_FeedbackFields.type.name] ?? FeedbackType.none,
+      fbt,
       map[_FeedbackFields.slopeMult.name] ?? 1,
-      map[_FeedbackFields.target.name] ?? SFEntry(),
+      SFEntry.fromJson(map[_FeedbackFields.target.name] ?? "{}"),
     );
   }
 
@@ -41,7 +45,6 @@ class FeedbackContainer {
       _FeedbackFields.target.name: target.toJson(),
     });
   }
-
 
   String displayString() {
     switch (type) {

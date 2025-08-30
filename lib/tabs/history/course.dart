@@ -87,7 +87,7 @@ class _DetailPageState extends State<DetailPage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Text(
-                      "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
+                      "${distanceStr(widget.run.totalDistanceM)} in ${timeHMS(widget.run.durationMS / 1000)}: "
                       "${minSecFix(widget.run.avgPace(), 1)} min/km",
                     ),
                     const SizedBox(height: 10),

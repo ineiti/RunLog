@@ -94,7 +94,7 @@ class _MyAppState extends State<MyApp> {
       runStorage.addTrackedData(td);
     }
     newRun.startTime = DateTime.fromMillisecondsSinceEpoch(
-      newData.first.timestamp,
+      newData.first.timestampMS,
     );
     runStorage.updateRun(newRun);
     RunStats rr = await RunStats.loadRun(runStorage, newRun.id);

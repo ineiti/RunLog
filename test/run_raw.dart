@@ -42,10 +42,10 @@ void main() {
     final r = Run.now(1);
     final pm = PositionMock(run: r);
     final rs = Resampler(pm.td);
-    expect(rs.resample(pm.td.withTimestamp(pm.td.timestamp + 1)), [pm.td]);
-    expect(rs.resample(pm.td.withTimestamp(pm.td.timestamp + 2)), []);
+    expect(rs.resample(pm.td.withTimestamp(pm.td.timestampMS + 1)), [pm.td]);
+    expect(rs.resample(pm.td.withTimestamp(pm.td.timestampMS + 2)), []);
     expect(
-      rs.resample(pm.td.withTimestamp(pm.td.timestamp + rs.sampleInterval)),
+      rs.resample(pm.td.withTimestamp(pm.td.timestampMS + rs.sampleIntervalMS)),
       [pm.td],
     );
   });

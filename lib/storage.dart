@@ -225,41 +225,6 @@ class RunStorage {
     updateRuns.add([]);
   }
 
-  Future<TrackedData> addData({
-    int timestamp = -1,
-    required int runId,
-    required double latitude,
-    required double longitude,
-    required double altitude,
-    required double gpsAccuracy,
-    double? altitudeCorrected,
-    int? heartRate,
-    int? stepsPerMin,
-  }) async {
-    if (timestamp == -1) {
-      timestamp = DateTime.now().millisecondsSinceEpoch;
-    }
-    final data = TrackedData(
-      runId: runId,
-      timestamp: timestamp,
-      latitude: latitude,
-      longitude: longitude,
-      altitude: altitude,
-      altitudeCorrected: altitudeCorrected,
-      gpsAccuracy: gpsAccuracy,
-      heartRate: heartRate,
-      stepsPerMin: stepsPerMin,
-    );
-    if (data.altitudeCorrected == null) {
-      final ac = await _fetchAltitudes([(data.latitude, data.longitude)], "");
-      if (ac.length == 1) {
-        data.altitudeCorrected = ac[0];
-      }
-    }
-    await addTrackedData(data);
-    return data;
-  }
-
   addTrackedData(TrackedData td) async {
     await db.insert(
       'TrackedData',
@@ -278,7 +243,7 @@ class RunStorage {
     return run;
   }
 
-  updateRun(Run run) async {
+  Future<void> updateRun(Run run) async {
     await db.update('Runs', run.toMap(), where: "id = ?", whereArgs: [run.id]);
     runs[run.id] = run;
   }
@@ -398,8 +363,8 @@ class DebugStorage {
     for (var td in track) {
       await rs.addTrackedData(td);
     }
-    run.duration = track.last.timestamp - track.first.timestamp;
-    run.totalDistance = track.last.latitude * 6e6 / 180 * pi;
+    run.durationMS = track.last.timestampMS - track.first.timestampMS;
+    run.totalDistanceM = track.last.latitude * 6e6 / 180 * pi;
     await rs.updateRun(run);
   }
 
@@ -417,7 +382,7 @@ class DebugStorage {
       points,
       (i) => TrackedData(
         runId: id,
-        timestamp: start.millisecondsSinceEpoch + i * 1000,
+        timestampMS: start.millisecondsSinceEpoch + i * 1000,
         latitude: distances[i] / 6e6 / pi * 180,
         longitude: 0,
         altitude: altitudes[i],
