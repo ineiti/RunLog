@@ -52,10 +52,10 @@ void main() {
 }
 
 class PositionMock {
-  final pause = 0.00005;
-  final slow = 0.0001;
-  final fast = 0.00015;
-  final dt = 5.0;
+  final pause = 0.00001;
+  final slow = 0.000015;
+  final fast = 0.00003;
+  final dt = 1.0;
   Run? run;
 
   PositionMock({this.run});

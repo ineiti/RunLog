@@ -209,7 +209,7 @@ class RunStats {
 
 class Resampler {
   int sampleCount = 1;
-  int tsReference = -1;
+  int tsReferenceMS = -1;
   int sampleIntervalMS;
   TrackedData lastMovement;
 
@@ -217,7 +217,7 @@ class Resampler {
     this.lastMovement, {
     this.sampleIntervalMS = GeoTracker.intervalSeconds * 1000,
   }) {
-    tsReference = lastMovement.timestampMS;
+    tsReferenceMS = lastMovement.timestampMS;
   }
 
   List<TrackedData> resample(TrackedData td) {
@@ -234,7 +234,7 @@ class Resampler {
     return resampled;
   }
 
-  int get nextSampleMS => tsReference + sampleCount * sampleIntervalMS;
+  int get nextSampleMS => tsReferenceMS + sampleCount * sampleIntervalMS;
 
   TimeData timeData(
     int ts,
@@ -244,7 +244,7 @@ class Resampler {
     double slope,
   ) {
     return TimeData(
-      (ts - tsReference) / 1000,
+      (ts - tsReferenceMS) / 1000,
       speed,
       altitude,
       altitudeCorrected,
@@ -253,7 +253,7 @@ class Resampler {
   }
 
   pause() {
-    tsReference += sampleIntervalMS;
+    tsReferenceMS += sampleIntervalMS;
     sampleCount--;
   }
 }

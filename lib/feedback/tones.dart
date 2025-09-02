@@ -151,8 +151,12 @@ class SFEntry {
   }
 
   static SFEntry fromJson(String s) {
-    // TODO: implement
-    return SFEntry();
+    final sf = SFEntry();
+    sf.targetSpeeds =
+        (fromJson(s) as List<Map<String, dynamic>>)
+            .map((ts) => SpeedPoint.fromMap(ts))
+            .toList();
+    return sf;
   }
 
   static SFEntry fromPoints(List<SpeedPoint> points) {
@@ -165,7 +169,7 @@ class SFEntry {
 
   String toJson() {
     // TODO: implement
-    return jsonEncode({});
+    return jsonEncode(targetSpeeds.map((s) => s.toMap()));
   }
 
   stop(double distanceM) {
@@ -287,6 +291,13 @@ class SpeedPoint {
 
   SpeedPoint({required this.distanceM, required this.speedMS});
 
+  static SpeedPoint fromMap(Map<String, dynamic> m) {
+    return SpeedPoint(
+      distanceM: m["distanceM"] as double? ?? 0,
+      speedMS: m["speedMS"] as double? ?? 0,
+    );
+  }
+
   static SpeedPoint fromMinKm(double distanceM, double speedMinKm) {
     return SpeedPoint(
       distanceM: distanceM,
@@ -300,6 +311,10 @@ class SpeedPoint {
 
   static SpeedPoint speed(double speedMS) {
     return SpeedPoint(distanceM: 0, speedMS: speedMS);
+  }
+
+  Map<String, dynamic> toMap() {
+    return {"distanceM": distanceM, "speedMS": speedMS};
   }
 
   @override
