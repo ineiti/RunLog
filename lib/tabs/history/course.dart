@@ -33,6 +33,7 @@ enum _DetailSteps { load, calc, show }
 class _DetailPageState extends State<DetailPage> {
   late Stream<_DetailSteps> steps;
   late StreamController<_DetailSteps> source;
+  int filterDivisions = 20;
   RunStats? rr;
 
   @override
@@ -48,18 +49,22 @@ class _DetailPageState extends State<DetailPage> {
     final runStats = await RunStats.loadRun(widget.storage, widget.run.id);
     source.add(_DetailSteps.calc);
     rr = await Isolate.run(() {
-      var fl = runStats.runningData.length ~/ 20;
-      runStats.figureAddSpeed(fl);
-      // runStats.figureAddAltitude(fl);
-      // runStats.figureAddAltitudeCorrected(fl);
-      runStats.figureAddSlope(fl);
-      runStats.figureAddFigure();
-      runStats.figureAddSlopeStats(fl);
-      runStats.figuresUpdate();
+      _updateFigures(runStats, filterDivisions);
       return runStats;
     });
 
     source.add(_DetailSteps.show);
+  }
+
+  static _updateFigures(RunStats runStats, int filterDivisions) {
+    var fl = runStats.runningData.length ~/ filterDivisions;
+    runStats.figureAddSpeed(fl);
+    // runStats.figureAddAltitude(fl);
+    // runStats.figureAddAltitudeCorrected(fl);
+    runStats.figureAddSlope(fl);
+    runStats.figureAddFigure();
+    runStats.figureAddSlopeStats(fl);
+    runStats.figuresUpdate();
   }
 
   @override
@@ -117,7 +122,36 @@ class _DetailPageState extends State<DetailPage> {
       Row(mainAxisAlignment: MainAxisAlignment.center, children: children),
       const SizedBox(height: 10),
       ...rr!.figures.runStats(),
+      _filterSlider(),
     ];
+  }
+
+  Widget _filterSlider() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [Text("Filter-Length")]),
+        Row(
+          // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // spacing: 10,
+          children: [
+            Text("$filterDivisions"),
+            Flexible(
+              flex: 1,
+              child: Slider(
+                value: filterDivisions.toDouble(),
+                onChanged: (fd) async {
+                  await _updateFigures(rr!, filterDivisions);
+                  filterDivisions = fd.toInt();
+                },
+                min: 1,
+                max: 200,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   _trackDelete(BuildContext context) async {
