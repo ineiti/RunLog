@@ -137,18 +137,15 @@ class RunStorage {
       return;
     }
     try {
+      final acs = await _fetchAltitudes(
+        tdUpdate
+            .map(
+              (i) => (allTrackedData[i].latitude, allTrackedData[i].longitude),
+            )
+            .toList(),
+        altitudeURL,
+      );
       await db.transaction((txn) async {
-        final acs = await _fetchAltitudes(
-          tdUpdate
-              .map(
-                (i) => (
-                  allTrackedData[i].latitude,
-                  allTrackedData[i].longitude,
-                ),
-              )
-              .toList(),
-          altitudeURL,
-        );
         if (acs.length == tdUpdate.length) {
           for (int i in tdUpdate) {
             allTrackedData[i].altitudeCorrected = acs.removeAt(0);
