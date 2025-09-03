@@ -93,17 +93,7 @@ class _DetailPageState extends State<DetailPage> {
             case _DetailSteps.show:
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      "${distanceStr(widget.run.totalDistanceM)} in ${timeHMS(widget.run.durationMS / 1000)}: "
-                      "${minSecFix(widget.run.avgPace(), 1)} min/km",
-                    ),
-                    const SizedBox(height: 10),
-                    ..._figures(),
-                  ],
-                ),
+                child: _showCourse(),
               );
           }
         },
@@ -111,9 +101,9 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  List<Widget> _figures() {
+  Widget _showCourse() {
     if (rr == null) {
-      return [Text("Loading data")];
+      return Text("Loading data");
     }
     final children = [
       blueButton("Export", () => _trackExport(context)),
@@ -123,21 +113,30 @@ class _DetailPageState extends State<DetailPage> {
     if (widget.configurationStorage.config.debug) {
       children.add(blueButton("Clear", () => _trackClear(context)));
     }
-    return [
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: children),
-      const SizedBox(height: 10),
-      _filterSlider(),
-      Flexible(
-        child: ListView(
-          // scrollDirection: Axis.vertical,
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(8),
-          children: <Widget>[
-            Column(children: rr!.figures.runStats()),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Text(
+          "${distanceStr(widget.run.totalDistanceM)} in ${timeHMS(widget.run.durationMS / 1000)}: "
+          "${minSecFix(widget.run.avgPace(), 1)} min/km",
+        ),
+        ExpansionTile(
+          title: Text("Settings"),
+          children: [
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: children,
+                ),
+                _filterSlider(),
+              ],
+            ),
           ],
         ),
-      ),
-    ];
+        rr!.figures.runStats(),
+      ],
+    );
   }
 
   Widget _filterSlider() {

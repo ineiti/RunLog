@@ -55,34 +55,38 @@ class Figures {
     );
   }
 
-  List<Widget> runStats() {
-    final List<Widget> figs = [];
-    for (var figure in figures) {
-      figs.add(
-        Container(
-          margin: const EdgeInsets.only(top: 10),
-          child: SfCartesianChart(
-            axes: figure.axes(),
-            series: figure.series(),
-            zoomPanBehavior: ZoomPanBehavior(
-              enablePinching: true,
-              enablePanning: true,
-              enableDoubleTapZooming: true,
-              enableSelectionZooming: true,
-              enableMouseWheelZooming: true,
-              zoomMode: ZoomMode.x,
-            ),
-            primaryXAxis: CategoryAxis(
-              labelIntersectAction: AxisLabelIntersectAction.multipleRows,
-            ),
-            primaryYAxis: CategoryAxis(isVisible: false),
-            legend: Legend(isVisible: true),
-            tooltipBehavior: TooltipBehavior(enable: true),
-          ),
-        ),
-      );
+  Widget runStats() {
+    return Flexible(
+      child: ListView.builder(
+        itemBuilder: (context, index) {
+          return _buildFigure(index);
+        },
+      ),
+    );
+  }
+
+  Widget? _buildFigure(int index) {
+    if (index >= figures.length) {
+      return null;
     }
-    return figs;
+    return SfCartesianChart(
+      axes: figures[index].axes(),
+      series: figures[index].series(),
+      zoomPanBehavior: ZoomPanBehavior(
+        enablePinching: true,
+        enablePanning: true,
+        enableDoubleTapZooming: true,
+        enableSelectionZooming: true,
+        enableMouseWheelZooming: true,
+        zoomMode: ZoomMode.x,
+      ),
+      primaryXAxis: CategoryAxis(
+        labelIntersectAction: AxisLabelIntersectAction.multipleRows,
+      ),
+      primaryYAxis: CategoryAxis(isVisible: false),
+      legend: Legend(isVisible: true),
+      tooltipBehavior: TooltipBehavior(enable: true),
+    );
   }
 }
 
@@ -137,7 +141,10 @@ class LineStat {
 
   static ChartAxis axe(LineType type, (double, double) mm) {
     final (min, max) = mm;
-    final inversed = type == LineType.speed || type == LineType.slope || type == LineType.slopeStats;
+    final inversed =
+        type == LineType.speed ||
+        type == LineType.slope ||
+        type == LineType.slopeStats;
     final speedAxis = type == LineType.speed || type == LineType.slopeStats;
     return NumericAxis(
       name: "$type",
@@ -198,7 +205,7 @@ class LineStat {
   List<CartesianSeries> _serieSlopeStats() {
     final bins = 4;
     final slopes = List.from(second.filteredData).asMap().entries.toList();
-    if (slopes.length < bins){
+    if (slopes.length < bins) {
       return [_slopeStats((0, 0, []))];
     }
     slopes.sort((a, b) => a.value.y.compareTo(b.value.y));

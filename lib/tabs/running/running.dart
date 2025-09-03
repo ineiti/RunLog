@@ -197,10 +197,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
           }),
         ],
       ),
-      Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: runStats!.figures.runStats(),
-      ),
+      runStats!.figures.runStats(),
     ];
   }
 
