@@ -76,21 +76,21 @@ class RunStats {
     return RSState.running;
   }
 
-  double duration() {
+  double durationSec() {
     if (runningData.isEmpty) {
       return 0;
     }
     return runningData.last.ts;
   }
 
-  double distance() {
+  double distanceM() {
     if (resampler == null) {
       return 10;
     }
     // The first element is at t=0 and is only used to make a nice graph.
     return runningData
         .skip(1)
-        .fold(0, (dist, e) => dist + e.mps * resampler!.sampleInterval / 1000);
+        .fold(0, (dist, e) => dist + e.mps * resampler!.sampleIntervalMS / 1000);
   }
 
   reset() {
@@ -102,12 +102,13 @@ class RunStats {
   }
 
   updateStats() {
-    run.duration = (duration() * 1000).toInt();
-    run.totalDistance = distance();
+    run.durationMS = (durationSec() * 1000).toInt();
+    run.totalDistanceM = distanceM();
   }
 
   void figureClean() {
     figures.clean();
+    figures.addFigure();
   }
 
   void figureAddSpeed(int n2) {
@@ -182,7 +183,7 @@ class RunStats {
       }
       runningData.add(TimeData(0, speed, td.altitude, td.altitudeCorrected, 0));
       run.startTime = DateTime.fromMillisecondsSinceEpoch(
-        td.timestamp - resampler!.sampleInterval,
+        td.timestampMS - resampler!.sampleIntervalMS,
       );
     }
 
@@ -196,7 +197,7 @@ class RunStats {
     }
     runningData.add(
       resampler!.timeData(
-        td.timestamp,
+        td.timestampMS,
         speed,
         td.altitude,
         td.altitudeCorrected,
@@ -210,14 +211,14 @@ class RunStats {
 class Resampler {
   int sampleCount = 1;
   int tsReference = -1;
-  int sampleInterval;
+  int sampleIntervalMS;
   TrackedData lastMovement;
 
   Resampler(
     this.lastMovement, {
-    this.sampleInterval = GeoTracker.intervalSeconds * 1000,
+    this.sampleIntervalMS = GeoTracker.intervalSeconds * 1000,
   }) {
-    tsReference = lastMovement.timestamp;
+    tsReference = lastMovement.timestampMS;
   }
 
   List<TrackedData> resample(TrackedData td) {
@@ -225,8 +226,8 @@ class Resampler {
       throw "Cannot resample with same element again";
     }
     List<TrackedData> resampled = [];
-    while (nextSample <= td.timestamp) {
-      resampled.add(lastMovement.interpolate(td, nextSample));
+    while (nextSampleMS <= td.timestampMS) {
+      resampled.add(lastMovement.interpolate(td, nextSampleMS));
       sampleCount++;
     }
 
@@ -234,7 +235,7 @@ class Resampler {
     return resampled;
   }
 
-  int get nextSample => tsReference + sampleCount * sampleInterval;
+  int get nextSampleMS => tsReference + sampleCount * sampleIntervalMS;
 
   TimeData timeData(
     int ts,
@@ -253,7 +254,7 @@ class Resampler {
   }
 
   pause() {
-    tsReference += sampleInterval;
+    tsReference += sampleIntervalMS;
     sampleCount--;
   }
 }

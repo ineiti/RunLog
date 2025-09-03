@@ -9,8 +9,8 @@ import '../feedback/feedback.dart';
 class Run {
   int id;
   DateTime startTime;
-  int duration;
-  double totalDistance;
+  int durationMS;
+  double totalDistanceM;
   int? caloriesBurned;
   String? weather;
   int? avgHeartRate;
@@ -24,8 +24,8 @@ class Run {
   Run({
     required this.id,
     required this.startTime,
-    this.duration = 0,
-    this.totalDistance = 0,
+    this.durationMS = 0,
+    this.totalDistanceM = 0,
     this.caloriesBurned,
     this.weather,
     this.avgHeartRate,
@@ -39,8 +39,8 @@ class Run {
       startTime: DateTime.fromMillisecondsSinceEpoch(
         dbMap['start_time'] as int,
       ),
-      duration: dbMap['duration'] as int,
-      totalDistance: dbMap['total_distance'] as double,
+      durationMS: dbMap['duration'] as int,
+      totalDistanceM: dbMap['total_distance'] as double,
       caloriesBurned: dbMap['calories_burned'] as int?,
       weather: dbMap['weather'] as String?,
       avgHeartRate: dbMap['avg_heart_rate'] as int?,
@@ -53,8 +53,8 @@ class Run {
     return Run(
       id: 0,
       startTime: startTime,
-      duration: 0,
-      totalDistance: 0,
+      durationMS: 0,
+      totalDistanceM: 0,
       caloriesBurned: 0,
       weather: "",
       avgHeartRate: 0,
@@ -65,8 +65,8 @@ class Run {
   Map<String, Object?> toMap() {
     return {
       "start_time": startTime.millisecondsSinceEpoch,
-      "duration": duration,
-      "total_distance": totalDistance,
+      "duration": durationMS,
+      "total_distance": totalDistanceM,
       "calories_burned": caloriesBurned,
       "weather": weather,
       "avg_heart_rate": avgHeartRate,
@@ -80,21 +80,29 @@ class Run {
   }
 
   double avgSpeed() {
-    return totalDistance / duration;
+    if (durationMS > 0) {
+      return totalDistanceM / (durationMS / 1000);
+    } else {
+      return 0;
+    }
   }
 
-  double avgPace(){
+  double avgPace() {
     return toPaceMinKm(avgSpeed());
   }
 
   Future<void> ensureStats(RunStorage rs) async {
-    // if (duration == 0 || totalDistance == 0){
-    if (duration == 0){
-      final td = await rs.loadTrackedData(id);
-      final stats = RunStats(rawPositions: td, run: this);
-      duration = stats.duration().toInt();
-      totalDistance = stats.distance();
+    if (durationMS == 0 || totalDistanceM == 0) {
+      await updateStats(rs);
     }
+  }
+
+  Future<void> updateStats(RunStorage rs) async {
+    final td = await rs.loadTrackedData(id);
+    final stats = RunStats(rawPositions: td, run: this);
+    durationMS = (stats.durationSec() * 1000).toInt();
+    totalDistanceM = stats.distanceM();
+    await rs.updateRun(this);
   }
 
   @override
@@ -105,8 +113,8 @@ class Run {
   @override
   int get hashCode =>
       id.hashCode ^
-      duration.hashCode ^
-      totalDistance.hashCode ^
+      durationMS.hashCode ^
+      totalDistanceM.hashCode ^
       startTime.hashCode ^
       startTime.hashCode ^
       avgHeartRate.hashCode ^
@@ -117,8 +125,8 @@ class Run {
   bool operator ==(Object other) {
     return other is Run &&
         other.id == id &&
-        other.duration == duration &&
-        other.totalDistance == totalDistance &&
+        other.durationMS == durationMS &&
+        other.totalDistanceM == totalDistanceM &&
         other.startTime == startTime &&
         other.avgHeartRate == avgHeartRate &&
         other.avgStepsPerMin == avgStepsPerMin &&
@@ -128,7 +136,7 @@ class Run {
 
 class TrackedData {
   int runId;
-  int timestamp;
+  int timestampMS;
   double latitude;
   double longitude;
   double altitude;
@@ -140,7 +148,7 @@ class TrackedData {
 
   TrackedData({
     required this.runId,
-    required this.timestamp,
+    required this.timestampMS,
     required this.latitude,
     required this.longitude,
     required this.altitude,
@@ -155,7 +163,7 @@ class TrackedData {
     return TrackedData(
       id: dbMap['id'] as int,
       runId: dbMap['run_id'] as int,
-      timestamp: dbMap['timestamp'] as int,
+      timestampMS: dbMap['timestamp'] as int,
       latitude: dbMap['latitude'] as double,
       longitude: dbMap['longitude'] as double,
       altitude: dbMap['altitude'] as double,
@@ -169,7 +177,7 @@ class TrackedData {
   factory TrackedData.fromPosition(Position pos, int runId) {
     return TrackedData(
       runId: runId,
-      timestamp: pos.timestamp.millisecondsSinceEpoch,
+      timestampMS: pos.timestamp.millisecondsSinceEpoch,
       latitude: pos.latitude,
       longitude: pos.longitude,
       altitude: pos.altitude,
@@ -180,7 +188,7 @@ class TrackedData {
   Map<String, dynamic> toMap() {
     return {
       "run_id": runId,
-      "timestamp": timestamp,
+      "timestamp": timestampMS,
       "latitude": latitude,
       "longitude": longitude,
       "altitude": altitude,
@@ -201,7 +209,7 @@ class TrackedData {
   }
 
   double durationS(TrackedData other) {
-    return (timestamp - other.timestamp).abs() / 1000;
+    return (timestampMS - other.timestampMS).abs() / 1000;
   }
 
   double speedMS(TrackedData after) {
@@ -210,18 +218,20 @@ class TrackedData {
   }
 
   TrackedData interpolate(TrackedData other, int ts) {
-    if (ts < timestamp || ts > other.timestamp || other.timestamp < timestamp) {
+    if (ts < timestampMS ||
+        ts > other.timestampMS ||
+        other.timestampMS < timestampMS) {
       throw "Cannot interpolate outside of timestamp bounds!";
     }
 
-    final mult = (ts - timestamp) / (other.timestamp - timestamp);
+    final mult = (ts - timestampMS) / (other.timestampMS - timestampMS);
     double? ac;
     if (altitudeCorrected != null && other.altitudeCorrected != null) {
       ac = _interpolate(altitudeCorrected!, other.altitudeCorrected!, mult);
     }
     return TrackedData(
       runId: runId,
-      timestamp: ts,
+      timestampMS: ts,
       latitude: _interpolate(latitude, other.latitude, mult),
       longitude: _interpolate(longitude, other.longitude, mult),
       altitude: _interpolate(altitude, other.altitude, mult),
@@ -240,14 +250,14 @@ class TrackedData {
         other.altitudeCorrected == altitudeCorrected &&
         other.latitude == latitude &&
         other.longitude == longitude &&
-        other.timestamp == timestamp;
+        other.timestampMS == timestampMS;
 
     return areEqual;
   }
 
   @override
   String toString() {
-    return "$runId - $gpsAccuracy - ${altitude.toStringAsFixed(1)}/${altitudeCorrected?.toStringAsFixed(1)} - ${latitude.toStringAsFixed(6)} - $longitude - ${timestamp ~/ 1000}\n";
+    return "$runId - $gpsAccuracy - ${altitude.toStringAsFixed(1)}/${altitudeCorrected?.toStringAsFixed(1)} - ${latitude.toStringAsFixed(6)} - $longitude - ${timestampMS ~/ 1000}\n";
   }
 
   @override
@@ -258,14 +268,14 @@ class TrackedData {
       altitudeCorrected.hashCode ^
       latitude.hashCode ^
       longitude.hashCode ^
-      timestamp.hashCode ^
+      timestampMS.hashCode ^
       heartRate.hashCode ^
       stepsPerMin.hashCode;
 
   TrackedData withTimestamp(int ts) {
     return TrackedData(
       runId: runId,
-      timestamp: ts,
+      timestampMS: ts,
       latitude: latitude,
       longitude: longitude,
       altitude: altitude,
@@ -293,7 +303,7 @@ extension GpxIO on List<TrackedData> {
                 td.altitudeCorrected == null
                     ? null
                     : {"altitudeCorrected": td.altitudeCorrected!},
-            time: DateTime.fromMillisecondsSinceEpoch(td.timestamp),
+            time: DateTime.fromMillisecondsSinceEpoch(td.timestampMS),
             hdop: td.gpsAccuracy,
           ),
         ).toList();
@@ -307,7 +317,7 @@ extension GpxIO on List<TrackedData> {
         .map(
           (wp) => TrackedData(
             runId: runId,
-            timestamp: wp.time?.millisecondsSinceEpoch ?? (now += 1000),
+            timestampMS: wp.time?.millisecondsSinceEpoch ?? (now += 1000),
             latitude: wp.lat ?? 0,
             longitude: wp.lon ?? 0,
             altitude: wp.ele ?? 0,

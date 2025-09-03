@@ -107,8 +107,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       geoListen = geoTracker.streamPosition.listen((pos) async {
         runStats!.addPosition(pos);
         await feedback.updateRunning(
-          runStats!.duration(),
-          runStats!.distance(),
+          runStats!.durationSec(),
+          runStats!.distanceM(),
         );
         await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
         runStateStream.add(runStats!.state);
@@ -180,8 +180,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
       _stats('Overall speed: ${_fmtSpeedOverall()}'),
 
-      _stats('Duration: ${runStats!.duration().toInt()} s'),
-      _stats('Distance: ${runStats!.distance().toInt()} m'),
+      _stats('Duration: ${runStats!.durationSec().toInt()} s'),
+      _stats('Distance: ${runStats!.distanceM().toInt()} m'),
       Flex(
         mainAxisAlignment: MainAxisAlignment.center,
         direction: Axis.horizontal,
@@ -192,15 +192,12 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
               _stop(context);
             });
           }),
-          feedback.runningWidget(runStats!.duration(), () {
+          feedback.runningWidget(runStats!.durationSec(), () {
             setState(() {});
           }),
         ],
       ),
-      Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: runStats!.figures.runStats(),
-      ),
+      runStats!.figures.runStats(),
     ];
   }
 
@@ -215,8 +212,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   String _fmtSpeedOverall() {
-    double dist = runStats!.distance();
-    double dur = runStats!.duration();
+    double dist = runStats!.distanceM();
+    double dur = runStats!.durationSec();
     if (dist > 0 && dur > 0) {
       return "${shortHMS(_speedMinKm(dist / dur) * 60)}/km";
     } else {

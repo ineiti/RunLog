@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -33,6 +34,7 @@ enum _DetailSteps { load, calc, show }
 class _DetailPageState extends State<DetailPage> {
   late Stream<_DetailSteps> steps;
   late StreamController<_DetailSteps> source;
+  int filterDivisions = 20;
   RunStats? rr;
 
   @override
@@ -47,19 +49,27 @@ class _DetailPageState extends State<DetailPage> {
   Future<void> _startCalc() async {
     final runStats = await RunStats.loadRun(widget.storage, widget.run.id);
     source.add(_DetailSteps.calc);
+    // Because flutter will pass the whole class to the Isolate if we
+    // pass a field of the class.
+    final fd = filterDivisions;
     rr = await Isolate.run(() {
-      var fl = runStats.runningData.length ~/ 20;
-      runStats.figureAddSpeed(fl);
-      // runStats.figureAddAltitude(fl);
-      // runStats.figureAddAltitudeCorrected(fl);
-      runStats.figureAddSlope(fl);
-      runStats.figureAddFigure();
-      runStats.figureAddSlopeStats(fl);
-      runStats.figuresUpdate();
+      _updateFigures(runStats, fd);
       return runStats;
     });
 
     source.add(_DetailSteps.show);
+  }
+
+  static _updateFigures(RunStats runStats, int filterDivisions) {
+    var fl = runStats.runningData.length ~/ filterDivisions;
+    runStats.figureClean();
+    runStats.figureAddSpeed(fl);
+    // runStats.figureAddAltitude(fl);
+    // runStats.figureAddAltitudeCorrected(fl);
+    runStats.figureAddSlope(fl);
+    runStats.figureAddFigure();
+    runStats.figureAddSlopeStats(fl);
+    runStats.figuresUpdate();
   }
 
   @override
@@ -83,17 +93,7 @@ class _DetailPageState extends State<DetailPage> {
             case _DetailSteps.show:
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      "${distanceStr(widget.run.totalDistance)} in ${timeHMS(widget.run.duration / 1000)}: "
-                      "${minSecFix(widget.run.avgPace(), 1)} min/km",
-                    ),
-                    const SizedBox(height: 10),
-                    ..._figures(),
-                  ],
-                ),
+                child: _showCourse(),
               );
           }
         },
@@ -101,9 +101,9 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  List<Widget> _figures() {
+  Widget _showCourse() {
     if (rr == null) {
-      return [Text("Loading data")];
+      return Text("Loading data");
     }
     final children = [
       blueButton("Export", () => _trackExport(context)),
@@ -113,11 +113,60 @@ class _DetailPageState extends State<DetailPage> {
     if (widget.configurationStorage.config.debug) {
       children.add(blueButton("Clear", () => _trackClear(context)));
     }
-    return [
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: children),
-      const SizedBox(height: 10),
-      ...rr!.figures.runStats(),
-    ];
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Text(
+          "${distanceStr(widget.run.totalDistanceM)} in ${timeHMS(widget.run.durationMS / 1000)}: "
+          "${minSecFix(widget.run.avgPace(), 1)} min/km",
+        ),
+        ExpansionTile(
+          title: Text("Settings"),
+          children: [
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: children,
+                ),
+                _filterSlider(),
+              ],
+            ),
+          ],
+        ),
+        rr!.figures.runStats(),
+      ],
+    );
+  }
+
+  Widget _filterSlider() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [Text("Details")]),
+        Row(
+          // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // spacing: 10,
+          children: [
+            Text("$filterDivisions"),
+            Flexible(
+              flex: 1,
+              child: Slider(
+                value: pow(200 * filterDivisions, 1 / 2).toDouble(),
+                onChanged: (fd) async {
+                  setState(() {
+                    filterDivisions = (pow(fd, 2) / 200).ceil();
+                  });
+                  await _updateFigures(rr!, filterDivisions);
+                },
+                min: 1,
+                max: 200,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   _trackDelete(BuildContext context) async {

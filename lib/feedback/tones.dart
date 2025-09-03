@@ -151,6 +151,7 @@ class SFEntry {
   }
 
   static SFEntry fromJson(String s) {
+    // TODO: implement
     return SFEntry();
   }
 
@@ -163,6 +164,7 @@ class SFEntry {
   }
 
   String toJson() {
+    // TODO: implement
     return jsonEncode({});
   }
 
