@@ -108,6 +108,7 @@ class RunStats {
 
   void figureClean() {
     figures.clean();
+    figures.addFigure();
   }
 
   void figureAddSpeed(int n2) {

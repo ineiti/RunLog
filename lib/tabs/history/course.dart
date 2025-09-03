@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -48,8 +49,11 @@ class _DetailPageState extends State<DetailPage> {
   Future<void> _startCalc() async {
     final runStats = await RunStats.loadRun(widget.storage, widget.run.id);
     source.add(_DetailSteps.calc);
+    // Because flutter will pass the whole class to the Isolate if we
+    // pass a field of the class.
+    final fd = filterDivisions;
     rr = await Isolate.run(() {
-      _updateFigures(runStats, filterDivisions);
+      _updateFigures(runStats, fd);
       return runStats;
     });
 
@@ -58,6 +62,7 @@ class _DetailPageState extends State<DetailPage> {
 
   static _updateFigures(RunStats runStats, int filterDivisions) {
     var fl = runStats.runningData.length ~/ filterDivisions;
+    runStats.figureClean();
     runStats.figureAddSpeed(fl);
     // runStats.figureAddAltitude(fl);
     // runStats.figureAddAltitudeCorrected(fl);
@@ -121,8 +126,17 @@ class _DetailPageState extends State<DetailPage> {
     return [
       Row(mainAxisAlignment: MainAxisAlignment.center, children: children),
       const SizedBox(height: 10),
-      ...rr!.figures.runStats(),
       _filterSlider(),
+      Flexible(
+        child: ListView(
+          // scrollDirection: Axis.vertical,
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(8),
+          children: <Widget>[
+            Column(children: rr!.figures.runStats()),
+          ],
+        ),
+      ),
     ];
   }
 
@@ -130,7 +144,7 @@ class _DetailPageState extends State<DetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [Text("Filter-Length")]),
+        Row(children: [Text("Details")]),
         Row(
           // mainAxisAlignment: MainAxisAlignment.spaceBetween,
           // spacing: 10,
@@ -139,10 +153,12 @@ class _DetailPageState extends State<DetailPage> {
             Flexible(
               flex: 1,
               child: Slider(
-                value: filterDivisions.toDouble(),
+                value: pow(200 * filterDivisions, 1 / 2).toDouble(),
                 onChanged: (fd) async {
+                  setState(() {
+                    filterDivisions = (pow(fd, 2) / 200).ceil();
+                  });
                   await _updateFigures(rr!, filterDivisions);
-                  filterDivisions = fd.toInt();
                 },
                 min: 1,
                 max: 200,
