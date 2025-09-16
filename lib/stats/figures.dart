@@ -137,7 +137,10 @@ class LineStat {
 
   static ChartAxis axe(LineType type, (double, double) mm) {
     final (min, max) = mm;
-    final inversed = type == LineType.speed || type == LineType.slope || type == LineType.slopeStats;
+    final inversed =
+        type == LineType.speed ||
+        type == LineType.slope ||
+        type == LineType.slopeStats;
     final speedAxis = type == LineType.speed || type == LineType.slopeStats;
     return NumericAxis(
       name: "$type",
@@ -198,7 +201,7 @@ class LineStat {
   List<CartesianSeries> _serieSlopeStats() {
     final bins = 4;
     final slopes = List.from(second.filteredData).asMap().entries.toList();
-    if (slopes.length < bins){
+    if (slopes.length < bins) {
       return [_slopeStats((0, 0, []))];
     }
     slopes.sort((a, b) => a.value.y.compareTo(b.value.y));
