@@ -53,6 +53,7 @@ class Sound {
   int samples = 0;
   double volume = 1;
   int index = 0;
+  int conflicts = 0;
 
   static Future<Sound> init() async {
     final session = await AudioSession.instance;
@@ -77,8 +78,11 @@ class Sound {
   Sound({required this.session});
 
   play(List<double> freqs, double durationS, double vol) async {
-    if (index > 0) {
-      // print("Playing already in progress");
+    if (index > 0 && conflicts < 10) {
+      conflicts++;
+      print(
+        "Warning: playing already in progress: $index of ${frequencies.length}",
+      );
       return;
     }
     // print("Start playing");
