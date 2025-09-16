@@ -157,8 +157,8 @@ class SFEntry {
   static SFEntry fromJson(String s) {
     final sf = SFEntry();
     sf.targetSpeeds =
-        (fromJson(s) as List<Map<String, dynamic>>)
-            .map((ts) => SpeedPoint.fromMap(ts))
+        (jsonDecode(s) as List)
+            .map((ts) => SpeedPoint.fromMap(ts as Map<String, dynamic>))
             .toList();
     return sf;
   }
