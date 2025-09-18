@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
+import 'package:run_log/feedback/feedback.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../stats/run_data.dart';
@@ -23,8 +24,18 @@ class RunStorage {
   static Future<RunStorage> init() async {
     WidgetsFlutterBinding.ensureInitialized();
     final rs = RunStorage._(await _getDB());
-    await rs.loadRuns();
+    return rs;
+  }
 
+  static Future<RunStorage> initLoad() async {
+    final rs = await init();
+    await rs.loadRuns();
+    return rs;
+  }
+
+  static Future<RunStorage> initClean() async {
+    final rs = await init();
+    await rs.cleanDB();
     return rs;
   }
 
@@ -204,7 +215,7 @@ class RunStorage {
         return [];
       }
     } else {
-      print(response.statusCode);
+      print("Error while getting heights, status-code is: ${response.statusCode}");
       throw Exception('Failed to load data');
     }
   }
@@ -346,6 +357,7 @@ class DebugStorage {
     int points,
     List<double> speeds,
     List<double> altitudes,
+    FeedbackContainer? feedback,
   ) async {
     var runStart = DateTime.now().subtract(before);
     // This is for the tests, as encoding/decoding a DateTime messes up with
@@ -353,6 +365,7 @@ class DebugStorage {
     runStart = runStart.subtract(Duration(microseconds: runStart.microsecond));
     runStart = runStart.subtract(Duration(milliseconds: runStart.millisecond));
     var run = await rs.createRun(runStart);
+    run.feedback = feedback;
     final track = _createTracker(
       run.id,
       run.startTime,

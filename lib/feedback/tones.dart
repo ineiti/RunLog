@@ -2,6 +2,7 @@ import "dart:convert";
 import "dart:math";
 
 import "package:audio_session/audio_session.dart";
+import "package:collection/collection.dart";
 import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
 
 import "../stats/conversions.dart" as conversions;
@@ -172,8 +173,7 @@ class SFEntry {
   }
 
   String toJson() {
-    // TODO: implement
-    return jsonEncode(targetSpeeds.map((s) => s.toMap()));
+    return jsonEncode(targetSpeeds.map((s) => s.toMap()).toList());
   }
 
   stop(double distanceM) {
@@ -255,7 +255,7 @@ class SFEntry {
       frequencies.add(440);
       final sign =
           (targetSpeeds[index].speedMS - targetSpeeds[currIndex].speedMS).sign;
-      print("Changing targetSpeed: $sign");
+      // print("Changing targetSpeed: $sign");
       frequencies.add(440.0 * pow(2, sign / 12));
       frequencies.add(0);
       frequencies.add(0);
@@ -263,7 +263,7 @@ class SFEntry {
       currIndex = index;
     }
     var diffDuration = currentDuration - targetDuration;
-    print("Index: $currIndex/$index - DiffDuration: $diffDuration");
+    // print("Index: $currIndex/$index - DiffDuration: $diffDuration");
     for (
       var diffSteps = (log(diffDuration.abs()) / ln2).floor();
       diffSteps >= 0;
@@ -271,7 +271,7 @@ class SFEntry {
     ) {
       frequencies.add(frequencies.last * pow(2, diffDuration.sign / 12));
     }
-    print("Frequencies: $frequencies");
+    // print("Frequencies: $frequencies");
     return frequencies;
   }
 
@@ -287,6 +287,22 @@ class SFEntry {
     }
     return sf;
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is SFEntry) {
+      return ListEquality<SpeedPoint>().equals(
+            other.targetSpeeds,
+            targetSpeeds,
+          ) &&
+          other.frequencyS == frequencyS;
+    } else {
+      return false;
+    }
+  }
+
+  @override
+  int get hashCode => targetSpeeds.hashCode ^ frequencyS.hashCode;
 }
 
 class SpeedPoint {
@@ -329,4 +345,14 @@ class SpeedPoint {
   SpeedPoint clone() {
     return SpeedPoint(distanceM: distanceM, speedMS: speedMS);
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SpeedPoint &&
+        other.speedMS == speedMS &&
+        other.distanceM == distanceM;
+  }
+
+  @override
+  int get hashCode => speedMS.hashCode ^ distanceM.hashCode;
 }

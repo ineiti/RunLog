@@ -213,7 +213,6 @@ class TrackedData {
   }
 
   double speedMS(TrackedData after) {
-    // print("Calc speed: ${distanceM(after)} / ${durationS(after)}");
     return distanceM(after) / durationS(after);
   }
 

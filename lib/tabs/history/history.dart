@@ -164,6 +164,7 @@ class _HistoryState extends State<History> {
       200,
       [3, .1, .2, .1, .3, .1, .2, .3, .2],
       [0, 1, 5, 2, 1, 2, 5, 2, 5, 3, 5],
+      null,
     );
     await DebugStorage.dbPrefill(
       widget.runStorage,
@@ -171,6 +172,7 @@ class _HistoryState extends State<History> {
       100,
       [4, .2, .1, .4, .1, .2],
       [2000, 20, 10, 20, 10],
+      null
     );
   }
 

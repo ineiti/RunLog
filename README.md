@@ -67,6 +67,16 @@ Probably not...
 
 # Changelog
 
+2025-09-18:
+- Using 1 second intervals
+- Improving display and adding scrollviews
+- Adding feedback elements
+- Speeding up figures
+- Better feedback when fetching heights
+- Allow to choose the filter length
+- Fixing milliseconds and seconds
+- Fixing all tests
+
 2025-08-08:
 - Rewriting creation of dummy-entries
 - Add "Export all" and test it
