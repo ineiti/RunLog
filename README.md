@@ -67,6 +67,11 @@ Probably not...
 
 # Changelog
 
+2025-09-20:
+- adding targetPace stats to the figures
+- making nicer y-axis labels for pace
+- correctly storing feedback in the Run
+
 2025-09-18:
 - Using 1 second intervals
 - Improving display and adding scrollviews

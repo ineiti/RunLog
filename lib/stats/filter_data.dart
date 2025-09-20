@@ -90,21 +90,32 @@ class TimeData {
   final double ts;
   final double mps;
   final double altitude;
-  final double? altitudeCorrected;
   final double slope;
+  final double? altitudeCorrected;
+  final double? targetPace;
 
   TimeData(
     this.ts,
     this.mps,
     this.altitude,
-    this.altitudeCorrected,
     this.slope,
+    this.altitudeCorrected,
+    this.targetPace,
   );
+
+  @override
+  String toString() {
+    return "@$ts: $mps - $targetPace";
+  }
 }
 
 extension ListData on List<TimeData> {
   List<XYData> speed() {
     return map((td) => XYData(td.ts, td.mps)).toList();
+  }
+
+  List<XYData> targetSpeed() {
+    return map((td) => XYData(td.ts, td.targetPace ?? 0)).toList();
   }
 
   List<XYData> altitude() {

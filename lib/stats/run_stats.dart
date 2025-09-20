@@ -90,7 +90,10 @@ class RunStats {
     // The first element is at t=0 and is only used to make a nice graph.
     return runningData
         .skip(1)
-        .fold(0, (dist, e) => dist + e.mps * resampler!.sampleIntervalMS / 1000);
+        .fold(
+          0,
+          (dist, e) => dist + e.mps * resampler!.sampleIntervalMS / 1000,
+        );
   }
 
   reset() {
@@ -115,6 +118,10 @@ class RunStats {
     figures.addSpeed(n2);
   }
 
+  void figureAddTargetPace(int n2) {
+    figures.addTargetPace(n2);
+  }
+
   void figureAddAltitude(int n2) {
     figures.addAltitude(n2);
   }
@@ -136,7 +143,7 @@ class RunStats {
   }
 
   void figuresUpdate() {
-    figures.updateData(runningData);
+    figures.updateRunningData(runningData);
   }
 
   void addPosition(geo.Position pos) {
@@ -181,7 +188,16 @@ class RunStats {
         resampler!.pause();
         return;
       }
-      runningData.add(TimeData(0, speed, td.altitude, td.altitudeCorrected, 0));
+      runningData.add(
+        TimeData(
+          0,
+          speed,
+          td.altitude,
+          0,
+          td.altitudeCorrected,
+          run.feedback?.target.getTargetSpeed(0),
+        ),
+      );
       run.startTime = DateTime.fromMillisecondsSinceEpoch(
         td.timestampMS - resampler!.sampleIntervalMS,
       );
@@ -200,11 +216,14 @@ class RunStats {
         td.timestampMS,
         speed,
         td.altitude,
-        td.altitudeCorrected,
         slope,
+        td.altitudeCorrected,
+        run.feedback?.target.getTargetSpeed(
+          distanceM() + speed * resampler!.sampleIntervalMS / 1000,
+        ),
       ),
     );
-    figures.updateData(runningData);
+    figures.updateRunningData(runningData);
   }
 }
 
@@ -241,15 +260,17 @@ class Resampler {
     int ts,
     double speed,
     double altitude,
-    double? altitudeCorrected,
     double slope,
+    double? altitudeCorrected,
+    double? pace,
   ) {
     return TimeData(
       (ts - tsReferenceMS) / 1000,
       speed,
       altitude,
-      altitudeCorrected,
       slope,
+      altitudeCorrected,
+      pace,
     );
   }
 

@@ -13,7 +13,7 @@ class ToneFeedback {
   final StreamController<FeedbackContainer> _paceUpdates;
   int _nextSoundS = 0;
   int _maxFeedbackSilence = 4;
-  final Tones _tones;
+  final Tones tones;
 
   static Future<ToneFeedback> init() async {
     final paceUpdates = StreamController<FeedbackContainer>();
@@ -24,8 +24,8 @@ class ToneFeedback {
     );
   }
 
-  ToneFeedback(this._tones, this._paceUpdates, this._pace){
-    _paceUpdates.stream.listen((update) => _tones.setEntry(update.target));
+  ToneFeedback(this.tones, this._paceUpdates, this._pace){
+    _paceUpdates.stream.listen((update) => tones.setEntry(update.target));
   }
 
   startRunning(int maxFeedbackSilence) async {
@@ -34,9 +34,9 @@ class ToneFeedback {
   }
 
   updateRunning(double durationS, double distanceM) async {
-    if (_tones.hasEntry()) {
+    if (tones.hasEntry()) {
       if (durationS >= _nextSoundS) {
-        await _tones.playSound(_maxFeedbackSilence, distanceM, durationS);
+        await tones.playSound(_maxFeedbackSilence, distanceM, durationS);
         while (_nextSoundS <= durationS) {
           _nextSoundS += _soundIntervalS;
         }
@@ -53,7 +53,7 @@ class ToneFeedback {
 
   Widget runningWidget(double durationS, VoidCallback setState) {
     return Visibility(
-      visible: _tones.hasEntry(),
+      visible: tones.hasEntry(),
       child: DropdownButton<int>(
         value: _soundIntervalS,
         icon: const Icon(Icons.arrow_downward),

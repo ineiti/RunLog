@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:run_log/stats/filter_data.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+import '../feedback/tones.dart';
 import 'conversions.dart';
+
+const int axisIntervals = 4;
+const int minuteIntervals = 6;
 
 class Figures {
   List<Figure> figures = [Figure()];
@@ -15,9 +19,9 @@ class Figures {
     figures = [];
   }
 
-  updateData(List<TimeData> runningData) {
+  updateRunningData(List<TimeData> runningData) {
     for (var figure in figures) {
-      figure.updateData(runningData);
+      figure.updateRunningData(runningData);
     }
   }
 
@@ -34,6 +38,12 @@ class Figures {
   addSpeed(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.speed, filterLength: filterLength),
+    );
+  }
+
+  addTargetPace(int filterLength) {
+    figures.last.lines.add(
+      LineStat(type: LineType.targetPace, filterLength: filterLength),
     );
   }
 
@@ -95,7 +105,7 @@ class Figure {
 
   Figure();
 
-  updateData(List<TimeData> runningData) {
+  updateRunningData(List<TimeData> runningData) {
     for (var line in lines) {
       line.updateData(runningData);
     }
@@ -108,18 +118,20 @@ class Figure {
     for (var pos = 0; pos + 1 < axeMinMax.length;) {
       final posMM = axeMinMax[pos];
       final nextMM = axeMinMax[pos + 1];
-      if (posMM.$1 == nextMM.$1) {
-        // As the speed is given as the pace in km/min, the minimum value is
-        // the highest pace.
-        final valMin = max(posMM.$2.$1, nextMM.$2.$1);
-        final valMax = min(posMM.$2.$2, nextMM.$2.$2);
+      if (posMM.$1.speedAxis && nextMM.$1.speedAxis) {
+        final (valMin, valMax) = createIntervals(
+          6,
+          axisIntervals,
+          min(posMM.$2.$1, nextMM.$2.$1),
+          max(posMM.$2.$2, nextMM.$2.$2),
+        );
         axeMinMax[pos] = (posMM.$1, (valMin, valMax));
         axeMinMax.removeAt(pos + 1);
       } else {
         pos++;
       }
     }
-    return axeMinMax.map((axe) => LineStat.axe(axe.$1, axe.$2)).toList();
+    return axeMinMax.map((axe) => _chartAxis(axe.$1, axe.$2)).toList();
   }
 
   List<CartesianSeries> series() {
@@ -129,30 +141,17 @@ class Figure {
   double maxValue() {
     return 10;
   }
-}
 
-enum LineType { speed, altitude, altitudeCorrected, slope, slopeStats }
-
-class LineStat {
-  LineType type;
-  late FilterData filter;
-  late FilterData second;
-  static const maxPoints = 500;
-
-  static ChartAxis axe(LineType type, (double, double) mm) {
+  ChartAxis _chartAxis(LineType type, (double, double) mm) {
     final (min, max) = mm;
-    final inversed =
-        type == LineType.speed ||
-        type == LineType.slope ||
-        type == LineType.slopeStats;
-    final speedAxis = type == LineType.speed || type == LineType.slopeStats;
     return NumericAxis(
-      name: "$type",
+      name: type.axisRef,
       minimum: min,
       maximum: max,
-      opposedPosition: !speedAxis,
+      opposedPosition: !type.speedAxis,
+      desiredIntervals: axisIntervals,
       axisLabelFormatter: (AxisLabelRenderDetails details) {
-        if (speedAxis) {
+        if (type.speedAxis) {
           return ChartAxisLabel(labelYTime(details.text), details.textStyle);
         }
         return ChartAxisLabel(
@@ -160,9 +159,33 @@ class LineStat {
           details.textStyle,
         );
       },
-      isInversed: inversed,
+      isInversed: type.inversed,
     );
   }
+}
+
+enum LineType {
+  speed,
+  altitude,
+  altitudeCorrected,
+  slope,
+  slopeStats,
+  targetPace;
+
+  bool get speedType => this == LineType.speed || this == LineType.targetPace;
+
+  bool get speedAxis => speedType || this == LineType.slopeStats;
+
+  bool get inversed => speedAxis || this == LineType.slope;
+
+  String get axisRef => speedAxis ? "speed" : name;
+}
+
+class LineStat {
+  LineType type;
+  late FilterData filter;
+  late FilterData second;
+  static const maxPoints = 500;
 
   LineStat({required this.type, required int filterLength}) {
     filter = FilterData.subSampled(filterLength, maxPoints);
@@ -174,6 +197,8 @@ class LineStat {
     switch (type) {
       case LineType.speed:
         xyd = runningData.speed();
+      case LineType.targetPace:
+        xyd = runningData.targetSpeed();
       case LineType.altitude:
         xyd = runningData.altitude();
       case LineType.altitudeCorrected:
@@ -192,6 +217,7 @@ class LineStat {
   List<CartesianSeries> serie() {
     switch (type) {
       case LineType.speed:
+      case LineType.targetPace:
       case LineType.altitudeCorrected:
       case LineType.altitude:
         return [_serieLines()];
@@ -236,7 +262,7 @@ class LineStat {
   CartesianSeries _slopeStats((double, double, List<XYData>) slopeStat) {
     return ScatterSeries<XYData, String>(
       dataSource: slopeStat.$3,
-      yAxisName: "$type",
+      yAxisName: type.axisRef,
       opacity: slopeStat.$1,
       isVisibleInLegend: slopeStat.$1 > 0.5,
       animationDuration: 500,
@@ -251,12 +277,11 @@ class LineStat {
     // print("Filtered data is: ${filter.filteredData.length}");
     return LineSeries<XYData, String>(
       dataSource: filter.filteredData,
-      yAxisName: "$type",
+      yAxisName: type.axisRef,
       animationDuration: 500,
       xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper:
-          (XYData entry, _) =>
-              type == LineType.speed ? toPaceMinKm(entry.y) : entry.y,
+          (XYData entry, _) => type.speedType ? toPaceMinKm(entry.y) : entry.y,
       name: _label(),
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
@@ -267,7 +292,7 @@ class LineStat {
       dataSource: filter.filteredData,
       xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
       yValueMapper: (XYData entry, _) => entry.y,
-      yAxisName: "$type",
+      yAxisName: type.axisRef,
       name: _label(),
       pointColorMapper:
           (XYData entry, _) =>
@@ -280,41 +305,38 @@ class LineStat {
       return (0, 0);
     }
     switch (type) {
+      case LineType.targetPace:
       case LineType.slopeStats:
-      // return (0, 10);
       case LineType.speed:
-        return minMaxPace();
+        // The filter has the speed meter/sec, but the pace is 1/speed,
+        // so the minimum pace is the maximum speed, and vice-versa.
+        return createIntervals(
+          minuteIntervals,
+          axisIntervals,
+          (toPaceMinKm(filter.max) * minuteIntervals).floor() / minuteIntervals,
+          (toPaceMinKm(filter.min) * minuteIntervals).ceil() / minuteIntervals,
+        );
       case LineType.altitudeCorrected:
       case LineType.altitude:
         return (filter.min.floorToDouble(), filter.max.ceilToDouble());
       case LineType.slope:
         var (min, max) = (filter.min.floor().abs(), filter.max.ceil().abs());
-        var abs = min > max ? min : max;
-        return (-abs.toDouble(), abs.toDouble());
+        var abs = (min > max ? min : max).ceil();
+        return createIntervals(
+          1,
+          axisIntervals,
+          -abs.toDouble(),
+          abs.toDouble(),
+        );
     }
-  }
-
-  (double, double) minMaxPace() {
-    // Pace is the inverse of speed, so it's normal that max is assigned to min,
-    // and vice-versa.
-    var (minPace, maxPace) = (
-      (toPaceMinKm(filter.max) * 6).floor() / 6,
-      (toPaceMinKm(filter.min) * 6).ceil() / 6,
-    );
-    var med = (maxPace + minPace) / 2;
-    if (med + 0.5 > maxPace) {
-      maxPace = med + 0.5;
-    }
-    if (med - 0.5 < minPace) {
-      minPace = med - 0.5;
-    }
-    return (maxPace, minPace);
   }
 
   String _label() {
     switch (type) {
       case LineType.speed:
         return "Speed ${_filter()}";
+      case LineType.targetPace:
+        return "Pace ${_filter()}";
       case LineType.altitudeCorrected:
         return "Alt Corr ${_filter()}";
       case LineType.altitude:
@@ -400,4 +422,20 @@ class FilterXY {
     x *= pi;
     return sin(x) / x;
   }
+}
+
+(double, double) createIntervals(
+  int mult,
+  int intervals,
+  double min,
+  double max,
+) {
+  min = (min * mult).roundToDouble();
+  max = (max * mult).roundToDouble();
+  final off = axisIntervals - (max - min) % axisIntervals;
+  final incMax = (off / 2).ceil();
+  final decMin = off - incMax;
+  max += incMax;
+  min -= decMin;
+  return (min / mult, max / mult);
 }

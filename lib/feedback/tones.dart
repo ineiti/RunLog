@@ -8,7 +8,7 @@ import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
 import "../stats/conversions.dart" as conversions;
 
 class Tones {
-  SFEntry _entry = SFEntry();
+  SFEntry entry = SFEntry();
   int idx = 0;
   int lastLength = 0;
   final Sound sound;
@@ -20,16 +20,16 @@ class Tones {
   Tones({required this.sound});
 
   setEntry(SFEntry entry) {
-    _entry = entry;
+    this.entry = entry;
     idx = 0;
   }
 
   bool hasEntry() {
-    return _entry.targetSpeeds.isNotEmpty;
+    return entry.targetSpeeds.isNotEmpty;
   }
 
   playSound(int maxSilence, double distanceM, double currentDuration) async {
-    final frequencies = _entry.getFrequencies(distanceM, currentDuration);
+    final frequencies = entry.getFrequencies(distanceM, currentDuration);
     print(
       "|freq|: ${frequencies.length} - idx: $idx - lastLength: $lastLength",
     );
@@ -226,6 +226,17 @@ class SFEntry {
 
   double getDurationS(double distanceM) {
     return getIndexDurationS(distanceM).$2;
+  }
+
+  double getTargetSpeed(double distanceM){
+    double targetSpeed = 0;
+    for (var speed in targetSpeeds){
+      if (speed.distanceM > distanceM){
+        break;
+      }
+      targetSpeed = speed.speedMS;
+    }
+    return targetSpeed;
   }
 
   (int, double) getIndexDurationS(double distanceM) {

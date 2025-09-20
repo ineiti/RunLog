@@ -64,6 +64,10 @@ class _DetailPageState extends State<DetailPage> {
     var fl = runStats.runningData.length ~/ filterDivisions;
     runStats.figureClean();
     runStats.figureAddSpeed(fl);
+    if (runStats.run.feedback != null &&
+        runStats.run.feedback!.target.targetSpeeds.isNotEmpty) {
+      runStats.figureAddTargetPace(1);
+    }
     // runStats.figureAddAltitude(fl);
     // runStats.figureAddAltitudeCorrected(fl);
     runStats.figureAddSlope(fl);

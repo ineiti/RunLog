@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:run_log/feedback/feedback.dart';
 import 'package:run_log/stats/conversions.dart';
 
 import '../../storage.dart';
@@ -98,10 +99,15 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     feedback.startRunning(
       widget.configurationStorage.config.maxFeedbackSilence,
     );
-    RunStats.newRun(widget.runStorage).then((rr) {
-      runStats = rr;
+    RunStats.newRun(widget.runStorage).then((rStats) {
+      runStats = rStats;
+      rStats.run.feedback = FeedbackContainer.fromPace(feedback.tones.entry);
+      widget.runStorage.updateRun(rStats.run);
       runStats!.figures.addSpeed(5);
       runStats!.figures.addSpeed(20);
+      if (rStats.run.feedback!.target.targetSpeeds.isNotEmpty){
+        runStats!.figures.addTargetPace(1);
+      }
       runStats!.figures.addSlope(20);
 
       geoListen = geoTracker.streamPosition.listen((pos) async {
