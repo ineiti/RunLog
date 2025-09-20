@@ -86,6 +86,9 @@ void main() {
     fb24km.addPoint(SpeedPoint.calc(10800));
     fb24km.stop(24000);
     fb24km.calcTotal(24 * 6 * 60);
-    print(fb24km.targetSpeeds);
+    expect(
+      fb24km.targetSpeeds.toString(),
+      "[(0.0, 6.000), (2000.0, 5.817), (6300.0, 8.000), (7000.0, 6.000), (8400.0, 7.000), (8800.0, 6.000), (10100.0, 8.000), (10800.0, 5.817), (24000.0, 6.000)]",
+    );
   });
 }

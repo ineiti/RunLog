@@ -2,6 +2,7 @@ import "dart:convert";
 import "dart:math";
 
 import "package:audio_session/audio_session.dart";
+import "package:collection/collection.dart";
 import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
 
 import "../stats/conversions.dart" as conversions;
@@ -53,6 +54,7 @@ class Sound {
   int samples = 0;
   double volume = 1;
   int index = 0;
+  int conflicts = 0;
 
   static Future<Sound> init() async {
     final session = await AudioSession.instance;
@@ -77,8 +79,11 @@ class Sound {
   Sound({required this.session});
 
   play(List<double> freqs, double durationS, double vol) async {
-    if (index > 0) {
-      // print("Playing already in progress");
+    if (index > 0 && conflicts < 10) {
+      conflicts++;
+      print(
+        "Warning: playing already in progress: $index of ${frequencies.length}",
+      );
       return;
     }
     // print("Start playing");
@@ -151,8 +156,12 @@ class SFEntry {
   }
 
   static SFEntry fromJson(String s) {
-    // TODO: implement
-    return SFEntry();
+    final sf = SFEntry();
+    sf.targetSpeeds =
+        (jsonDecode(s) as List)
+            .map((ts) => SpeedPoint.fromMap(ts as Map<String, dynamic>))
+            .toList();
+    return sf;
   }
 
   static SFEntry fromPoints(List<SpeedPoint> points) {
@@ -164,8 +173,7 @@ class SFEntry {
   }
 
   String toJson() {
-    // TODO: implement
-    return jsonEncode({});
+    return jsonEncode(targetSpeeds.map((s) => s.toMap()).toList());
   }
 
   stop(double distanceM) {
@@ -247,7 +255,7 @@ class SFEntry {
       frequencies.add(440);
       final sign =
           (targetSpeeds[index].speedMS - targetSpeeds[currIndex].speedMS).sign;
-      print("Changing targetSpeed: $sign");
+      // print("Changing targetSpeed: $sign");
       frequencies.add(440.0 * pow(2, sign / 12));
       frequencies.add(0);
       frequencies.add(0);
@@ -255,7 +263,7 @@ class SFEntry {
       currIndex = index;
     }
     var diffDuration = currentDuration - targetDuration;
-    print("Index: $currIndex/$index - DiffDuration: $diffDuration");
+    // print("Index: $currIndex/$index - DiffDuration: $diffDuration");
     for (
       var diffSteps = (log(diffDuration.abs()) / ln2).floor();
       diffSteps >= 0;
@@ -263,7 +271,7 @@ class SFEntry {
     ) {
       frequencies.add(frequencies.last * pow(2, diffDuration.sign / 12));
     }
-    print("Frequencies: $frequencies");
+    // print("Frequencies: $frequencies");
     return frequencies;
   }
 
@@ -279,6 +287,22 @@ class SFEntry {
     }
     return sf;
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is SFEntry) {
+      return ListEquality<SpeedPoint>().equals(
+            other.targetSpeeds,
+            targetSpeeds,
+          ) &&
+          other.frequencyS == frequencyS;
+    } else {
+      return false;
+    }
+  }
+
+  @override
+  int get hashCode => targetSpeeds.hashCode ^ frequencyS.hashCode;
 }
 
 class SpeedPoint {
@@ -286,6 +310,13 @@ class SpeedPoint {
   double speedMS;
 
   SpeedPoint({required this.distanceM, required this.speedMS});
+
+  static SpeedPoint fromMap(Map<String, dynamic> m) {
+    return SpeedPoint(
+      distanceM: m["distanceM"] as double? ?? 0,
+      speedMS: m["speedMS"] as double? ?? 0,
+    );
+  }
 
   static SpeedPoint fromMinKm(double distanceM, double speedMinKm) {
     return SpeedPoint(
@@ -302,6 +333,10 @@ class SpeedPoint {
     return SpeedPoint(distanceM: 0, speedMS: speedMS);
   }
 
+  Map<String, dynamic> toMap() {
+    return {"distanceM": distanceM, "speedMS": speedMS};
+  }
+
   @override
   String toString() {
     return "($distanceM, ${conversions.toPaceMinKm(speedMS).toStringAsFixed(3)})";
@@ -310,4 +345,14 @@ class SpeedPoint {
   SpeedPoint clone() {
     return SpeedPoint(distanceM: distanceM, speedMS: speedMS);
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SpeedPoint &&
+        other.speedMS == speedMS &&
+        other.distanceM == distanceM;
+  }
+
+  @override
+  int get hashCode => speedMS.hashCode ^ distanceM.hashCode;
 }

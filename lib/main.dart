@@ -30,7 +30,7 @@ class AppFutures {
 
   static Future<AppFutures> start() async {
     return AppFutures(
-      runStorage: await RunStorage.init(),
+      runStorage: await RunStorage.initLoad(),
       configurationStorage: await ConfigurationStorage.loadConfig(),
     );
   }

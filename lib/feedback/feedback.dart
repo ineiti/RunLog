@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
+
 import 'tones.dart';
 
 enum FeedbackType { none, pace, slope }
@@ -8,14 +10,17 @@ enum _FeedbackFields { type, slopeMult, target }
 
 class FeedbackContainer {
   final FeedbackType type;
-  final double slopeMult;
+  final List<double> slopeMult;
   final SFEntry target;
 
   static FeedbackContainer fromPace(SFEntry target) {
-    return FeedbackContainer(FeedbackType.pace, 1, target);
+    return FeedbackContainer(FeedbackType.pace, [1], target);
   }
 
-  static FeedbackContainer fromSlopeMult(SFEntry target, double slopeMult) {
+  static FeedbackContainer fromSlopeMult(
+    SFEntry target,
+    List<double> slopeMult,
+  ) {
     return FeedbackContainer(FeedbackType.pace, slopeMult, target);
   }
 
@@ -29,10 +34,17 @@ class FeedbackContainer {
       (e) => e.name == map[_FeedbackFields.type.name],
       orElse: () => FeedbackType.none,
     );
+
+    final slopeMult =
+        (map[_FeedbackFields.slopeMult.name] as List<dynamic>?)
+            ?.map<double>((e) => e.toDouble())
+            .toList() ??
+        [1.0];
+
     return FeedbackContainer(
       fbt,
-      map[_FeedbackFields.slopeMult.name] ?? 1,
-      SFEntry.fromJson(map[_FeedbackFields.target.name] ?? "{}"),
+      slopeMult,
+      SFEntry.fromJson(map[_FeedbackFields.target.name] ?? "[]"),
     );
   }
 
@@ -46,14 +58,26 @@ class FeedbackContainer {
     });
   }
 
-  String displayString() {
+  @override
+  String toString() {
     switch (type) {
       case FeedbackType.none:
         return "No Feedback";
       case FeedbackType.pace:
-        return "Preset Pace";
+        return "Preset Pace $target";
       case FeedbackType.slope:
-        return "Slope Adjust";
+        return "Slope Adjust with $target";
     }
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is FeedbackContainer &&
+        other.type == type &&
+        ListEquality<double>().equals(other.slopeMult, slopeMult) &&
+        other.target == target;
+  }
+
+  @override
+  int get hashCode => type.hashCode ^ slopeMult.hashCode ^ target.hashCode;
 }
