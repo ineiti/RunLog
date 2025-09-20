@@ -35,11 +35,16 @@ class FeedbackContainer {
       orElse: () => FeedbackType.none,
     );
 
-    final slopeMult =
-        (map[_FeedbackFields.slopeMult.name] as List<dynamic>?)
-            ?.map<double>((e) => e.toDouble())
-            .toList() ??
-        [1.0];
+    var slopeMult = [1.0];
+    try {
+      slopeMult =
+          (map[_FeedbackFields.slopeMult.name] as List<dynamic>?)
+              ?.map<double>((e) => e.toDouble())
+              .toList() ??
+          [1.0];
+    } catch (e) {
+      print("Error while getting slopeMult: $e");
+    }
 
     return FeedbackContainer(
       fbt,

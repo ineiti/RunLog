@@ -157,10 +157,14 @@ class SFEntry {
 
   static SFEntry fromJson(String s) {
     final sf = SFEntry();
-    sf.targetSpeeds =
-        (jsonDecode(s) as List)
-            .map((ts) => SpeedPoint.fromMap(ts as Map<String, dynamic>))
-            .toList();
+    try {
+      sf.targetSpeeds =
+          (jsonDecode(s) as List)
+              .map((ts) => SpeedPoint.fromMap(ts as Map<String, dynamic>))
+              .toList();
+    } catch(e){
+      print("Couldn't import targetSpeeds: $e");
+    }
     return sf;
   }
 
