@@ -28,25 +28,28 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
 
                 <data android:mimeType="application/gpx+xml" />
                 <data android:mimeType="application/gpx" />
                 <data android:mimeType="application/octet-stream" />
-<!--                <data android:mimeType="*/*" />-->
-<!--                <data android:scheme="file" />-->
-<!--                <data android:scheme="content" />-->
-<!--                <data android:host="*" />-->
-<!--                <data android:pathSuffix="gpx" />-->
+                <!--                <data android:mimeType="*/*" />-->
+                <!--                <data android:scheme="file" />-->
+                <!--                <data android:scheme="content" />-->
+                <!--                <data android:host="*" />-->
+                <!--                <data android:pathSuffix="gpx" />-->
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
@@ -61,6 +64,9 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:run_log/feedback/feedback.dart';
 import 'package:run_log/stats/conversions.dart';
@@ -35,6 +36,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late StreamController<RSState> runStateStream;
   StreamSubscription<Position>? geoListen;
   late ToneFeedback feedback;
+  var _paceSpeechInterval = 0;
+  var _lastPaceSpeech = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -81,6 +84,13 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       case RunState.waitUser:
         return Column(
           children: [
+            Row(
+              children: [
+                Text("Distance announcement:"),
+                Spacer(),
+                _paceSpeechDropdown(() => setState(() {})),
+              ],
+            ),
             Flexible(
               flex: 1,
               child: feedback.configWidget(widget.configurationStorage, () {
@@ -118,6 +128,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         );
         await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
         runStateStream.add(runStats!.state);
+        if (_paceSpeechInterval > 0) {
+          _paceSpeechCheck(runStats!.distanceM());
+        }
       });
       widgetController.add(RunState.running);
     });
@@ -182,6 +195,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
 
   List<Widget> _showRunning(BuildContext context, bool pause) {
     final buttons = [
+      _paceSpeechDropdown(() => setState(() {})),
       blueButton("Stop", () {
         setState(() {
           _stop(context);
@@ -254,6 +268,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     runStats!.reset();
     geoListen?.cancel();
     widgetController.add(RunState.waitUser);
+    _lastPaceSpeech = 0;
+    _paceSpeechInterval = 0;
   }
 
   _reset(BuildContext context) {
@@ -302,6 +318,43 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
               ],
             ),
       );
+    }
+  }
+
+  Widget _paceSpeechDropdown(VoidCallback setState) {
+    return dropdown(
+      [0, 50, 100, 250, 500, 1000, 2000, 5000, 10000],
+      _paceSpeechInterval,
+      (value) {
+        _paceSpeechInterval = value;
+        if (runStats!.distanceM() > 0 && value > 0) {
+          _lastPaceSpeech = (runStats!.distanceM() / value).floor() * value;
+        }
+        setState();
+      },
+      (value) {
+        if (value == 0) {
+          return "Off";
+        }
+        if (value < 1000) {
+          return "$value m";
+        }
+        return "${value / 1000} km";
+      },
+    );
+  }
+
+  void _paceSpeechCheck(double distanceM) {
+    if (_paceSpeechInterval > 0 &&
+        distanceM > _lastPaceSpeech + _paceSpeechInterval) {
+      _lastPaceSpeech += _paceSpeechInterval;
+      final ft = FlutterTts();
+      ft.setSpeechRate(0.3);
+      var dist = "${_lastPaceSpeech / 1000}";
+      if (_lastPaceSpeech % 1000 < 10) {
+        dist = "${_lastPaceSpeech ~/ 1000}";
+      }
+      ft.speak("Distance so far is $dist kilometers");
     }
   }
 }
