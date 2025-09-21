@@ -28,6 +28,12 @@ class Tones {
     return entry.targetSpeeds.isNotEmpty;
   }
 
+  void reset(){
+    idx = 0;
+    lastLength = 0;
+    sound.reset();
+  }
+
   playSound(int maxSilence, double distanceM, double currentDuration) async {
     final frequencies = entry.getFrequencies(distanceM, currentDuration);
     print(
@@ -77,6 +83,12 @@ class Sound {
   }
 
   Sound({required this.session});
+
+  void reset(){
+    index = 0;
+    conflicts = 0;
+    frequencies = [];
+  }
 
   play(List<double> freqs, double durationS, double vol) async {
     if (index > 0 && conflicts < 10) {

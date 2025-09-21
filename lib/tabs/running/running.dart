@@ -105,7 +105,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
       widget.runStorage.updateRun(rStats.run);
       runStats!.figures.addSpeed(5);
       runStats!.figures.addSpeed(20);
-      if (rStats.run.feedback!.target.targetSpeeds.isNotEmpty){
+      if (rStats.run.feedback!.target.targetSpeeds.isNotEmpty) {
         runStats!.figures.addTargetPace(1);
       }
       runStats!.figures.addSlope(20);
@@ -181,6 +181,22 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _showRunning(BuildContext context, bool pause) {
+    final buttons = [
+      blueButton("Stop", () {
+        setState(() {
+          _stop(context);
+        });
+      }),
+    ];
+    if (runStats!.run.feedback!.target.targetSpeeds.isNotEmpty) {
+      buttons.add(
+        blueButton("Reset", () {
+          setState(() {
+            _reset(context);
+          });
+        }),
+      );
+    }
     return <Widget>[
       const Text('Current statistics:'),
       _stats('Curr. Speed: ${pause ? 'Pause' : _fmtSpeedCurrent()}'),
@@ -193,11 +209,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         direction: Axis.horizontal,
         spacing: 10,
         children: <Widget>[
-          blueButton("Stop", () {
-            setState(() {
-              _stop(context);
-            });
-          }),
+          ...buttons,
           feedback.runningWidget(runStats!.durationSec(), () {
             setState(() {});
           }),
@@ -242,6 +254,26 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     runStats!.reset();
     geoListen?.cancel();
     widgetController.add(RunState.waitUser);
+  }
+
+  _reset(BuildContext context) {
+    feedback.tones.sound.reset();
+    showDialog<String>(
+      context: context,
+      builder:
+          (BuildContext context) => AlertDialog(
+            title: const Text('Sound reset'),
+            content: const Text(
+              'Sound feedback has been reset - hope it works now!',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+    );
   }
 
   _stop(BuildContext context) {
