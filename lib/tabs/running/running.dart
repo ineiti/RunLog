@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:run_log/feedback/feedback.dart';
 import 'package:run_log/stats/conversions.dart';
 
+import '../../feedback/tones.dart';
 import '../../storage.dart';
 import '../../configuration.dart';
 import '../../stats/run_stats.dart';
@@ -65,9 +66,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Text("RunLog"),
           ),
-          body: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            child: _runWidget(snapshot.data),
+          body: SafeArea(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: _runWidget(snapshot.data),
+            ),
           ),
         );
       },
@@ -129,7 +132,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
         runStateStream.add(runStats!.state);
         if (_paceSpeechInterval > 0) {
-          _paceSpeechCheck(runStats!.distanceM());
+          await _paceSpeechCheck(runStats!.distanceM());
         }
       });
       widgetController.add(RunState.running);
@@ -323,11 +326,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
 
   Widget _paceSpeechDropdown(VoidCallback setState) {
     return dropdown(
-      [0, 50, 100, 250, 500, 1000, 2000, 5000, 10000],
+      [0, 20, 100, 250, 500, 1000, 2000, 5000, 10000],
       _paceSpeechInterval,
       (value) {
         _paceSpeechInterval = value;
-        if (runStats!.distanceM() > 0 && value > 0) {
+        if (runStats != null && runStats!.distanceM() > 0 && value > 0) {
           _lastPaceSpeech = (runStats!.distanceM() / value).floor() * value;
         }
         setState();
@@ -344,17 +347,23 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  void _paceSpeechCheck(double distanceM) {
+  Future<void> _paceSpeechCheck(double distanceM) async {
     if (_paceSpeechInterval > 0 &&
         distanceM > _lastPaceSpeech + _paceSpeechInterval) {
       _lastPaceSpeech += _paceSpeechInterval;
       final ft = FlutterTts();
-      ft.setSpeechRate(0.3);
+      await ft.setSpeechRate(0.3);
       var dist = "${_lastPaceSpeech / 1000}";
       if (_lastPaceSpeech % 1000 < 10) {
         dist = "${_lastPaceSpeech ~/ 1000}";
       }
-      ft.speak("Distance so far is $dist kilometers");
+      final session = await Sound.getSession();
+      await session.setActive(true);
+      ft.setCompletionHandler(() async {
+        await session.setActive(false);
+      });
+      await ft.setVolume(1);
+      await ft.speak("Distance so far is $dist kilometers");
     }
   }
 }

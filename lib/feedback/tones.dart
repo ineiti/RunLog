@@ -28,7 +28,7 @@ class Tones {
     return entry.targetSpeeds.isNotEmpty;
   }
 
-  void reset(){
+  void reset() {
     idx = 0;
     lastLength = 0;
     sound.reset();
@@ -62,7 +62,7 @@ class Sound {
   int index = 0;
   int conflicts = 0;
 
-  static Future<Sound> init() async {
+  static Future<AudioSession> getSession() async {
     final session = await AudioSession.instance;
     await session.configure(
       AudioSessionConfiguration(
@@ -76,15 +76,19 @@ class Sound {
         ),
         androidAudioFocusGainType:
             AndroidAudioFocusGainType.gainTransientMayDuck,
-        androidWillPauseWhenDucked: false,
+        androidWillPauseWhenDucked: true,
       ),
     );
-    return Sound(session: session);
+    return session;
+  }
+
+  static Future<Sound> init() async {
+    return Sound(session: await getSession());
   }
 
   Sound({required this.session});
 
-  void reset(){
+  void reset() {
     index = 0;
     conflicts = 0;
     frequencies = [];
@@ -174,7 +178,7 @@ class SFEntry {
           (jsonDecode(s) as List)
               .map((ts) => SpeedPoint.fromMap(ts as Map<String, dynamic>))
               .toList();
-    } catch(e){
+    } catch (e) {
       print("Couldn't import targetSpeeds: $e");
     }
     return sf;
@@ -240,10 +244,10 @@ class SFEntry {
     return getIndexDurationS(distanceM).$2;
   }
 
-  double getTargetSpeed(double distanceM){
+  double getTargetSpeed(double distanceM) {
     double targetSpeed = 0;
-    for (var speed in targetSpeeds){
-      if (speed.distanceM > distanceM){
+    for (var speed in targetSpeeds) {
+      if (speed.distanceM > distanceM) {
         break;
       }
       targetSpeed = speed.speedMS;
