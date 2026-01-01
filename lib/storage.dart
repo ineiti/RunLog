@@ -301,7 +301,7 @@ class RunStorage {
           await _performDBUpgrade(db, version + 1);
         }
       },
-      version: 3,
+      version: 4,
     );
   }
 
@@ -342,6 +342,10 @@ class RunStorage {
       case 3:
         db.execute('''
         ALTER TABLE Runs ADD COLUMN feedback TEXT
+        ''');
+      case 4:
+        db.execute('''
+        ALTER TABLE Runs ADD COLUMN summary TEXT
         ''');
     }
   }

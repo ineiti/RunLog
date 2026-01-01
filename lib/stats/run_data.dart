@@ -2,6 +2,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
+import 'package:run_log/summary/summary.dart';
 
 import '../stats/conversions.dart';
 import '../feedback/feedback.dart';
@@ -16,6 +17,7 @@ class Run {
   int? avgHeartRate;
   int? avgStepsPerMin;
   FeedbackContainer? feedback;
+  SummaryContainer? summary;
 
   static Run now(int id) {
     return Run(id: id, startTime: DateTime.now());
@@ -31,6 +33,7 @@ class Run {
     this.avgHeartRate,
     this.avgStepsPerMin,
     this.feedback,
+    this.summary,
   });
 
   factory Run.fromMap(Map<String, dynamic> dbMap) {
@@ -46,6 +49,7 @@ class Run {
       avgHeartRate: dbMap['avg_heart_rate'] as int?,
       avgStepsPerMin: dbMap['avg_steps_per_min'] as int?,
       feedback: FeedbackContainer.fromJson(dbMap['feedback'] ?? "{}"),
+      summary: SummaryContainer.fromJson(dbMap['summary'] ?? "{}"),
     );
   }
 
@@ -72,6 +76,7 @@ class Run {
       "avg_heart_rate": avgHeartRate,
       "avg_steps_per_min": avgStepsPerMin,
       "feedback": feedback?.toJson(),
+      "summary": summary?.toJson()
     };
   }
 
