@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_map/flutter_map.dart';
+import 'package:run_log/stats/preview_map.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/summary/summary.dart';
 import 'package:test/test.dart';
@@ -54,6 +56,17 @@ void main() {
         expect(d.$2 > c.$2![2].$2, true);
       }
     }
+  });
+
+  test('Calculate bounding box', () async {
+    var log = readLog(0, 'test/logs/run1.gpx');
+    var boundsRaw = LatLngBounds.fromPoints(log.$2.toLatLng());
+    print("Original bounds: $boundsRaw");
+    var sw = boundsRaw.southWest;
+    print("Original offset: ${sw.toOffset(boundsRaw, 256, 256)}");
+    var (bounds, zoom) = boundsRaw.ratioZoom(256, 256, 256);
+    print("zoom, bounds: $zoom, $bounds");
+    print("New offset: ${sw.toOffset(bounds, 256, 256)}");
   });
 }
 

@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:run_log/stats/track_map.dart';
 
 import '../../configuration.dart';
 import '../../stats/conversions.dart';
+import '../../stats/preview_map.dart';
 import '../../stats/run_stats.dart';
 import '../../storage.dart';
 import '../../stats/run_data.dart';
@@ -59,6 +63,8 @@ class _DetailPageState extends State<DetailPage> {
 
     source.add(_DetailSteps.show);
   }
+
+  List<LatLng> get trace => rr!.rawPositions.toLatLng();
 
   static _updateFigures(RunStats runStats, int filterDivisions) {
     var fl = runStats.runningData.length ~/ filterDivisions;
@@ -139,6 +145,7 @@ class _DetailPageState extends State<DetailPage> {
           ],
         ),
         rr!.figures.runStats(),
+        Expanded(child: OpenStreetMapWidget(points: trace)),
       ],
     );
   }

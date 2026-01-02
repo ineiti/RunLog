@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
 import 'package:run_log/summary/summary.dart';
@@ -76,7 +77,7 @@ class Run {
       "avg_heart_rate": avgHeartRate,
       "avg_steps_per_min": avgStepsPerMin,
       "feedback": feedback?.toJson(),
-      "summary": summary?.toJson()
+      "summary": summary?.toJson(),
     };
   }
 
@@ -288,8 +289,18 @@ class TrackedData {
     );
   }
 
+  LatLng toLatLng() {
+    return LatLng(latitude, longitude);
+  }
+
   double _interpolate(double from, double to, double mult) {
     return from + (to - from) * mult;
+  }
+}
+
+extension ListLatLng on List<TrackedData> {
+  List<LatLng> toLatLng() {
+    return map((ll) => LatLng(ll.latitude, ll.longitude)).toList();
   }
 }
 
