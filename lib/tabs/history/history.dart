@@ -37,7 +37,7 @@ class _HistoryState extends State<History> {
   }
 
   @override
-  dispose() async {
+  Future<void> dispose() async {
     super.dispose();
     await streamSub?.cancel();
   }
@@ -66,8 +66,8 @@ class _HistoryState extends State<History> {
                   _debugRuns(),
                   blueButton(
                     "Export All",
-                    () => setState(() {
-                      _exportAll(context);
+                    () => setState(() async {
+                      await _exportAll(context);
                     }),
                   ),
                 ],
@@ -89,14 +89,14 @@ class _HistoryState extends State<History> {
       children: [
         blueButton(
           "Delete",
-          () => setState(() {
-            _dbDelete();
+          () => setState(() async {
+            await _dbDelete();
           }),
         ),
         blueButton(
           "PreFill",
-          () => setState(() {
-            _createTwoTracks();
+          () => setState(() async {
+            await _createTwoTracks();
           }),
         ),
       ],
@@ -111,10 +111,10 @@ class _HistoryState extends State<History> {
           final run = runs[index];
           return Card(
             child: InkWell(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await Navigator.push(
                   context,
-                  MaterialPageRoute(
+                  MaterialPageRoute<void>(
                     builder:
                         (context) => DetailPage(
                           run: run,
@@ -161,7 +161,7 @@ class _HistoryState extends State<History> {
     );
   }
 
-  _createTwoTracks() async {
+  Future<void> _createTwoTracks() async {
     await DebugStorage.dbPrefill(
       widget.runStorage,
       Duration(hours: 1),
@@ -180,16 +180,16 @@ class _HistoryState extends State<History> {
     );
   }
 
-  _dbDelete() async {
+  Future<void> _dbDelete() async {
     await widget.runStorage.cleanDB();
   }
 
-  _exportAll(BuildContext context) async {
+  Future<void> _exportAll(BuildContext context) async {
     final name =
         "runLog-${DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now())}.rlog";
     final content = await widget.runStorage.exportAll();
     if (context.mounted) {
-      showFileActionDialog(context, 'application/octet-stream', name, content);
+      await showFileActionDialog(context, 'application/octet-stream', name, content);
     }
   }
 }

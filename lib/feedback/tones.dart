@@ -19,7 +19,7 @@ class Tones {
 
   Tones({required this.sound});
 
-  setEntry(SFEntry entry) {
+  void setEntry(SFEntry entry) {
     this.entry = entry;
     idx = 0;
   }
@@ -34,7 +34,7 @@ class Tones {
     sound.reset();
   }
 
-  playSound(int maxSilence, double distanceM, double currentDuration) async {
+  Future<void> playSound(int maxSilence, double distanceM, double currentDuration) async {
     final frequencies = entry.getFrequencies(distanceM, currentDuration);
     if (idx < maxSilence && frequencies.length == lastLength) {
       idx++;
@@ -90,7 +90,7 @@ class Sound {
     frequencies = [];
   }
 
-  play(List<double> freqs, double durationS, double vol) async {
+  Future<void> play(List<double> freqs, double durationS, double vol) async {
     if (index > 0 && conflicts < 10) {
       conflicts++;
       print(
@@ -111,7 +111,7 @@ class Sound {
     FlutterPcmSound.start();
   }
 
-  _feed(bool done) async {
+  Future<void> _feed(bool done) async {
     // print("_feed: $done at $index / ${frequencies.length}");
     if (index == 0) {
       await session.setActive(true);
@@ -191,15 +191,15 @@ class SFEntry {
     return jsonEncode(targetSpeeds.map((s) => s.toMap()).toList());
   }
 
-  stop(double distanceM) {
+  void stop(double distanceM) {
     addPoint(SpeedPoint(distanceM: distanceM, speedMS: 0));
   }
 
-  addPoint(SpeedPoint sp) {
+  void addPoint(SpeedPoint sp) {
     targetSpeeds.add(sp);
   }
 
-  calcSum() {
+  void calcSum() {
     double total = 0;
     for (int i = 0; i < targetSpeeds.length; i++) {
       double newTotal = total + targetSpeeds[i].distanceM;
@@ -208,7 +208,7 @@ class SFEntry {
     }
   }
 
-  calcTotal(double totalDurationS) {
+  void calcTotal(double totalDurationS) {
     if (targetSpeeds.length < 2) {
       return;
     }

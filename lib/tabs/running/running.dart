@@ -50,9 +50,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     geoTracker = GeoTracker(
       simul: widget.configurationStorage.config.simulateGPS,
     );
-    ToneFeedback.init().then((f) {
-      feedback = f;
-    });
+    unawaited(
+      ToneFeedback.init().then((f) {
+        feedback = f;
+      }),
+    );
   }
 
   @override
@@ -108,44 +110,43 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  _startRunning() {
-    feedback.startRunning(
+  Future<void> _startRunning() async {
+    await feedback.startRunning(
       widget.configurationStorage.config.maxFeedbackSilence,
     );
-    RunStats.newRun(widget.runStorage).then((rStats) {
-      runStats = rStats;
-      rStats.run.feedback = FeedbackContainer.fromPace(feedback.tones.entry);
-      widget.runStorage.updateRun(rStats.run);
-      runStats!.figures.addSpeed(5);
-      runStats!.figures.addSpeed(20);
-      if (rStats.run.feedback!.target.targetSpeeds.isNotEmpty) {
-        runStats!.figures.addTargetPace(1);
-      }
-      runStats!.figures.addSlope(20);
+    final rStats = await RunStats.newRun(widget.runStorage);
+    runStats = rStats;
+    rStats.run.feedback = FeedbackContainer.fromPace(feedback.tones.entry);
+    await widget.runStorage.updateRun(rStats.run);
+    runStats!.figures.addSpeed(5);
+    runStats!.figures.addSpeed(20);
+    if (rStats.run.feedback!.target.targetSpeeds.isNotEmpty) {
+      runStats!.figures.addTargetPace(1);
+    }
+    runStats!.figures.addSlope(20);
 
-      geoListen = geoTracker.streamPosition.listen((pos) async {
-        runStats!.addPosition(pos);
-        await feedback.updateRunning(
-          runStats!.durationSec(),
-          runStats!.distanceM(),
-        );
-        await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
-        runStateStream.add(runStats!.state);
-        if (_paceSpeechInterval > 0) {
-          await _paceSpeechCheck(runStats!.distanceM());
-        }
-      });
-      widgetController.add(RunState.running);
+    geoListen = geoTracker.streamPosition.listen((pos) async {
+      runStats!.addPosition(pos);
+      await feedback.updateRunning(
+        runStats!.durationSec(),
+        runStats!.distanceM(),
+      );
+      await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
+      runStateStream.add(runStats!.state);
+      if (_paceSpeechInterval > 0) {
+        await _paceSpeechCheck(runStats!.distanceM());
+      }
     });
+    widgetController.add(RunState.running);
   }
 
   Widget _streamBuilder<T>(
     Stream<T> stream,
-    Function(BuildContext context, T?) showWidget,
+    List<Widget> Function(BuildContext context, T?) showWidget,
   ) {
-    return StreamBuilder(
+    return StreamBuilder<T>(
       stream: stream,
-      builder: (context, snapshot) {
+      builder: (BuildContext context, AsyncSnapshot<T> snapshot) {
         return Flex(
           direction: Axis.vertical,
           children: showWidget(context, snapshot.data),
@@ -200,16 +201,16 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     final buttons = [
       _paceSpeechDropdown(() => setState(() {})),
       blueButton("Stop", () {
-        setState(() {
-          _stop(context);
+        setState(() async {
+          await _stop(context);
         });
       }),
     ];
     if (runStats!.run.feedback!.target.targetSpeeds.isNotEmpty) {
       buttons.add(
         blueButton("Reset", () {
-          setState(() {
-            _reset(context);
+          setState(() async {
+            await _reset(context);
           });
         }),
       );
@@ -267,17 +268,17 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     return Text(s, style: Theme.of(context).textTheme.headlineMedium);
   }
 
-  _cancel() {
+  Future<void> _cancel() async {
     runStats!.reset();
-    geoListen?.cancel();
+    await geoListen?.cancel();
     widgetController.add(RunState.waitUser);
     _lastPaceSpeech = 0;
     _paceSpeechInterval = 0;
   }
 
-  _reset(BuildContext context) {
+  Future<void> _reset(BuildContext context) async {
     feedback.tones.sound.reset();
-    showDialog<String>(
+    await showDialog<String>(
       context: context,
       builder:
           (BuildContext context) => AlertDialog(
@@ -295,12 +296,12 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  _stop(BuildContext context) {
+  Future<void> _stop(BuildContext context) async {
     if (runStats!.runningData.last.mps < runStats!.minSpeedStart ||
         runStats!.runPaused) {
-      _cancel();
+      await _cancel();
     } else {
-      showDialog<String>(
+      await showDialog<String>(
         context: context,
         builder:
             (BuildContext context) => AlertDialog(
@@ -313,7 +314,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
                 ),
                 TextButton(
                   onPressed: () async {
-                    _cancel();
+                    await _cancel();
                     Navigator.pop(context);
                   },
                   child: const Text('End Run'),

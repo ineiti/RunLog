@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:run_log/stats/filter_data.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
-import '../feedback/tones.dart';
 import 'conversions.dart';
 
 const int axisIntervals = 4;
@@ -15,51 +14,51 @@ class Figures {
 
   Figures();
 
-  clean() {
+  void clean() {
     figures = [];
   }
 
-  updateRunningData(List<TimeData> runningData) {
+  void updateRunningData(List<TimeData> runningData) {
     for (var figure in figures) {
       figure.updateRunningData(runningData);
     }
   }
 
-  addFigure() {
+  void addFigure() {
     figures.add(Figure());
   }
 
-  addSlopeStats(int filterLength) {
+  void addSlopeStats(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.slopeStats, filterLength: filterLength),
     );
   }
 
-  addSpeed(int filterLength) {
+  void addSpeed(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.speed, filterLength: filterLength),
     );
   }
 
-  addTargetPace(int filterLength) {
+  void addTargetPace(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.targetPace, filterLength: filterLength),
     );
   }
 
-  addAltitude(int filterLength) {
+  void addAltitude(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.altitude, filterLength: filterLength),
     );
   }
 
-  addAltitudeCorrected(int filterLength) {
+  void addAltitudeCorrected(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.altitudeCorrected, filterLength: filterLength),
     );
   }
 
-  addSlope(int filterLength) {
+  void addSlope(int filterLength) {
     figures.last.lines.add(
       LineStat(type: LineType.slope, filterLength: filterLength),
     );
@@ -105,7 +104,7 @@ class Figure {
 
   Figure();
 
-  updateRunningData(List<TimeData> runningData) {
+  void updateRunningData(List<TimeData> runningData) {
     for (var line in lines) {
       line.updateData(runningData);
     }
@@ -192,7 +191,7 @@ class LineStat {
     second = FilterData.subSampled(filterLength, maxPoints);
   }
 
-  updateData(List<TimeData> runningData) {
+  void updateData(List<TimeData> runningData) {
     late List<XYData> xyd;
     switch (type) {
       case LineType.speed:
@@ -361,11 +360,11 @@ class FilterXY {
   List<XYData> filteredData = [];
   late List<double> lanczos;
 
-  FilterSpeed(int filterN2) {
+  void filterSpeed(int filterN2) {
     lanczos = _lanczos(filterN2);
   }
 
-  update(List<XYData> raw) {
+  void update(List<XYData> raw) {
     final data = _filterValues(raw.map((s) => s.y).toList());
     filteredData =
         raw

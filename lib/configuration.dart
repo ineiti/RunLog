@@ -22,7 +22,7 @@ class Configuration {
   static int version = 1;
 
   static Configuration fromJson(String json) {
-    var conf = jsonDecode(json);
+    dynamic conf = jsonDecode(json);
     switch ((conf[_Fields.version.name] ?? 0) as int) {
       case 1:
         return Configuration(
@@ -124,7 +124,7 @@ class Configuration {
   }
 
   String toJson() {
-    return jsonEncode({
+    return jsonEncode(<String, Object>{
       _Fields.debug.name: debug,
       _Fields.simulateGPS.name: simulateGPS,
       _Fields.altitudeURL.name: altitudeURL,
@@ -148,7 +148,7 @@ class ConfigurationStorage {
 
   ConfigurationStorage({required this.config, required this.prefs});
 
-  updateConfig(Configuration newConfig) async {
+  Future<void> updateConfig(Configuration newConfig) async {
     await prefs.setString(_Fields.config.name, newConfig.toJson());
     config = newConfig;
   }

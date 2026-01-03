@@ -283,8 +283,18 @@ extension Ratio on LatLngBounds {
   // This calculates the correct bounds to fit the trace into
   // a rectangle, so the rectangle has the ration width/height.
   (LatLngBounds, int) ratioZoom(int tileSize, int width, int height) {
-    final heightLL = Vincenty().distance(southWest, northWest);
-    final widthLL = Vincenty().distance(southWest, southEast);
+    double heightLL = Vincenty().distance(southWest, northWest);
+    double widthLL = Vincenty().distance(southWest, southEast);
+
+    if (heightLL == 0 && widthLL == 0){
+      throw("Got LatLngBounds with zero height and width");
+    }
+    if (heightLL == 0){
+      heightLL = widthLL;
+    }
+    if (widthLL == 0){
+      heightLL = widthLL;
+    }
 
     // Calculate expansion factors
     final llAspect = widthLL / heightLL;

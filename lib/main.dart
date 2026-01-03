@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,7 +14,7 @@ import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
 import 'package:run_log/tabs/history/history.dart';
 
-Future main() async {
+Future<void> main() async {
   await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
@@ -48,7 +49,7 @@ class _MyAppState extends State<MyApp> {
     _appFutures = AppFutures.start();
   }
 
-  void _asyncCalls(AppFutures appFutures) async {
+  Future<void> _asyncCalls(AppFutures appFutures) async {
     await _handleIncomingIntent(
       appFutures.runStorage,
       appFutures.configurationStorage.config.altitudeURL,
@@ -75,7 +76,7 @@ class _MyAppState extends State<MyApp> {
           await _processFile(runStorage, files.first.path, altitudeURL);
         }
       },
-      onError: (err) {
+      onError: (Object err) {
         print("Error in media stream: $err");
       },
     );
@@ -94,12 +95,12 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  _processGPXFile(RunStorage runStorage, String filePath) async {
+  Future<void> _processGPXFile(RunStorage runStorage, String filePath) async {
     File gpxFile = File(filePath);
     String content = await gpxFile.readAsString();
     Run newRun = await runStorage.createRun(DateTime.now());
     List<TrackedData> newData = GpxIO.fromGPX(newRun.id, content);
-    for (var td in newData) {
+    for (TrackedData td in newData) {
       await runStorage.addTrackedData(td);
     }
     newRun.startTime = DateTime.fromMillisecondsSinceEpoch(
@@ -107,10 +108,10 @@ class _MyAppState extends State<MyApp> {
     );
     await runStorage.updateRun(newRun);
     RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
-    await rr.updateStats();
+    rr.updateStats();
   }
 
-  _processRLogFile(RunStorage runStorage, String filePath) async {
+  Future<void> _processRLogFile(RunStorage runStorage, String filePath) async {
     File rlogFile = File(filePath);
     String content = await rlogFile.readAsString();
     await runStorage.importAll(content);
@@ -124,7 +125,7 @@ class _MyAppState extends State<MyApp> {
         child: Scaffold(
           appBar: AppBar(
             bottom: const TabBar(
-              tabs: [
+              tabs: <Widget>[
                 Tab(icon: Icon(Icons.run_circle_outlined)),
                 Tab(icon: Icon(Icons.list_alt)),
                 Tab(icon: Icon(Icons.settings)),
@@ -134,7 +135,7 @@ class _MyAppState extends State<MyApp> {
           ),
           body: FutureBuilder<AppFutures>(
             future: _appFutures, // The future we are waiting for
-            builder: (context, snapshot) {
+            builder: (BuildContext context, AsyncSnapshot<AppFutures> snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 // While waiting for the future to complete, show a loading indicator
                 return const Center(child: CircularProgressIndicator());
@@ -145,11 +146,11 @@ class _MyAppState extends State<MyApp> {
                 );
               } else if (snapshot.hasData) {
                 // If the future completed successfully and has data (the RunStorage instance)
-                final appFutures = snapshot.data!;
-                _asyncCalls(appFutures);
+                final AppFutures appFutures = snapshot.data!;
+                unawaited(_asyncCalls(appFutures));
 
                 return TabBarView(
-                  children: [
+                  children: <Widget>[
                     // Pass the initialized RunStorage to the Running widget
                     History(
                       runStorage: appFutures.runStorage,

@@ -17,7 +17,7 @@ class FilterData {
     lanczos = _lanczos(filterN2);
   }
 
-  update(List<XYData> raw) {
+  void update(List<XYData> raw) {
     min = double.infinity;
     max = -double.infinity;
     final values = raw.map((s) => s.y).toList();

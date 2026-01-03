@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +9,6 @@ import 'package:run_log/stats/track_map.dart';
 
 import '../../configuration.dart';
 import '../../stats/conversions.dart';
-import '../../summary/preview_map.dart';
 import '../../stats/run_stats.dart';
 import '../../storage.dart';
 import '../../stats/run_data.dart';
@@ -66,7 +64,7 @@ class _DetailPageState extends State<DetailPage> {
 
   List<LatLng> get trace => rr!.rawPositions.toLatLng();
 
-  static _updateFigures(RunStats runStats, int filterDivisions) {
+  static void _updateFigures(RunStats runStats, int filterDivisions) {
     var fl = runStats.runningData.length ~/ filterDivisions;
     runStats.figureClean();
     runStats.figureAddSpeed(fl);
@@ -169,7 +167,7 @@ class _DetailPageState extends State<DetailPage> {
                   setState(() {
                     filterDivisions = (pow(fd, 2) / 200).ceil();
                   });
-                  await _updateFigures(rr!, filterDivisions);
+                  _updateFigures(rr!, filterDivisions);
                 },
                 min: 1,
                 max: 200,
@@ -181,8 +179,8 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  _trackDelete(BuildContext context) async {
-    showDialog<String>(
+  Future<void> _trackDelete(BuildContext context) async {
+    await showDialog<String>(
       context: context,
       builder:
           (BuildContext context) => AlertDialog(
@@ -208,17 +206,17 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  _trackExport(BuildContext context) async {
+  Future<void> _trackExport(BuildContext context) async {
     final name =
         "run-${DateFormat('yyyy-MM-dd_HH-mm').format(widget.run.startTime)}.gpx";
     final content = rr!.rawPositions.toGPX();
-    showFileActionDialog(context, 'application/gpx+xml', name, content);
+    await showFileActionDialog(context, 'application/gpx+xml', name, content);
   }
 
-  _trackHeight(BuildContext context) async {
+  Future<void> _trackHeight(BuildContext context) async {
     StreamController<(int, int)> currentUpdate = StreamController();
 
-    showDialog(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false, // Prevents closing by tapping outside
       builder: (BuildContext context) {
@@ -257,7 +255,7 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  _trackClear(BuildContext context) async {
+  Future<void> _trackClear(BuildContext context) async {
     await widget.storage.clearHeightData(rr!.run.id);
     await _startCalc();
   }

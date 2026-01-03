@@ -1,4 +1,3 @@
-import 'package:latlong2/latlong.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/summary/preview_map.dart';
 import 'package:run_log/summary/summary.dart';
@@ -50,7 +49,7 @@ class InitRuns {
         height: 64,
       );
       run.summary = summary;
-      runStorage.updateRun(run);
+      await runStorage.updateRun(run);
       return true;
     }
     return false;

@@ -9,6 +9,18 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false
+  language:
+    strict-raw-types: true
+    strict-inference: true
+  errors:
+    unawaited_futures: error
+    avoid_void_async: error
+    discarded_futures: error
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
@@ -23,6 +35,19 @@ linter:
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # Prevent calling async functions without await
+    - unawaited_futures
+
+    # Prevent async functions that don't return Future
+    - avoid_void_async
+
+    # Additional helpful rules for async code
+    - await_only_futures
+    - discarded_futures
+    - unnecessary_await_in_return
+
+    # General strictness rules
+#    - always_specify_types
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

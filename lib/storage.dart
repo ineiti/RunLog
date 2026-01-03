@@ -35,7 +35,7 @@ class RunStorage {
     } catch (e) {
       print("Error: $e");
     }
-    return await RunStorage.initClean();
+    return RunStorage.initClean();
   }
 
   static Future<RunStorage> initClean() async {
@@ -52,7 +52,7 @@ class RunStorage {
       runs[run.id] = run;
     }
 
-    updateRuns.add([]);
+    updateRuns.add(null);
   }
 
   Future<List<TrackedData>> loadTrackedData(int runId) async {
@@ -123,7 +123,7 @@ class RunStorage {
     return jsonEncode(content);
   }
 
-  importAll(String content) async {
+  Future<void> importAll(String content) async {
     final decoded = jsonDecode(content) as List<dynamic>;
     for (var entry in decoded) {
       entry["run"]["id"] = -1;
@@ -140,15 +140,74 @@ class RunStorage {
         track.runId = run.id;
         await addTrackedData(track);
       }
-      updateRuns.add([]);
+      updateRuns.add(null);
     }
   }
 
-  _updateTrackedData(
-    List<TrackedData> allTrackedData,
-    List<int> tdUpdate,
-    String altitudeURL,
-  ) async {
+  Future<Run> createRun(DateTime startTime) async {
+    final run = await _addRun(Run.start(startTime));
+    runs[run.id] = run;
+    trackedData[run.id] = [];
+    updateRuns.add(null);
+    return run;
+  }
+
+  Future<void> removeRun(int id) async {
+    await db.delete('TrackedData', where: 'run_id = ?', whereArgs: [id]);
+    await db.delete('Runs', where: 'id = ?', whereArgs: [id]);
+    runs.remove(id);
+    trackedData.remove(id);
+    updateRuns.add(null);
+  }
+
+  Future<void> addTrackedData(TrackedData td) async {
+    await db.insert(
+      'TrackedData',
+      td.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    trackedData[td.runId]!.add(td);
+    updateRuns.add(null);
+  }
+
+  Future<void> updateRun(Run run) async {
+    await db.update('Runs', run.toMap(), where: "id = ?", whereArgs: [run.id]);
+    runs[run.id] = run;
+    updateRuns.add(null);
+  }
+
+  Future<void> cleanDB() async {
+    await db.delete('Runs');
+    await db.delete('TrackedData');
+    await db.delete('sqlite_sequence');
+    runs = {};
+    trackedData = {};
+    updateRuns.add(null);
+  }
+
+  Future<Run> _addRun(Run run) async {
+    run.id = await db.insert(
+      'Runs',
+      run.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    return run;
+  }
+
+  Future<void> _updateTD(DatabaseExecutor db, TrackedData td) async {
+    await db.update(
+      'TrackedData',
+      td.toMap(),
+      where: "id = ?",
+      whereArgs: [td.id],
+    );
+  }
+
+  Future<void> _updateTrackedData(
+      List<TrackedData> allTrackedData,
+      List<int> tdUpdate,
+      String altitudeURL,
+      ) async {
     if (tdUpdate.isEmpty) {
       return;
     }
@@ -157,7 +216,7 @@ class RunStorage {
         tdUpdate
             .map(
               (i) => (allTrackedData[i].latitude, allTrackedData[i].longitude),
-            )
+        )
             .toList(),
         altitudeURL,
       );
@@ -175,17 +234,17 @@ class RunStorage {
   }
 
   Future<List<double?>> _fetchAltitudes(
-    List<(double, double)> pos,
-    String altitudeURL,
-  ) async {
+      List<(double, double)> pos,
+      String altitudeURL,
+      ) async {
     final locations =
         "?locations=${pos.map((ll) => "${ll.$1.toStringAsFixed(6)},${ll.$2.toStringAsFixed(6)}").join("|")}";
     // print("Locations are: $locations");
     final url =
         dotenv.env["TOPO_URL"] ??
-        (altitudeURL != ""
-            ? altitudeURL
-            : 'https://api.opendata.org/v1/eudem25m');
+            (altitudeURL != ""
+                ? altitudeURL
+                : 'https://api.opendata.org/v1/eudem25m');
     final response = await http.get(
       Uri.parse("$url$locations"),
       headers: {'Accept': 'application/json'},
@@ -194,11 +253,11 @@ class RunStorage {
     if (response.statusCode == 200) {
       // Parse the JSON response
       final results =
-          (jsonDecode(response.body) as Map<String, dynamic>)["results"];
+      (jsonDecode(response.body) as Map<String, dynamic>)["results"];
       try {
         final List<double?> elevations = [
           for (final result in results)
-            // double.parse(result["elevation"].toString()),
+          // double.parse(result["elevation"].toString()),
             double.tryParse(result["elevation"].toString()),
         ];
         for (int i = 0; i < elevations.length; i++) {
@@ -224,76 +283,12 @@ class RunStorage {
     }
   }
 
-  Future<Run> createRun(DateTime startTime) async {
-    final run = await _addRun(Run.start(startTime));
-    runs[run.id] = run;
-    trackedData[run.id] = [];
-    updateRuns.add([]);
-    return run;
-  }
-
-  removeRun(int id) async {
-    await db.delete('TrackedData', where: 'run_id = ?', whereArgs: [id]);
-    await db.delete('Runs', where: 'id = ?', whereArgs: [id]);
-    runs.remove(id);
-    trackedData.remove(id);
-    updateRuns.add([]);
-  }
-
-  Future<void> addTrackedData(TrackedData td) async {
-    await db.insert(
-      'TrackedData',
-      td.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-    trackedData[td.runId]!.add(td);
-    updateRuns.add([]);
-  }
-
-  Future<Run> _addRun(Run run) async {
-    run.id = await db.insert(
-      'Runs',
-      run.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-    return run;
-  }
-
-  Future<void> updateRun(Run run) async {
-    await db.update('Runs', run.toMap(), where: "id = ?", whereArgs: [run.id]);
-    runs[run.id] = run;
-    updateRuns.add([]);
-  }
-
-  _updateTD(DatabaseExecutor db, TrackedData td) async {
-    await db.update(
-      'TrackedData',
-      td.toMap(),
-      where: "id = ?",
-      whereArgs: [td.id],
-    );
-  }
-
-  cleanDB() async {
-    db.delete('Runs');
-    db.delete('TrackedData');
-    db.delete('sqlite_sequence');
-    runs = {};
-    trackedData = {};
-    updateRuns.add([]);
-  }
-
-  @override
-  String toString() {
-    return "Storage(${identityHashCode(this)}) - $runs";
-  }
-
   static Future<String> _dbPath() async {
     return join(await getDatabasesPath(), dbName);
   }
 
   static Future<Database> _getDB() async {
-    return await openDatabase(
+    return openDatabase(
       // Set the path to the database. Note: Using the `join` function from the
       // `path` package is best practice to ensure the path is correctly
       // constructed for each platform.
@@ -318,7 +313,7 @@ class RunStorage {
   static Future<void> _performDBUpgrade(Database db, int version) async {
     switch (version) {
       case 1:
-        db.execute('''
+        await db.execute('''
         CREATE TABLE Runs(id INTEGER PRIMARY KEY AUTOINCREMENT,
           start_time INTEGER NOT NULL,
           duration INTEGER NOT NULL,
@@ -329,7 +324,7 @@ class RunStorage {
           avg_heart_rate INTEGER,
           avg_steps_per_min INTEGER
         );''');
-        db.execute('''
+        await db.execute('''
         CREATE TABLE TrackedData (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           run_id INTEGER NOT NULL,
@@ -346,23 +341,28 @@ class RunStorage {
         CREATE INDEX idx_trackeddata_run_id ON TrackedData (run_id);
         ''');
       case 2:
-        db.execute('''
+        await db.execute('''
         ALTER TABLE TrackedData ADD COLUMN altitude_corrected REAL
         ''');
       case 3:
-        db.execute('''
+        await db.execute('''
         ALTER TABLE Runs ADD COLUMN feedback TEXT
         ''');
       case 4:
-        db.execute('''
+        await db.execute('''
         ALTER TABLE Runs ADD COLUMN summary TEXT
         ''');
     }
   }
+
+  @override
+  String toString() {
+    return "Storage(${identityHashCode(this)}) - $runs";
+  }
 }
 
 class DebugStorage {
-  static dbPrefill(
+  static Future<void> dbPrefill(
     RunStorage rs,
     Duration before,
     int points,

@@ -45,7 +45,7 @@ class RunStats {
 
   // Start from the end and remove all points which are slower than
   // `minSpeedRun`.
-  _finalize() {
+  void _finalize() {
     FilterData speed = FilterData(10);
     speed.update(runningData.speed());
     if (speed.filteredData.isEmpty) {
@@ -96,7 +96,7 @@ class RunStats {
         );
   }
 
-  reset() {
+  void reset() {
     rawPositions = [];
     runningData = [];
     lastMovement = null;
@@ -104,7 +104,7 @@ class RunStats {
     runPaused = false;
   }
 
-  updateStats() {
+  void updateStats() {
     run.durationMS = (durationSec() * 1000).toInt();
     run.totalDistanceM = distanceM();
   }
@@ -274,7 +274,7 @@ class Resampler {
     );
   }
 
-  pause() {
+  void pause() {
     tsReferenceMS += sampleIntervalMS;
     sampleCount--;
   }

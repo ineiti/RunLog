@@ -28,12 +28,12 @@ class ToneFeedback {
     _paceUpdates.stream.listen((update) => tones.setEntry(update.target));
   }
 
-  startRunning(int maxFeedbackSilence) async {
+  Future<void> startRunning(int maxFeedbackSilence) async {
     _nextSoundS = _soundIntervalS;
     _maxFeedbackSilence = maxFeedbackSilence;
   }
 
-  updateRunning(double durationS, double distanceM) async {
+  Future<void> updateRunning(double durationS, double distanceM) async {
     if (tones.hasEntry()) {
       if (durationS >= _nextSoundS) {
         await tones.playSound(_maxFeedbackSilence, distanceM, durationS);

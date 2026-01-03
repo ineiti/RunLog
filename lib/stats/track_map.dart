@@ -12,14 +12,14 @@ class OpenStreetMapWidget extends StatefulWidget {
   final double markerSize;
 
   const OpenStreetMapWidget({
-    Key? key,
+    super.key,
     required this.points,
     this.initialCenter,
     this.polylineColor = Colors.blue,
     this.polylineWidth = 5.0,
     this.markerColor = Colors.red,
     this.markerSize = 40.0,
-  }) : super(key: key);
+  });
 
   @override
   State<OpenStreetMapWidget> createState() => _OpenStreetMapWidgetState();

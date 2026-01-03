@@ -23,13 +23,17 @@ class GeoTracker {
       });
     }
     gtStream.add(GTState.permissionRequest);
-    _handlePermission().then((result) {
-      if (result) {
-        gtStream.add(GTState.permissionGranted);
-      } else {
-        gtStream.add(GTState.permissionRefused);
-      }
-    });
+    unawaited(_gtStreamPermissions());
+  }
+
+  Future<void> _gtStreamPermissions() async {
+    final bool result = await _handlePermission();
+
+    if (result) {
+      gtStream.add(GTState.permissionGranted);
+    } else {
+      gtStream.add(GTState.permissionRefused);
+    }
   }
 
   Stream<GTState> get streamState => gtStream.stream;
@@ -79,7 +83,7 @@ class GeoTracker {
         intervalDuration: const Duration(seconds: intervalSeconds),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationText:
-              "RunLog continues receiving location updates even when not in foreground",
+          "RunLog continues receiving location updates even when not in foreground",
           notificationTitle: "RunLogging your speed",
           enableWakeLock: true,
         ),

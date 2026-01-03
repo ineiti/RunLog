@@ -65,7 +65,7 @@ class _PaceWidgetState extends State<PaceWidget> {
     );
   }
 
-  _initEntries() {
+  void _initEntries() {
     _entries.clear();
     _entries.add(_PaceAdder(_entries, _AdderPos.beginning));
   }
@@ -148,7 +148,7 @@ class _PaceAdder implements _PaceEntryImp {
   @override
   _Entries get type => _Entries.adder;
 
-  _insertEntry(_Entries entry) {
+  void _insertEntry(_Entries entry) {
     _PaceEntryImp? imp;
     var insert = position == _AdderPos.beginning ? 1 : _entries.length - 1;
     switch (entry) {

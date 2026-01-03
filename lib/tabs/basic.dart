@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 import '../stats/conversions.dart';
@@ -84,13 +82,13 @@ class TimeHMS {
     return (hours * 60 + minutes) * 60 + seconds;
   }
 
-  setHMS(int h, int m, int s) {
+  void setHMS(int h, int m, int s) {
     hours = h;
     minutes = m;
     seconds = s;
   }
 
-  setSec(int s) {
+  void setSec(int s) {
     seconds = (s % 60) ~/ 5 * 5;
     minutes = (s ~/ 60) % 60;
     hours = s ~/ 3600;
@@ -122,7 +120,7 @@ class LengthKmM {
     );
   }
 
-  setM(int m) {
+  void setM(int m) {
     km = m ~/ 1000;
     this.m = (m % 1000) ~/ 100 * 100;
   }

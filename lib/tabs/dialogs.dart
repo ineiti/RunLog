@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
-void showFileActionDialog(BuildContext context, String mimeType, String name, String content) {
-  showModalBottomSheet(
+Future<void> showFileActionDialog(
+  BuildContext context,
+  String mimeType,
+  String name,
+  String content,
+) async {
+  await showModalBottomSheet<void>(
     context: context,
     builder: (BuildContext context) {
       return SafeArea(
@@ -19,10 +24,7 @@ void showFileActionDialog(BuildContext context, String mimeType, String name, St
                 Navigator.pop(context);
                 final params = ShareParams(
                   files: [
-                    XFile.fromData(
-                      utf8.encode(content),
-                      mimeType: mimeType,
-                    ),
+                    XFile.fromData(utf8.encode(content), mimeType: mimeType),
                   ],
                   fileNameOverrides: [name],
                 );
