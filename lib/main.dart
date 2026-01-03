@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import 'package:run_log/configuration.dart';
+import 'package:run_log/summary/init_runs.dart';
 import 'package:run_log/tabs/running/running.dart';
 import 'package:run_log/tabs/settings/settings.dart';
 import 'package:run_log/stats/run_data.dart';
@@ -82,10 +83,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  _processGPXFile(
-    RunStorage runStorage,
-    String filePath,
-  ) async {
+  _processGPXFile(RunStorage runStorage, String filePath) async {
     File gpxFile = File(filePath);
     String content = await gpxFile.readAsString();
     Run newRun = await runStorage.createRun(DateTime.now());
@@ -142,6 +140,10 @@ class _MyAppState extends State<MyApp> {
                   appFutures.runStorage,
                   appFutures.configurationStorage.config.altitudeURL,
                 );
+                InitRuns(
+                  appFutures.runStorage,
+                  appFutures.configurationStorage,
+                ).updateAll();
 
                 return TabBarView(
                   children: [

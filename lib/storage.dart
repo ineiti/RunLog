@@ -28,9 +28,14 @@ class RunStorage {
   }
 
   static Future<RunStorage> initLoad() async {
-    final rs = await init();
-    await rs.loadRuns();
-    return rs;
+    try {
+      final rs = await init();
+      await rs.loadRuns();
+      return rs;
+    } catch (e) {
+      print("Error: $e");
+    }
+    return await RunStorage.initClean();
   }
 
   static Future<RunStorage> initClean() async {
@@ -212,7 +217,9 @@ class RunStorage {
         return [];
       }
     } else {
-      print("Error while getting heights, status-code is: ${response.statusCode}");
+      print(
+        "Error while getting heights, status-code is: ${response.statusCode}",
+      );
       throw Exception('Failed to load data');
     }
   }

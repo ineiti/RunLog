@@ -10,7 +10,7 @@ import 'package:run_log/stats/track_map.dart';
 
 import '../../configuration.dart';
 import '../../stats/conversions.dart';
-import '../../stats/preview_map.dart';
+import '../../summary/preview_map.dart';
 import '../../stats/run_stats.dart';
 import '../../storage.dart';
 import '../../stats/run_data.dart';
@@ -145,6 +145,7 @@ class _DetailPageState extends State<DetailPage> {
           ],
         ),
         rr!.figures.runStats(),
+        const SizedBox(height: 12),
         Expanded(child: OpenStreetMapWidget(points: trace)),
       ],
     );

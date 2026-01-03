@@ -233,14 +233,16 @@ class MapPreviewGenerator {
           ..color = Colors.green
           ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(startPoint, 6, startPaint);
+    final inner = max(2, 6 * width / 256).toDouble();
+    final outer = max(3, 8 * width / 256).toDouble();
+    canvas.drawCircle(startPoint, inner, startPaint);
     canvas.drawCircle(
       startPoint,
-      8,
+      outer,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = outer - inner,
     );
 
     // Draw end marker (red)
@@ -249,14 +251,14 @@ class MapPreviewGenerator {
           ..color = Colors.red
           ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(endPoint, 6, endPaint);
+    canvas.drawCircle(endPoint, inner, endPaint);
     canvas.drawCircle(
       endPoint,
-      8,
+      outer,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = outer - inner,
     );
   }
 }
@@ -309,11 +311,8 @@ extension Ratio on LatLngBounds {
     final zoomFract = log(360 * width / (newWidthLL * tileSize)) / ln2;
     final zoom = zoomFract.floor();
     final zoomOut = pow(2, zoomFract - zoom);
-    print("w/h: $newWidth/$newHeight - zoomOut: $zoomOut");
     newHeight *= zoomOut;
     newWidth *= zoomOut;
-    print("zoom is: $zoom, $zoomFract");
-    print("w/h: $newWidth/$newHeight");
 
     // Expand from center using cardinal directions, then extend
     // the current bound.
@@ -324,8 +323,16 @@ extension Ratio on LatLngBounds {
     extend(Vincenty().offset(newSw_, newWidth / 2, 270)); // West
     extend(Vincenty().offset(newNe_, newWidth / 2, 90)); // East
 
-    print(toString());
-
     return (LatLngBounds(southWest, northEast), zoom);
+  }
+
+  LatLngBounds zoomOut(double zo) {
+    final c = center;
+    final width = longitudeWidth * zo;
+    final height = latitudeHeight * zo;
+    return LatLngBounds(
+      LatLng(c.latitude + height / 2, c.longitude - width / 2),
+      LatLng(c.latitude - height / 2, c.longitude + width / 2),
+    );
   }
 }

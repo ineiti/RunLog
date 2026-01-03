@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:run_log/summary/preview_map.dart';
 
 class OpenStreetMapWidget extends StatefulWidget {
   final List<LatLng> points;
@@ -26,27 +27,10 @@ class OpenStreetMapWidget extends StatefulWidget {
 
 class _OpenStreetMapWidgetState extends State<OpenStreetMapWidget> {
   final MapController _mapController = MapController();
-  late LatLng _center;
 
   @override
   void initState() {
     super.initState();
-    // Calculate initial center if not provided
-    _center = widget.initialCenter ?? _calculateCenter();
-  }
-
-  LatLng _calculateCenter() {
-    if (widget.points.isEmpty) {
-      return const LatLng(0, 0); // Default to null island
-    }
-
-    double sumLat = 0, sumLng = 0;
-    for (final ll in widget.points) {
-      sumLat += ll.latitude;
-      sumLng += ll.longitude;
-    }
-
-    return LatLng(sumLat / widget.points.length, sumLng / widget.points.length);
   }
 
   @override
@@ -55,7 +39,7 @@ class _OpenStreetMapWidgetState extends State<OpenStreetMapWidget> {
       mapController: _mapController,
       options: MapOptions(
         initialCameraFit: CameraFit.bounds(
-          bounds: LatLngBounds.fromPoints(widget.points),
+          bounds: LatLngBounds.fromPoints(widget.points).zoomOut(1.2),
         ),
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.all, // Enable all interactions

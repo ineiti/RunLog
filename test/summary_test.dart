@@ -2,7 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_map/flutter_map.dart';
-import 'package:run_log/stats/preview_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:run_log/summary/preview_map.dart';
 import 'package:run_log/stats/run_data.dart';
 import 'package:run_log/summary/summary.dart';
 import 'package:test/test.dart';
@@ -19,7 +20,7 @@ void main() {
     var some = SummaryContainer(
       Uint8List.fromList([1, 2, 3]),
       [4, 5, 6],
-      ListPoints.fromDynamicList([
+      ListPoints.fromDouble([
         [0.0, 0.0],
         [0.1, 0.0],
         [0.1, 0.1],
@@ -28,7 +29,7 @@ void main() {
     );
     var someString = some.toJson();
     var someNew = SummaryContainer.fromJson(someString);
-    expect(some, someNew);
+    expect(someNew, some);
   });
 
   test('create summary from run', () async {
@@ -40,7 +41,9 @@ void main() {
     ];
     // Check that the last run is actually much further from the other three
     // runs:
-    var runs = runDatas.map((rd) => rd.$1).toList();
+    var runs = Map.fromEntries(
+      runDatas.map((rd) => MapEntry(rd.$1.id, rd.$1.summary!.trace)),
+    );
     var closest = runDatas.map((rd) => rd.$1.summary?.closest(runs)).toList();
     for (var c in closest.sublist(0, 3).indexed) {
       // Closest run must be ourself

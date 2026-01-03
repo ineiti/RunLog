@@ -129,6 +129,10 @@ class _HistoryState extends State<History> {
                 child: Row(
                   children: [
                     const SizedBox(width: 12),
+                    if (run.summary?.mapIcon != null) ...[
+                      Image.memory(run.summary!.mapIcon!),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +176,7 @@ class _HistoryState extends State<History> {
       100,
       [4, .2, .1, .4, .1, .2],
       [2000, 20, 10, 20, 10],
-      null
+      null,
     );
   }
 

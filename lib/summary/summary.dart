@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:run_log/stats/run_data.dart';
 
 enum _SummaryFields { mapIcon, similar, trace, tags }
@@ -10,7 +10,7 @@ class SummaryContainer {
   static int segmentCount = 30;
   Uint8List? mapIcon;
   List<int> similar;
-  ListPoints trace;
+  List<LatLng> trace;
   List<String> tags;
 
   static SummaryContainer empty() {
@@ -18,13 +18,18 @@ class SummaryContainer {
   }
 
   static SummaryContainer fromJson(String s) {
-    final map = jsonDecode(s) as Map<String, dynamic>;
-    return SummaryContainer(
-      map.getUint8List(_SummaryFields.mapIcon.name),
-      map.getList<int>(_SummaryFields.similar.name),
-      ListPoints.fromDynamicList(map[_SummaryFields.trace.name]),
-      map.getList<String>(_SummaryFields.tags.name),
-    );
+    try {
+      final map = jsonDecode(s) as Map<String, dynamic>;
+      return SummaryContainer(
+        map.getUint8List(_SummaryFields.mapIcon.name),
+        map.getList<int>(_SummaryFields.similar.name),
+        ListPoints.fromDynamicList(map[_SummaryFields.trace.name]),
+        map.getList<String>(_SummaryFields.tags.name),
+      );
+    } catch (e) {
+      print("Error: $e");
+      return SummaryContainer.empty();
+    }
   }
 
   static SummaryContainer fromData(List<TrackedData> data) {
@@ -47,12 +52,10 @@ class SummaryContainer {
     });
   }
 
-  List<(int, double)> closest(List<Run> others) {
+  List<(int, double)> closest(Map<int, List<LatLng>> others) {
     var distances =
-        others
-            .map(
-              (o) => (o.id, o.summary?.trace.euclidianDistance(trace) ?? 1000),
-            )
+        others.entries
+            .map((idTr) => (idTr.key, trace.euclidianDistance(idTr.value)))
             .toList();
     distances.sort((a, b) => a.$2.compareTo(b.$2));
     return distances;
@@ -68,7 +71,7 @@ class SummaryContainer {
     return other is SummaryContainer &&
         listEquals(other.mapIcon, mapIcon) &&
         listEquals(other.similar, similar) &&
-        other.trace == trace &&
+        listEquals(other.trace, trace) &&
         listEquals(other.tags, tags);
   }
 
@@ -95,97 +98,67 @@ extension on Map<String, dynamic> {
   }
 }
 
-class Point {
-  double x;
-  double y;
-
-  static Point fromDynamic(List<dynamic> xy) {
-    return Point((xy[0] as num).toDouble(), (xy[1] as num).toDouble());
+extension Point on LatLng {
+  double distanceEuclidian(LatLng other) {
+    final (dx, dy) = (
+      (latitude - other.latitude),
+      (longitude - other.longitude),
+    );
+    return dx * dx + dy * dy;
   }
 
-  Point(this.x, this.y);
-
-  double distanceEuclidian(Point other) {
-    return (x - other.x) * (x - other.x) + (y - other.y) * (y - other.y);
+  LatLng add(LatLng other) {
+    return LatLng(latitude + other.latitude, longitude + other.longitude);
   }
 
-  Point add(other) {
-    return Point(x + other.x, y + other.y);
+  LatLng div(double d) {
+    return LatLng(latitude / d, longitude / d);
   }
-
-  Point div(double d) {
-    return Point(x / d, y / d);
-  }
-
-  @override
-  String toString() {
-    return "[$x, $y]";
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is Point && x == other.x && y == other.y;
-  }
-
-  @override
-  int get hashCode => x.hashCode ^ y.hashCode;
 }
 
-class ListPoints {
-  List<Point> points;
-
-  static ListPoints fromDynamicList(List<dynamic>? list) {
+extension ListPoints on List<LatLng> {
+  static List<LatLng> fromDynamicList(List<dynamic>? list) {
     if (list == null) {
-      return ListPoints([]);
+      return [];
     }
-
-    return ListPoints(list.map((item) => Point.fromDynamic(item)).toList());
+    return list.map((item) => LatLng.fromJson(item)).toList();
   }
 
-  static ListPoints fromTrackedData(List<TrackedData> data) {
-    return ListPoints(data.map((d) => Point(d.latitude, d.longitude)).toList());
+  static List<LatLng> fromDouble(List<List<double>> list) {
+    return list.map((item) => LatLng(item[0], item[1])).toList();
   }
 
-  ListPoints(this.points);
+  static List<LatLng> fromTrackedData(List<TrackedData> data) {
+    return data.map((d) => LatLng(d.latitude, d.longitude)).toList();
+  }
 
-  ListPoints trace(int segments) {
-    if (points.length < segments) {
-      return ListPoints(List.from(points));
+  List<LatLng> trace(int segments) {
+    if (length < segments) {
+      return List.from(this);
     }
-    return ListPoints(
-      List.generate(segments, (seg) {
-        final start = points.length * seg ~/ segments;
-        final end = points.length * (seg + 1) ~/ segments;
-        return ListPoints(points.sublist(start, end)).mean();
-      }),
-    );
+    return List.generate(segments, (seg) {
+      final start = length * seg ~/ segments;
+      final end = length * (seg + 1) ~/ segments;
+      return ListPoints(sublist(start, end)).mean();
+    });
   }
 
-  Point mean() {
-    return points.reduce((a, b) => (a.add(b))).div(points.length.toDouble());
+  LatLng mean() {
+    return reduce((a, b) => (a.add(b))).div(length.toDouble());
   }
 
-  double euclidianDistance(ListPoints other) {
-    return points.indexed.fold(
-      0.0,
-      (a, b) => a + b.$2.distanceEuclidian(other.points[b.$1]),
-    );
+  double euclidianDistance(List<LatLng> other) {
+    return indexed.fold(0.0, (a, b) => a + b.$2.distanceEuclidian(other[b.$1]));
   }
 
-  List<List<double>> toList() {
-    return points.map((p) => [p.x, p.y]).toList();
+  List<List<double>> toListDouble() {
+    return map((p) => [p.latitude, p.longitude]).toList();
   }
 
-  @override
-  bool operator ==(Object other) {
-    return other is ListPoints && listEquals(other.points, points);
-  }
-
-  @override
-  int get hashCode => points.hashCode;
-
-  @override
-  String toString() {
-    return "$points";
+  bool equals(Object other) {
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is List<LatLng> && listEquals(this, other);
   }
 }
