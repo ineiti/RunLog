@@ -48,7 +48,18 @@ class _MyAppState extends State<MyApp> {
     _appFutures = AppFutures.start();
   }
 
-  void _handleIncomingIntent(RunStorage runStorage, String altitudeURL) async {
+  void _asyncCalls(AppFutures appFutures) async {
+    await _handleIncomingIntent(
+      appFutures.runStorage,
+      appFutures.configurationStorage.config.altitudeURL,
+    );
+    await InitRuns(
+      appFutures.runStorage,
+      appFutures.configurationStorage,
+    ).updateAll();
+  }
+
+  Future<void> _handleIncomingIntent(RunStorage runStorage, String altitudeURL) async {
     // For files shared while the app is closed
     List<SharedMediaFile>? initialFiles =
         await ReceiveSharingIntent.instance.getInitialMedia();
@@ -70,7 +81,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  _processFile(
+  Future<void> _processFile(
     RunStorage runStorage,
     String filePath,
     String altitudeURL,
@@ -89,12 +100,12 @@ class _MyAppState extends State<MyApp> {
     Run newRun = await runStorage.createRun(DateTime.now());
     List<TrackedData> newData = GpxIO.fromGPX(newRun.id, content);
     for (var td in newData) {
-      runStorage.addTrackedData(td);
+      await runStorage.addTrackedData(td);
     }
     newRun.startTime = DateTime.fromMillisecondsSinceEpoch(
       newData.first.timestampMS,
     );
-    runStorage.updateRun(newRun);
+    await runStorage.updateRun(newRun);
     RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
     await rr.updateStats();
   }
@@ -102,7 +113,6 @@ class _MyAppState extends State<MyApp> {
   _processRLogFile(RunStorage runStorage, String filePath) async {
     File rlogFile = File(filePath);
     String content = await rlogFile.readAsString();
-    print("Content is: $content");
     await runStorage.importAll(content);
   }
 
@@ -136,14 +146,7 @@ class _MyAppState extends State<MyApp> {
               } else if (snapshot.hasData) {
                 // If the future completed successfully and has data (the RunStorage instance)
                 final appFutures = snapshot.data!;
-                _handleIncomingIntent(
-                  appFutures.runStorage,
-                  appFutures.configurationStorage.config.altitudeURL,
-                );
-                InitRuns(
-                  appFutures.runStorage,
-                  appFutures.configurationStorage,
-                ).updateAll();
+                _asyncCalls(appFutures);
 
                 return TabBarView(
                   children: [

@@ -240,13 +240,14 @@ class RunStorage {
     updateRuns.add([]);
   }
 
-  addTrackedData(TrackedData td) async {
+  Future<void> addTrackedData(TrackedData td) async {
     await db.insert(
       'TrackedData',
       td.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     trackedData[td.runId]!.add(td);
+    updateRuns.add([]);
   }
 
   Future<Run> _addRun(Run run) async {
@@ -261,6 +262,7 @@ class RunStorage {
   Future<void> updateRun(Run run) async {
     await db.update('Runs', run.toMap(), where: "id = ?", whereArgs: [run.id]);
     runs[run.id] = run;
+    updateRuns.add([]);
   }
 
   _updateTD(DatabaseExecutor db, TrackedData td) async {
@@ -278,6 +280,7 @@ class RunStorage {
     db.delete('sqlite_sequence');
     runs = {};
     trackedData = {};
+    updateRuns.add([]);
   }
 
   @override

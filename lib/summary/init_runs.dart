@@ -12,17 +12,12 @@ class InitRuns {
 
   InitRuns(this.runStorage, this.configurationStorage);
 
-  void updateAll() async {
+  Future<void> updateAll() async {
     var changed = false;
     for (final run in runStorage.runs.values) {
-      final c = await summarize(run.id);
-      if (c) {
-        print("Updated $run");
-      }
-      changed |= c;
+      changed |= await summarize(run.id);
     }
     if (changed) {
-      print("Something changed");
       final others = Map.fromEntries(
         runStorage.runs.values.map(
           (run) => MapEntry(run.id, run.summary!.trace),

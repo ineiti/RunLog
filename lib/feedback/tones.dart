@@ -36,11 +36,7 @@ class Tones {
 
   playSound(int maxSilence, double distanceM, double currentDuration) async {
     final frequencies = entry.getFrequencies(distanceM, currentDuration);
-    print(
-      "|freq|: ${frequencies.length} - idx: $idx - lastLength: $lastLength",
-    );
     if (idx < maxSilence && frequencies.length == lastLength) {
-      print("Silenced feedback");
       idx++;
       return;
     }
@@ -102,7 +98,6 @@ class Sound {
       );
       return;
     }
-    // print("Start playing");
     frequencies = freqs.map((f) => f / Sound.sampleRate * 2 * pi).toList();
     volume = vol;
     samples = (Sound.sampleRate * durationS).toInt();

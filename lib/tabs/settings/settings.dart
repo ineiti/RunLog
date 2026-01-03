@@ -27,9 +27,9 @@ class _SettingsState extends State<Settings> {
         (widget.configurationStorage.config.minFeedbackPace * 12).round() / 12;
     final feedPaceMax =
         (widget.configurationStorage.config.maxFeedbackPace * 12).round() / 12;
-    final divisionsMin = ((feedPaceMax - 1) * 12).round();
-    final divisionsMax = ((10 - feedPaceMin) * 12).round();
-    print("$feedPaceMin..$feedPaceMax - $divisionsMin / $divisionsMax");
+    // final divisionsMin = ((feedPaceMax - 1) * 12).round();
+    // final divisionsMax = ((10 - feedPaceMin) * 12).round();
+    // print("$feedPaceMin..$feedPaceMax - $divisionsMin / $divisionsMax");
     // print("Items are: ${runs.length} - ${widget.runStorage.runs}");
     // print(widget.runStorage);
     return Scaffold(

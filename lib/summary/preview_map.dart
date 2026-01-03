@@ -121,18 +121,15 @@ class MapPreviewGenerator {
 
     final widthTiles = (width / _tileSize).ceil();
     final heightTiles = (height / _tileSize).ceil();
-    print("centerTileX/centerTileY: $centerTileX/$centerTileY");
     for (int dx = -widthTiles; dx <= widthTiles; dx++) {
       for (int dy = -heightTiles; dy <= heightTiles; dy++) {
         final tileX = (centerTileX + dx).floor();
         final offsetX = ((tileX - centerTileX) * _tileSize + width / 2);
-        print("dx/tileX/offsetX: $dx/$tileX/$offsetX");
         if (offsetX <= -_tileSize || offsetX >= width) {
           continue;
         }
         final tileY = (centerTileY + dy).floor();
         final offsetY = ((tileY - centerTileY) * _tileSize + height / 2);
-        print("dy/tileY/offsetY: $dy/$tileY/$offsetY");
         if (offsetY <= -_tileSize || offsetY >= height) {
           continue;
         }
@@ -150,7 +147,6 @@ class MapPreviewGenerator {
           late ImageStreamListener listener;
           listener = ImageStreamListener(
             (ImageInfo info, bool syncCall) {
-              print("Got image");
               imageStream.removeListener(listener); // Clean up immediately
               completer.complete(info.image);
             },
@@ -165,13 +161,11 @@ class MapPreviewGenerator {
 
           // Await the completer's future to get the ui.Image
           final tileImage = await completer.future;
-          print(tileImage);
           if (tileImage.height == 1) {
             print("Very small tileImage");
           }
 
           // Calculate position for this tile
-          print("Drawing image");
           canvas.drawImage(tileImage, Offset(offsetX, offsetY), tilePaint);
         } catch (e) {
           // Tile might not exist or failed to load, skip it
@@ -289,7 +283,6 @@ extension Ratio on LatLngBounds {
   // This calculates the correct bounds to fit the trace into
   // a rectangle, so the rectangle has the ration width/height.
   (LatLngBounds, int) ratioZoom(int tileSize, int width, int height) {
-    print(toString());
     final heightLL = Vincenty().distance(southWest, northWest);
     final widthLL = Vincenty().distance(southWest, southEast);
 
