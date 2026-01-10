@@ -67,6 +67,11 @@ Probably not...
 
 # Changelog
 
+2026-01-10:
+- adding maps to history
+- small maps for overview
+- added ReRun feature: base the pace on a previous run
+
 2025-09-20:
 - adding targetPace stats to the figures
 - making nicer y-axis labels for pace

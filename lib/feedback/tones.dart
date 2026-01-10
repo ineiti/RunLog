@@ -235,6 +235,10 @@ class SFEntry {
     targetSpeeds.last.speedMS = targetSpeeds.last.distanceM / totalDurationS;
   }
 
+  double getDistance(){
+    return targetSpeeds.last.distanceM;
+  }
+
   double getDurationS(double distanceM) {
     return getIndexDurationS(distanceM).$2;
   }
@@ -259,8 +263,8 @@ class SFEntry {
     }
     double duration = 0;
     for (int i = 0; i < targetSpeeds.length - 1; i++) {
-      final now = targetSpeeds[i];
-      final after = targetSpeeds[i + 1].distanceM;
+      SpeedPoint now = targetSpeeds[i];
+      double after = targetSpeeds[i + 1].distanceM;
       if (after >= distanceM) {
         return (i, duration + (distanceM - now.distanceM) / now.speedMS);
       } else {
@@ -365,7 +369,10 @@ class SpeedPoint {
 
   @override
   String toString() {
-    return "($distanceM, ${conversions.toPaceMinKm(speedMS).toStringAsFixed(3)})";
+    return "($distanceM, ${speedMS.toStringAsFixed(3)})";
+    // 260110: This was the previous definition - not sure if something breaks
+    // with the new definition :(
+    // return "($distanceM, ${conversions.toPaceMinKm(speedMS).toStringAsFixed(3)})";
   }
 
   SpeedPoint clone() {

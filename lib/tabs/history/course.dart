@@ -5,9 +5,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:run_log/feedback/feedback.dart';
+import 'package:run_log/feedback/tones.dart';
 import 'package:run_log/stats/track_map.dart';
+import 'package:run_log/tabs/running/pace_widget.dart';
 
 import '../../configuration.dart';
+import '../../main.dart';
 import '../../stats/conversions.dart';
 import '../../stats/run_stats.dart';
 import '../../storage.dart';
@@ -117,6 +121,7 @@ class _DetailPageState extends State<DetailPage> {
       blueButton("Export", () => _trackExport(context)),
       blueButton("Delete", () => _trackDelete(context)),
       blueButton("Height", () => _trackHeight(context)),
+      blueButton("Re-Run", () => _reRun(context)),
     ];
     if (widget.configurationStorage.config.debug) {
       children.add(blueButton("Clear", () => _trackClear(context)));
@@ -204,6 +209,13 @@ class _DetailPageState extends State<DetailPage> {
             ],
           ),
     );
+  }
+
+  Future<void> _reRun(BuildContext context) async {
+    Navigator.of(context).pop();
+    final controller = DefaultTabController.of(tabKey.currentContext!);
+    controller.index = 1;
+    PaceWidget.initEntries.add([ReRun(rr!.pointsTime(filterDivisions))]);
   }
 
   Future<void> _trackExport(BuildContext context) async {

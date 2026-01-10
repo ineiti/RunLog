@@ -1,4 +1,6 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:run_log/feedback/tones.dart';
+import 'package:run_log/stats/conversions.dart';
 import 'package:test/test.dart';
 
 import 'package:run_log/stats/run_data.dart';
@@ -36,6 +38,31 @@ void main() {
     expect(rr.state, RSState.running);
     rr.addPosition(pm.stepFast());
     expect(rr.state, RSState.running);
+  });
+
+  test('Convert to SpeedPoints', () {
+    PositionMock pm = PositionMock();
+    RunStats rr = RunStats(
+      rawPositions: [],
+      run: Run(id: 1, startTime: DateTime.now()),
+    );
+    rr.addPosition(pm.pos);
+    for (var i = 0; i < 100; i++) {
+      rr.addPosition(pm.stepFast());
+    }
+    // print("runningData: ${rr.runningData}");
+    final sp = rr.pointsTime(10);
+    // print("Filtered points: $sp");
+    final sf = SFEntry.fromPoints(sp);
+    // print("targetSpeeds: ${sf.targetSpeeds}");
+    final dist = sf.getDistance();
+    expect(dist, closeTo(rr.runningData.last.mps * 100, 0.01));
+    final duration = sf.getDurationS(dist);
+    expect(duration, closeTo(rr.runningData.last.ts, 0.01));
+    final mps = dist / duration;
+    expect(mps, closeTo(rr.runningData.first.mps, 0.01));
+    final pace = toPaceMinKm(mps);
+    print("pace($dist / $duration = ${dist / duration}) = $pace");
   });
 
   test('Resampling TrackData', () {

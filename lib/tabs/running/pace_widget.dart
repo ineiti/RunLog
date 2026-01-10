@@ -5,9 +5,12 @@ import '../../feedback/feedback.dart';
 import '../../feedback/tones.dart';
 import '../../stats/conversions.dart';
 
+import '../../stats/figures.dart';
+import '../../stats/filter_data.dart';
 import '../basic.dart';
 
 class PaceWidget extends StatefulWidget {
+  static StreamController<List<PaceEntryImp>> initEntries = StreamController();
   final StreamController<FeedbackContainer> updateEntries;
 
   const PaceWidget({super.key, required this.updateEntries});
@@ -17,57 +20,62 @@ class PaceWidget extends StatefulWidget {
 }
 
 class _PaceWidgetState extends State<PaceWidget> {
-  final List<_PaceEntryImp> _entries = [];
+  final List<PaceEntryImp> _entries = [];
 
   @override
   void initState() {
     super.initState();
-    _initEntries();
+    _entries.add(_PaceAdder(_entries, _AdderPos.beginning));
   }
 
   @override
   Widget build(BuildContext context) {
     var pointsSum = _points.clone();
     pointsSum.calcSum();
-    widget.updateEntries.add(
-      FeedbackContainer.fromPace(pointsSum),
+    widget.updateEntries.add(FeedbackContainer.fromPace(pointsSum));
+    return StreamBuilder(
+      stream: PaceWidget.initEntries.stream,
+      builder: (context, snapshot) {
+        if (snapshot.data != null) {
+          if (snapshot.data!.isNotEmpty) {
+            _entries.clear();
+            _entries.addAll(snapshot.data!);
+            PaceWidget.initEntries.add([]);
+          }
+        }
+        return Column(
+          children: [
+            blueButton("Clear", () {
+              PaceWidget.initEntries.add([
+                _PaceAdder(_entries, _AdderPos.beginning),
+              ]);
+            }),
+            _totalFeedback(),
+            Flexible(
+              flex: 1,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _entries.length,
+                itemBuilder: (context, index) {
+                  final entry = _entries[index];
+                  return Card(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      child: entry.getWidget(() {
+                        setState(() {});
+                      }),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
-    return Column(
-      children: [
-        blueButton("Clear", () {
-          setState(() {
-            _initEntries();
-          });
-        }),
-        _totalFeedback(),
-        Flexible(
-          flex: 1,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _entries.length,
-            itemBuilder: (context, index) {
-              final entry = _entries[index];
-              return Card(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                  child: entry.getWidget(() {
-                    setState(() {});
-                  }),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _initEntries() {
-    _entries.clear();
-    _entries.add(_PaceAdder(_entries, _AdderPos.beginning));
   }
 
   SFEntry get _points => SFEntry.fromPoints(
@@ -96,7 +104,7 @@ class _PaceWidgetState extends State<PaceWidget> {
   }
 }
 
-abstract class _PaceEntryImp {
+abstract class PaceEntryImp {
   _Entries get type;
 
   Widget getWidget(VoidCallback setState);
@@ -104,12 +112,83 @@ abstract class _PaceEntryImp {
   List<SpeedPoint> getPoints();
 }
 
-enum _Entries { adder, pace, paceLength, intervals }
+class ReRun implements PaceEntryImp {
+  double _paceMinKm = 6;
+  final List<SpeedPoint> _runOrig;
+  late List<SpeedPoint> _run;
+  late double _dist;
+  late double _duration;
+  late double _pace;
+
+  ReRun(this._runOrig) {
+    final sf = SFEntry.fromPoints(_runOrig);
+    _dist = sf.getDistance();
+    _duration = sf.getDurationS(_dist);
+    _pace = toPaceMinKm(_dist / _duration);
+    _paceMinKm = _pace;
+    _updateRun();
+  }
+
+  @override
+  _Entries get type => _Entries.reRun;
+
+  @override
+  Widget getWidget(VoidCallback setState) {
+    final figure = Figure();
+    figure.lines.add(LineStat(type: LineType.speed, filterLength: 1));
+    figure.updateRunningData(ListData.fromSpeedPoints(_run));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Distance: ${distanceStr(_dist)} - Orig. pace: ${minSec(_pace)}"),
+        paceSlider(
+          (value) {
+            _paceMinKm = value;
+            _updateRun();
+            setState();
+          },
+          _paceMinKm,
+          "Pace",
+          4,
+          8,
+        ),
+        figure.chart(),
+      ],
+    );
+  }
+
+  @override
+  List<SpeedPoint> getPoints() {
+    var lastDistance = 0.0;
+    return _runOrig.map((sp) {
+      final ret = SpeedPoint(
+        distanceM: sp.distanceM - lastDistance,
+        speedMS: sp.speedMS * _pace / _paceMinKm,
+      );
+      lastDistance = sp.distanceM;
+      return ret;
+    }).toList();
+  }
+
+  void _updateRun() {
+    _run =
+        _runOrig
+            .map(
+              (sp) => SpeedPoint(
+                distanceM: sp.distanceM,
+                speedMS: sp.speedMS * _pace / _paceMinKm,
+              ),
+            )
+            .toList();
+  }
+}
+
+enum _Entries { adder, pace, paceLength, intervals, reRun }
 
 enum _AdderPos { beginning, end }
 
-class _PaceAdder implements _PaceEntryImp {
-  final List<_PaceEntryImp> _entries;
+class _PaceAdder implements PaceEntryImp {
+  final List<PaceEntryImp> _entries;
   final _AdderPos position;
 
   _PaceAdder(this._entries, this.position);
@@ -149,10 +228,12 @@ class _PaceAdder implements _PaceEntryImp {
   _Entries get type => _Entries.adder;
 
   void _insertEntry(_Entries entry) {
-    _PaceEntryImp? imp;
+    PaceEntryImp? imp;
     var insert = position == _AdderPos.beginning ? 1 : _entries.length - 1;
     switch (entry) {
       case _Entries.adder:
+        return;
+      case _Entries.reRun:
         return;
       case _Entries.pace:
         imp = _Pace();
@@ -179,7 +260,7 @@ class _PaceAdder implements _PaceEntryImp {
   }
 }
 
-class _Pace implements _PaceEntryImp {
+class _Pace implements PaceEntryImp {
   double _paceMinKm = 6;
 
   _Pace();
@@ -209,7 +290,7 @@ class _Pace implements _PaceEntryImp {
 
 enum _PLDuDi { duration, distance }
 
-class _PaceLength implements _PaceEntryImp {
+class _PaceLength implements PaceEntryImp {
   double _pace = 6;
   final TimeHMS _duration = TimeHMS("Duration", 0, 12, 0);
   final LengthKmM _distance = LengthKmM("Distance", 2, 0);
@@ -287,7 +368,7 @@ class _PaceLength implements _PaceEntryImp {
   double get _paceSM => _pace * 60 / 1000;
 }
 
-class _PaceIntervals implements _PaceEntryImp {
+class _PaceIntervals implements PaceEntryImp {
   int _repetitions = 4;
   final _PaceLength _first = _PaceLength();
   final _PaceLength _second = _PaceLength();

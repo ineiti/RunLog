@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:run_log/feedback/tones.dart';
+
 class FilterData {
   List<XYData> filteredData = [];
   late List<double> lanczos;
@@ -110,6 +112,16 @@ class TimeData {
 }
 
 extension ListData on List<TimeData> {
+  static List<TimeData> fromSpeedPoints(List<SpeedPoint> points) {
+    var time = 0.0;
+    var lastDist = 0.0;
+    return points.map((sp) {
+      time += (sp.distanceM - lastDist) / sp.speedMS;
+      lastDist = sp.distanceM;
+      return TimeData(time, sp.speedMS, 0, 0, null, null);
+    }).toList();
+  }
+
   List<XYData> speed() {
     return map((td) => XYData(td.ts, td.mps)).toList();
   }

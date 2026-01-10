@@ -40,6 +40,8 @@ class AppFutures {
   AppFutures({required this.runStorage, required this.configurationStorage});
 }
 
+final GlobalKey<ScaffoldState> tabKey = GlobalKey<ScaffoldState>();
+
 class _MyAppState extends State<MyApp> {
   late Future<AppFutures> _appFutures;
 
@@ -123,6 +125,7 @@ class _MyAppState extends State<MyApp> {
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
+          key: tabKey,
           appBar: AppBar(
             bottom: const TabBar(
               tabs: <Widget>[

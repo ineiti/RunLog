@@ -78,9 +78,25 @@ class Figures {
     if (index >= figures.length) {
       return null;
     }
+    return figures[index].chart();
+  }
+}
+
+class Figure {
+  List<LineStat> lines = [];
+
+  Figure();
+
+  void updateRunningData(List<TimeData> runningData) {
+    for (var line in lines) {
+      line.updateData(runningData);
+    }
+  }
+
+  SfCartesianChart chart() {
     return SfCartesianChart(
-      axes: figures[index].axes(),
-      series: figures[index].series(),
+      axes: _axes(),
+      series: _series(),
       zoomPanBehavior: ZoomPanBehavior(
         enablePinching: true,
         enablePanning: true,
@@ -97,20 +113,8 @@ class Figures {
       tooltipBehavior: TooltipBehavior(enable: true),
     );
   }
-}
 
-class Figure {
-  List<LineStat> lines = [];
-
-  Figure();
-
-  void updateRunningData(List<TimeData> runningData) {
-    for (var line in lines) {
-      line.updateData(runningData);
-    }
-  }
-
-  List<ChartAxis> axes() {
+  List<ChartAxis> _axes() {
     final List<(LineType, (double, double))> axeMinMax =
         lines.map((l) => (l.type, l.minMax())).toList();
     axeMinMax.sort((a, b) => a.$1.toString().compareTo(b.$1.toString()));
@@ -133,12 +137,8 @@ class Figure {
     return axeMinMax.map((axe) => _chartAxis(axe.$1, axe.$2)).toList();
   }
 
-  List<CartesianSeries> series() {
+  List<CartesianSeries> _series() {
     return lines.map((line) => line.serie()).expand((l) => l).toList();
-  }
-
-  double maxValue() {
-    return 10;
   }
 
   ChartAxis _chartAxis(LineType type, (double, double) mm) {

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:geolocator/geolocator.dart' as geo;
+import 'package:run_log/feedback/tones.dart';
 
 import '../../stats/conversions.dart';
 import '../../stats/filter_data.dart';
@@ -41,6 +43,21 @@ class RunStats {
       }
       _finalize();
     }
+  }
+
+  List<SpeedPoint> pointsTime(int divisions) {
+    final length = max(runningData.length ~/ divisions, 1);
+    final FilterData filter = FilterData.subSampled(length, divisions);
+    filter.update(runningData.speed());
+    var distance = 0.0;
+    var time = 0.0;
+    return filter.filteredData
+        .map((id) {
+          distance += (id.dt - time) * id.y;
+          time = id.dt;
+          return SpeedPoint(distanceM: distance, speedMS: id.y);
+        })
+        .toList();
   }
 
   // Start from the end and remove all points which are slower than

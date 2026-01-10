@@ -58,6 +58,21 @@ void main() {
     expectMS(speeds[3].speedMS, 10);
   });
 
+  test('Calculate mean speed', () {
+    var entry = SFEntry.fromPoints([
+      SpeedPoint.fromMinKm(0, 5.5),
+      SpeedPoint.fromMinKm(1000, 5.5),
+      SpeedPoint.fromMinKm(2000, 5.5),
+      SpeedPoint.fromMinKm(4000, 5.5),
+      SpeedPoint.fromMinKm(8000, 5.5),
+    ]);
+    final distance = entry.getDistance();
+    final duration = entry.getDurationS(distance);
+    print("$distance - $duration");
+    print(distance/duration);
+    print(toPaceMinKm(distance/duration));
+  });
+
   test('Get Duration - 1', () {
     var entry = SFEntry.startMinKm(0);
     entry.addPoint(SpeedPoint.fromMinKm(500, 10));
