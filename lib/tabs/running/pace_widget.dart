@@ -135,7 +135,7 @@ class ReRun implements PaceEntryImp {
   @override
   Widget getWidget(VoidCallback setState) {
     final figure = Figure();
-    figure.lines.add(LineStat(type: LineType.speed, filterLength: 1));
+    figure.lines.add(LineStat(type: LineType.targetPace, filterLength: 1));
     figure.updateRunningData(ListData.fromSpeedPoints(_run));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

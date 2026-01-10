@@ -215,7 +215,7 @@ class _DetailPageState extends State<DetailPage> {
     Navigator.of(context).pop();
     final controller = DefaultTabController.of(tabKey.currentContext!);
     controller.index = 1;
-    PaceWidget.initEntries.add([ReRun(rr!.pointsTime(filterDivisions))]);
+    PaceWidget.initEntries.add([ReRun(rr!.pointsTime(filterDivisions * 2))]);
   }
 
   Future<void> _trackExport(BuildContext context) async {

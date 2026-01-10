@@ -24,7 +24,7 @@ class ToneFeedback {
     );
   }
 
-  ToneFeedback(this.tones, this._paceUpdates, this._pace){
+  ToneFeedback(this.tones, this._paceUpdates, this._pace) {
     _paceUpdates.stream.listen((update) => tones.setEntry(update.target));
   }
 
@@ -33,10 +33,19 @@ class ToneFeedback {
     _maxFeedbackSilence = maxFeedbackSilence;
   }
 
-  Future<void> updateRunning(double durationS, double distanceM) async {
+  Future<void> updateRunning(
+    bool announceChange,
+    double durationS,
+    double distanceM,
+  ) async {
     if (tones.hasEntry()) {
       if (durationS >= _nextSoundS) {
-        await tones.playSound(_maxFeedbackSilence, distanceM, durationS);
+        await tones.playSound(
+          _maxFeedbackSilence,
+          announceChange,
+          distanceM,
+          durationS,
+        );
         while (_nextSoundS <= durationS) {
           _nextSoundS += _soundIntervalS;
         }
@@ -44,10 +53,7 @@ class ToneFeedback {
     }
   }
 
-  Widget configWidget(
-    ConfigurationStorage config,
-    VoidCallback setState,
-  ) {
+  Widget configWidget() {
     return _pace;
   }
 

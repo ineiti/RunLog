@@ -71,6 +71,8 @@ Probably not...
 - adding maps to history
 - small maps for overview
 - added ReRun feature: base the pace on a previous run
+- allow to not announce changes in targetSpeed 
+- toneFeedback is now 0-2s, 2-4s, 4-8s, ...
 
 2025-09-20:
 - adding targetPace stats to the figures

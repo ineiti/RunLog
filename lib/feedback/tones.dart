@@ -34,8 +34,17 @@ class Tones {
     sound.reset();
   }
 
-  Future<void> playSound(int maxSilence, double distanceM, double currentDuration) async {
-    final frequencies = entry.getFrequencies(distanceM, currentDuration);
+  Future<void> playSound(
+    int maxSilence,
+    bool announceChange,
+    double distanceM,
+    double currentDuration,
+  ) async {
+    final frequencies = entry.getFrequencies(
+      announceChange,
+      distanceM,
+      currentDuration,
+    );
     if (idx < maxSilence && frequencies.length == lastLength) {
       idx++;
       return;
@@ -235,7 +244,7 @@ class SFEntry {
     targetSpeeds.last.speedMS = targetSpeeds.last.distanceM / totalDurationS;
   }
 
-  double getDistance(){
+  double getDistance() {
     return targetSpeeds.last.distanceM;
   }
 
@@ -278,31 +287,42 @@ class SFEntry {
     );
   }
 
-  List<double> getFrequencies(double distanceM, double currentDuration) {
+  List<double> getFrequencies(
+    bool announceChange,
+    double distanceM,
+    double currentDuration,
+  ) {
     final List<double> frequencies = [440];
     final (index, targetDuration) = getIndexDurationS(distanceM);
     if (index != currIndex) {
-      frequencies.add(440);
-      final sign =
-          (targetSpeeds[index].speedMS - targetSpeeds[currIndex].speedMS).sign;
-      // print("Changing targetSpeed: $sign");
-      frequencies.add(440.0 * pow(2, sign / 12));
-      frequencies.add(0);
-      frequencies.add(0);
-      frequencies.add(440);
+      if (announceChange) {
+        frequencies.add(440);
+        final sign =
+            (targetSpeeds[index].speedMS - targetSpeeds[currIndex].speedMS)
+                .sign;
+        // print("Changing targetSpeed: $sign");
+        frequencies.add(440.0 * pow(2, sign / 12));
+        frequencies.add(0);
+        frequencies.add(0);
+        frequencies.add(440);
+      }
       currIndex = index;
     }
     var diffDuration = currentDuration - targetDuration;
     // print("Index: $currIndex/$index - DiffDuration: $diffDuration");
     for (
-      var diffSteps = (log(diffDuration.abs()) / ln2).floor();
-      diffSteps >= 0;
-      diffSteps--
+      var diffSteps = 0;
+      diffSteps < calcDiffCount(diffDuration);
+      diffSteps++
     ) {
       frequencies.add(frequencies.last * pow(2, diffDuration.sign / 12));
     }
     // print("Frequencies: $frequencies");
     return frequencies;
+  }
+
+  static int calcDiffCount(double diffDuration) {
+    return max((log(diffDuration.abs() + 0.1) / ln2).floor(), 0);
   }
 
   @override

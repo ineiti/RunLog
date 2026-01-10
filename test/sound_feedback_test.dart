@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:test/test.dart';
 
 import 'package:run_log/feedback/tones.dart';
@@ -69,8 +71,21 @@ void main() {
     final distance = entry.getDistance();
     final duration = entry.getDurationS(distance);
     print("$distance - $duration");
-    print(distance/duration);
-    print(toPaceMinKm(distance/duration));
+    print(distance / duration);
+    print(toPaceMinKm(distance / duration));
+  });
+
+  test('Calculate Frequencies', () {
+    final diffs = [
+      [0, 0],
+      [1.89, 0],
+      [2, 1],
+      [3.89, 1],
+      [4, 2],
+    ];
+    for (final diff in diffs) {
+      expect(SFEntry.calcDiffCount(diff.first.toDouble()), diff.last);
+    }
   });
 
   test('Get Duration - 1', () {

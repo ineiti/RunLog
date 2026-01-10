@@ -10,6 +10,7 @@ enum _Fields {
   maxFeedbackSilence,
   minFeedbackPace,
   maxFeedbackPace,
+  announceTargetChange,
 }
 
 class Configuration {
@@ -19,6 +20,7 @@ class Configuration {
   final int maxFeedbackSilence;
   final double minFeedbackPace;
   final double maxFeedbackPace;
+  final bool announceTargetChange;
   static int version = 1;
 
   static Configuration fromJson(String json) {
@@ -35,6 +37,8 @@ class Configuration {
               (conf[_Fields.minFeedbackPace.name] ?? 4.0) as double,
           maxFeedbackPace:
               (conf[_Fields.maxFeedbackPace.name] ?? 8.0) as double,
+          announceTargetChange:
+              (conf[_Fields.announceTargetChange.name] ?? false) as bool,
         );
       default:
         return Configuration(
@@ -44,6 +48,7 @@ class Configuration {
           maxFeedbackSilence: 4,
           minFeedbackPace: 4,
           maxFeedbackPace: 8,
+          announceTargetChange: false,
         );
     }
   }
@@ -55,6 +60,7 @@ class Configuration {
     required this.maxFeedbackSilence,
     required this.minFeedbackPace,
     required this.maxFeedbackPace,
+    required this.announceTargetChange,
   });
 
   Configuration setDebug(bool debug) {
@@ -65,6 +71,7 @@ class Configuration {
       maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
     );
   }
 
@@ -76,6 +83,7 @@ class Configuration {
       maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
     );
   }
 
@@ -87,6 +95,7 @@ class Configuration {
       maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
     );
   }
 
@@ -98,6 +107,7 @@ class Configuration {
       maxFeedbackSilence: maxFeedbackSoundWait,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
     );
   }
 
@@ -109,6 +119,7 @@ class Configuration {
       maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
     );
   }
 
@@ -120,6 +131,19 @@ class Configuration {
       maxFeedbackSilence: maxFeedbackSilence,
       minFeedbackPace: minFeedbackPace,
       maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
+    );
+  }
+
+  Configuration setAnnounceTargetChange(bool announceTargetChange) {
+    return Configuration(
+      debug: debug,
+      simulateGPS: simulateGPS,
+      altitudeURL: altitudeURL,
+      maxFeedbackSilence: maxFeedbackSilence,
+      minFeedbackPace: minFeedbackPace,
+      maxFeedbackPace: maxFeedbackPace,
+      announceTargetChange: announceTargetChange,
     );
   }
 
@@ -131,6 +155,7 @@ class Configuration {
       _Fields.maxFeedbackSilence.name: maxFeedbackSilence,
       _Fields.minFeedbackPace.name: minFeedbackPace,
       _Fields.maxFeedbackPace.name: maxFeedbackPace,
+      _Fields.announceTargetChange.name: announceTargetChange,
       _Fields.version.name: version,
     });
   }
@@ -142,7 +167,9 @@ class ConfigurationStorage {
 
   static Future<ConfigurationStorage> loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
-    final config = Configuration.fromJson(prefs.getString(_Fields.config.name) ?? "{}");
+    final config = Configuration.fromJson(
+      prefs.getString(_Fields.config.name) ?? "{}",
+    );
     return ConfigurationStorage(config: config, prefs: prefs);
   }
 

@@ -96,12 +96,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
                 _paceSpeechDropdown(() => setState(() {})),
               ],
             ),
-            Flexible(
-              flex: 1,
-              child: feedback.configWidget(widget.configurationStorage, () {
-                setState(() {});
-              }),
-            ),
+            Flexible(flex: 1, child: feedback.configWidget()),
             blueButton("Start Running", () => _startRunning()),
           ],
         );
@@ -128,6 +123,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     geoListen = geoTracker.streamPosition.listen((pos) async {
       runStats!.addPosition(pos);
       await feedback.updateRunning(
+        widget.configurationStorage.config.announceTargetChange,
         runStats!.durationSec(),
         runStats!.distanceM(),
       );

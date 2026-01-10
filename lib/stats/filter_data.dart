@@ -115,11 +115,18 @@ extension ListData on List<TimeData> {
   static List<TimeData> fromSpeedPoints(List<SpeedPoint> points) {
     var time = 0.0;
     var lastDist = 0.0;
-    return points.map((sp) {
-      time += (sp.distanceM - lastDist) / sp.speedMS;
-      lastDist = sp.distanceM;
-      return TimeData(time, sp.speedMS, 0, 0, null, null);
-    }).toList();
+    return points
+        .map((sp) {
+          List<TimeData> ret = [
+            TimeData(time, sp.speedMS, 0, 0, null, sp.speedMS),
+          ];
+          time += (sp.distanceM - lastDist) / sp.speedMS;
+          lastDist = sp.distanceM;
+          ret.add(TimeData(time, sp.speedMS, 0, 0, null, sp.speedMS));
+          return ret;
+        })
+        .expand((list) => list)
+        .toList();
   }
 
   List<XYData> speed() {

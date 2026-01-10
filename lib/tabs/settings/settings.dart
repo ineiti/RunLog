@@ -140,6 +140,18 @@ class _SettingsState extends State<Settings> {
               feedPaceMin,
               10,
             ),
+            CheckboxListTile(
+              title: Text("Announce Target Change"),
+              value: widget.configurationStorage.config.announceTargetChange,
+              onChanged: (bool? value) async {
+                if (value != null) {
+                  await widget.configurationStorage.updateConfig(
+                    widget.configurationStorage.config.setAnnounceTargetChange(value),
+                  );
+                  setState(() {});
+                }
+              },
+            ),
           ],
         ),
       ),

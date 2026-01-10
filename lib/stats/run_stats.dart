@@ -47,11 +47,12 @@ class RunStats {
 
   List<SpeedPoint> pointsTime(int divisions) {
     final length = max(runningData.length ~/ divisions, 1);
-    final FilterData filter = FilterData.subSampled(length, divisions);
+    final FilterData filter = FilterData.subSampled(length, divisions * 3);
     filter.update(runningData.speed());
     var distance = 0.0;
     var time = 0.0;
     return filter.filteredData
+        .everyNthStartingAt(3, 1)
         .map((id) {
           distance += (id.dt - time) * id.y;
           time = id.dt;
@@ -294,5 +295,19 @@ class Resampler {
   void pause() {
     tsReferenceMS += sampleIntervalMS;
     sampleCount--;
+  }
+}
+
+extension ListExtensions<T> on List<T> {
+  List<T> everyNth(int n) {
+    return everyNthStartingAt(n, 0);
+  }
+
+  List<T> everyNthStartingAt(int n, int start) {
+    List<T> result = [];
+    for (int i = start; i < length; i += n) {
+      result.add(this[i]);
+    }
+    return result;
   }
 }
