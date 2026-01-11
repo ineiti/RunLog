@@ -75,9 +75,14 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
             title: Text("RunLog"),
           ),
           body: SafeArea(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              child: _runWidget(snapshot.data),
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                child: _runWidget(snapshot.data),
+              ),
             ),
           ),
         );
@@ -173,7 +178,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   List<Widget> _widgetAccuracy(BuildContext context, double? accuracy) {
-    return [Text("Accuracy: ${accuracy?.toStringAsFixed(1)}")];
+    if (accuracy == null) {
+      return [Text("Waiting for GPS")];
+    }
+    return [Text("Accuracy: ${accuracy.toStringAsFixed(1)}")];
   }
 
   List<Widget> _widgetRunning(BuildContext context, RSState? s) {
@@ -194,9 +202,32 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
                 ? "Required accuracy: ${runStats!.minAccuracy.toInt()}m"
                 : "",
           ),
+          Spacer(),
+          blueButton("Cancel", () async {
+            await _cancel();
+          }),
         ];
       case RSState.waitRunning:
-        return [_stats("Ready to run! GO!!!")];
+        final List<Widget> ret = [];
+        if (runStats!.currentSpeed == null) {
+          ret.add(_stats("Waiting for first position"));
+        } else {
+          final cs = runStats!.currentSpeed!;
+          final current =
+              cs > 0 ? minSec(toPaceMinKm(runStats!.currentSpeed!)) : "Pause";
+          final minimal = minSec(toPaceMinKm(runStats!.minSpeedStart));
+          ret.addAll([
+            _stats("Ready to run! GO!!!"),
+            Text("Waiting for pace ($current) < $minimal"),
+          ]);
+        }
+        ret.addAll([
+          Spacer(),
+          blueButton("Cancel", () async {
+            await _cancel();
+          }),
+        ]);
+        return ret;
       case RSState.running:
         return _showRunning(context, false);
       case RSState.paused:

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -148,7 +149,10 @@ extension ListPoints on List<LatLng> {
   }
 
   double euclidianDistance(List<LatLng> other) {
-    return indexed.fold(0.0, (a, b) => a + b.$2.distanceEuclidian(other[b.$1]));
+    if (isEmpty || other.isEmpty){
+      return 1e100;
+    }
+    return sublist(0, min(length, other.length)).indexed.fold(0.0, (a, b) => a + b.$2.distanceEuclidian(other[b.$1]));
   }
 
   List<List<double>> toListDouble() {

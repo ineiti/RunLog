@@ -23,6 +23,7 @@ class RunStats {
   double minAccuracy = 10;
   double minSpeedStart = toSpeedMS(8);
   double minSpeedRun = toSpeedMS(16);
+  double? currentSpeed;
   bool runPaused = false;
 
   static Future<RunStats> newRun(RunStorage storage) async {
@@ -188,7 +189,7 @@ class RunStats {
   void _newResampled(TrackedData td) {
     // print("lastMov: $lastMovement");
     // print("td: $td");
-    final speed = lastMovement!.speedMS(td);
+    currentSpeed = lastMovement!.speedMS(td);
     // print("Speed: $speed");
     double slope = 100 / lastMovement!.distanceM(td);
     if (td.altitudeCorrected != null &&
@@ -202,14 +203,14 @@ class RunStats {
 
     // Wait for minSpeedStart before starting to record speed.
     if (runningData.isEmpty) {
-      if (speed < minSpeedStart) {
+      if (currentSpeed! < minSpeedStart) {
         resampler!.pause();
         return;
       }
       runningData.add(
         TimeData(
           0,
-          speed,
+          currentSpeed!,
           td.altitude,
           0,
           td.altitudeCorrected,
@@ -224,7 +225,7 @@ class RunStats {
     // If running speed is below minSpeedRun, don't count the interval
     // and don't add it to rawSpeed.
     // TODO: the pauses could be shown in the figure.
-    runPaused = speed < minSpeedRun;
+    runPaused = currentSpeed! < minSpeedRun;
     if (runPaused) {
       resampler!.pause();
       return;
@@ -232,12 +233,12 @@ class RunStats {
     runningData.add(
       resampler!.timeData(
         td.timestampMS,
-        speed,
+        currentSpeed!,
         td.altitude,
         slope,
         td.altitudeCorrected,
         run.feedback?.target.getTargetSpeed(
-          distanceM() + speed * resampler!.sampleIntervalMS / 1000,
+          distanceM() + currentSpeed! * resampler!.sampleIntervalMS / 1000,
         ),
       ),
     );

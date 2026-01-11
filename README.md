@@ -68,7 +68,8 @@ Probably not...
 # Changelog
 
 2026-01-11:
-- starting GPS at the beginning, and show accuracy
+- starting GPS at the beginning, and show accuracy and current speed
+- add a "cancel" button in the waiting screens
 
 2026-01-10:
 - adding maps to history
