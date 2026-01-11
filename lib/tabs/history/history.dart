@@ -64,12 +64,10 @@ class _HistoryState extends State<History> {
               Column(
                 children: [
                   _debugRuns(),
-                  blueButton(
-                    "Export All",
-                    () => setState(() async {
-                      await _exportAll(context);
-                    }),
-                  ),
+                  blueButton("Export All", () async {
+                    await _exportAll(context);
+                    setState(() {});
+                  }),
                 ],
               ),
             ],
@@ -87,18 +85,14 @@ class _HistoryState extends State<History> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        blueButton(
-          "Delete",
-          () => setState(() async {
-            await _dbDelete();
-          }),
-        ),
-        blueButton(
-          "PreFill",
-          () => setState(() async {
-            await _createTwoTracks();
-          }),
-        ),
+        blueButton("Delete", () async {
+          await _dbDelete();
+          setState(() {});
+        }),
+        blueButton("PreFill", () async {
+          await _createTwoTracks();
+          setState(() {});
+        }),
       ],
     );
   }
@@ -189,7 +183,12 @@ class _HistoryState extends State<History> {
         "runLog-${DateFormat('yyyy-MM-dd_HH-mm').format(DateTime.now())}.rlog";
     final content = await widget.runStorage.exportAll();
     if (context.mounted) {
-      await showFileActionDialog(context, 'application/octet-stream', name, content);
+      await showFileActionDialog(
+        context,
+        'application/octet-stream',
+        name,
+        content,
+      );
     }
   }
 }

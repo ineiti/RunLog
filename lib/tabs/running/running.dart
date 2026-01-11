@@ -196,18 +196,16 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   List<Widget> _showRunning(BuildContext context, bool pause) {
     final buttons = [
       _paceSpeechDropdown(() => setState(() {})),
-      blueButton("Stop", () {
-        setState(() async {
-          await _stop(context);
-        });
+      blueButton("Stop", () async {
+        await _stop(context);
+        setState(() {});
       }),
     ];
     if (runStats!.run.feedback!.target.targetSpeeds.isNotEmpty) {
       buttons.add(
-        blueButton("Reset", () {
-          setState(() async {
-            await _reset(context);
-          });
+        blueButton("Reset", () async {
+          await _reset(context);
+          setState(() {});
         }),
       );
     }
