@@ -34,6 +34,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late GeoTracker geoTracker;
   RunStats? runStats;
   StreamController<RunState> widgetController = StreamController.broadcast();
+  StreamController<double> accuracy = StreamController.broadcast();
   late StreamController<RSState> runStateStream;
   StreamSubscription<Position>? geoListen;
   late ToneFeedback feedback;
@@ -50,6 +51,11 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     geoTracker = GeoTracker(
       simul: widget.configurationStorage.config.simulateGPS,
     );
+    geoTracker.streamState.listen((state) {
+      if (state == GTState.permissionGranted) {
+        geoTracker.streamPosition.listen((pos) => accuracy.add(pos.accuracy));
+      }
+    });
     unawaited(
       ToneFeedback.init().then((f) {
         feedback = f;
@@ -97,6 +103,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
               ],
             ),
             Flexible(flex: 1, child: feedback.configWidget()),
+            _streamBuilder(accuracy.stream, _widgetAccuracy),
             blueButton("Start Running", () => _startRunning()),
           ],
         );
@@ -163,6 +170,10 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         widgetController.add(RunState.waitUser);
         return [_stats("Permission Granted")];
     }
+  }
+
+  List<Widget> _widgetAccuracy(BuildContext context, double? accuracy) {
+    return [Text("Accuracy: ${accuracy?.toStringAsFixed(1)}")];
   }
 
   List<Widget> _widgetRunning(BuildContext context, RSState? s) {

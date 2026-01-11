@@ -310,7 +310,10 @@ extension Ratio on LatLngBounds {
 
     // Align with integer zoom factor by calculating the height of the
     // closest zoom and adjusting the new height and width.
-    final newWidthLL = (east - west) * newWidth / widthLL;
+    double newWidthLL = (east - west) * newWidth / widthLL;
+    if (newWidthLL == 0){
+      newWidthLL = 0.0001;
+    }
     final zoomFract = log(360 * width / (newWidthLL * tileSize)) / ln2;
     final zoom = zoomFract.floor();
     final zoomOut = pow(2, zoomFract - zoom);

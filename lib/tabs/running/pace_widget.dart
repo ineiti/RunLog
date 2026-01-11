@@ -10,7 +10,7 @@ import '../../stats/filter_data.dart';
 import '../basic.dart';
 
 class PaceWidget extends StatefulWidget {
-  static StreamController<List<PaceEntryImp>> initEntries = StreamController();
+  static StreamController<List<PaceEntryImp>> initEntries = StreamController.broadcast();
   final StreamController<FeedbackContainer> updateEntries;
 
   const PaceWidget({super.key, required this.updateEntries});

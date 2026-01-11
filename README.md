@@ -67,6 +67,9 @@ Probably not...
 
 # Changelog
 
+2026-01-11:
+- starting GPS at the beginning, and show accuracy
+
 2026-01-10:
 - adding maps to history
 - small maps for overview

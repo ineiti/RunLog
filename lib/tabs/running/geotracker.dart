@@ -10,6 +10,7 @@ enum GTState { permissionRequest, permissionRefused, permissionGranted }
 /// to useful data to be displayed by the app.
 class GeoTracker {
   final StreamController<GTState> gtStream = StreamController.broadcast();
+  final StreamController<Position> gpsPos = StreamController.broadcast();
   final bool simul;
   static const intervalSeconds = 1;
   GTState? state;
@@ -31,20 +32,14 @@ class GeoTracker {
 
     if (result) {
       gtStream.add(GTState.permissionGranted);
+      _startLocation();
     } else {
       gtStream.add(GTState.permissionRefused);
     }
   }
 
-  Stream<GTState> get streamState => gtStream.stream;
-
-  Stream<Position> get streamPosition {
-    if (state != GTState.permissionGranted) {
-      throw "Permission for position is not granted!";
-    }
-
+  void _startLocation() {
     if (simul) {
-      final streamPos = StreamController<Position>.broadcast();
       var latitude = 0.0;
       var now = DateTime.now();
       final interval = Duration(seconds: intervalSeconds);
@@ -52,7 +47,7 @@ class GeoTracker {
         now = now.add(interval);
         double targetSpeed = 5 + sin(latitude / 0.00011 / 3 + pi / 2);
         latitude += 0.00011 * 1.3 * intervalSeconds / targetSpeed;
-        streamPos.add(
+        gpsPos.add(
           Position(
             longitude: 0,
             latitude: latitude,
@@ -67,36 +62,49 @@ class GeoTracker {
           ),
         );
       });
-      streamPos.onCancel = () {
+      gpsPos.onCancel = () {
         timer.cancel();
       };
-      return streamPos.stream;
-    }
-
-    late LocationSettings locationSettings;
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 0,
-        forceLocationManager: true,
-        intervalDuration: const Duration(seconds: intervalSeconds),
-        foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationText:
-          "RunLog continues receiving location updates even when not in foreground",
-          notificationTitle: "RunLogging your speed",
-          enableWakeLock: true,
-        ),
-        useMSLAltitude: true,
-      );
     } else {
-      locationSettings = LocationSettings(
-        accuracy: LocationAccuracy.best,
-        distanceFilter: 0,
-      );
+      late LocationSettings locationSettings;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        locationSettings = AndroidSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 0,
+          forceLocationManager: true,
+          intervalDuration: const Duration(seconds: intervalSeconds),
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationText:
+            "RunLog continues receiving location updates even when not in foreground",
+            notificationTitle: "RunLogging your speed",
+            enableWakeLock: true,
+          ),
+          useMSLAltitude: true,
+        );
+      } else {
+        locationSettings = LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 0,
+        );
+      }
+
+      Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen((pos) {
+        gpsPos.add(pos);
+      });
+    }
+  }
+
+  Stream<GTState> get streamState => gtStream.stream;
+
+  Stream<Position> get streamPosition {
+    if (state != GTState.permissionGranted) {
+      throw "Permission for position is not granted!";
     }
 
-    return Geolocator.getPositionStream(locationSettings: locationSettings);
+    return gpsPos.stream;
   }
 
   Future<bool> _handlePermission() async {
