@@ -215,41 +215,43 @@ class _DetailPageState extends State<DetailPage> {
     Navigator.of(context).pop();
     final controller = DefaultTabController.of(tabKey.currentContext!);
     controller.index = 1;
-    PaceWidget.initEntries.add([ReRun(rr!.pointsTime(filterDivisions * 2))]);
+    PaceWidget.initEntries.add([ReRun(rr!.runningData)]);
   }
 
   Future<void> _trackExport(BuildContext context) async {
     final name =
         "run-${DateFormat('yyyy-MM-dd_HH-mm').format(widget.run.startTime)}.gpx";
-    final content = rr!.rawPositions.toGPX();
+    final content = rr!.rawPositions.toGPX(rr!.run.feedback);
     await showFileActionDialog(context, 'application/gpx+xml', name, content);
   }
 
   Future<void> _trackHeight(BuildContext context) async {
     StreamController<(int, int)> currentUpdate = StreamController();
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false, // Prevents closing by tapping outside
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min, // Important for proper sizing
-            children: [
-              CircularProgressIndicator(), // The progress bar
-              SizedBox(height: 16),
-              StreamBuilder(
-                stream: currentUpdate.stream,
-                builder: (context, snapshot) {
-                  return Text(
-                    'Fetching Heights ${snapshot.data?.$1} / ${snapshot.data?.$2}',
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false, // Prevents closing by tapping outside
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min, // Important for proper sizing
+              children: [
+                CircularProgressIndicator(), // The progress bar
+                SizedBox(height: 16),
+                StreamBuilder(
+                  stream: currentUpdate.stream,
+                  builder: (context, snapshot) {
+                    return Text(
+                      'Fetching Heights ${snapshot.data?.$1} / ${snapshot.data?.$2}',
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
 
     await widget.storage.updateHeightData(

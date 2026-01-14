@@ -46,18 +46,18 @@ class RunStats {
     }
   }
 
-  List<SpeedPoint> pointsTime(int divisions) {
+  List<SpeedPoint> speedPoints(int divisions) {
     final length = max(runningData.length ~/ divisions, 1);
     final FilterData filter = FilterData.subSampled(length, divisions * 3);
-    filter.update(runningData.speed());
+    filter.replace(runningData);
     var distance = 0.0;
     var time = 0.0;
     return filter.filteredData
         .everyNthStartingAt(3, 1)
         .map((id) {
-          distance += (id.dt - time) * id.y;
-          time = id.dt;
-          return SpeedPoint(distanceM: distance, speedMS: id.y);
+          distance += (id.ts - time) * id.mps;
+          time = id.ts;
+          return SpeedPoint(distanceM: distance, speedMS: id.mps);
         })
         .toList();
   }
@@ -66,13 +66,13 @@ class RunStats {
   // `minSpeedRun`.
   void _finalize() {
     FilterData speed = FilterData(10);
-    speed.update(runningData.speed());
+    speed.replace(runningData);
     if (speed.filteredData.isEmpty) {
       return;
     }
-    double prev = speed.filteredData.last.y;
+    double prev = speed.filteredData.last.mps;
     for (int pos = runningData.length - 2; pos >= 0; pos--) {
-      var curr = speed.filteredData[pos].y;
+      var curr = speed.filteredData[pos].mps;
       if (curr < minSpeedStart || prev < curr) {
         prev = curr;
         runningData.removeAt(pos + 1);

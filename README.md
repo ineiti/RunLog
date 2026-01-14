@@ -67,6 +67,13 @@ Probably not...
 
 # Changelog
 
+2026-01-14:
+- wrong y-axis limits for runs with "pace"
+- add an evaluation of the pace/inclination curve 
+- when first creating a ReRun, it is not shown, only on the second invocation
+  -> starting with "Running"
+- "pace" not exported or imported
+  
 2026-01-11:
 - starting GPS at the beginning, and show accuracy and current speed
 - add a "cancel" button in the waiting screens

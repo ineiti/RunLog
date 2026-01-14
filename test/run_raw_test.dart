@@ -51,7 +51,7 @@ void main() {
       rr.addPosition(pm.stepFast());
     }
     // print("runningData: ${rr.runningData}");
-    final sp = rr.pointsTime(10);
+    final sp = rr.speedPoints(10);
     // print("Filtered points: $sp");
     final sf = SFEntry.fromPoints(sp);
     // print("targetSpeeds: ${sf.targetSpeeds}");

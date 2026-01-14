@@ -305,7 +305,7 @@ extension ListLatLng on List<TrackedData> {
 }
 
 extension GpxIO on List<TrackedData> {
-  String toGPX() {
+  String toGPX(FeedbackContainer? feedback) {
     var gpx = Gpx();
     gpx.creator = "RunLog";
     gpx.wpts =
@@ -322,27 +322,45 @@ extension GpxIO on List<TrackedData> {
             hdop: td.gpsAccuracy,
           ),
         ).toList();
+    if (feedback != null) {
+      gpx.extensions["FeedbackContainer"] = feedback.toJson();
+    }
     return GpxWriter().asString(gpx);
   }
 
-  static List<TrackedData> fromGPX(int runId, String data) {
+  static (List<TrackedData>, FeedbackContainer?) fromGPX(
+    int runId,
+    String data,
+  ) {
     final gpxPoints = GpxReader().fromString(data);
+    final feedbackJson = gpxPoints.extensions["FeedbackContainer"];
+    FeedbackContainer? feedbackContainer;
+    if (feedbackJson != null) {
+      try {
+        feedbackContainer = FeedbackContainer.fromJson(feedbackJson as String);
+      } catch (e) {
+        print("Couldn't get FeedbackContainer: $e");
+      }
+    }
     var now = DateTime.now().subtract(Duration(days: 1)).millisecondsSinceEpoch;
-    return gpxPoints.wpts
-        .map(
-          (wp) => TrackedData(
-            runId: runId,
-            timestampMS: wp.time?.millisecondsSinceEpoch ?? (now += 1000),
-            latitude: wp.lat ?? 0,
-            longitude: wp.lon ?? 0,
-            altitude: wp.ele ?? 0,
-            // This is not completely correct, but not too bad either...
-            altitudeCorrected: double.tryParse(
-              wp.extensions["altitudeCorrected"].toString(),
+    return (
+      gpxPoints.wpts
+          .map(
+            (wp) => TrackedData(
+              runId: runId,
+              timestampMS: wp.time?.millisecondsSinceEpoch ?? (now += 1000),
+              latitude: wp.lat ?? 0,
+              longitude: wp.lon ?? 0,
+              altitude: wp.ele ?? 0,
+              // This is not completely correct, but not too bad either...
+              altitudeCorrected: double.tryParse(
+                wp.extensions["altitudeCorrected"].toString(),
+              ),
+              gpsAccuracy: wp.hdop ?? 0,
             ),
-            gpsAccuracy: wp.hdop ?? 0,
-          ),
-        )
-        .toList();
+          )
+          .toList(),
+      feedbackContainer,
+    );
   }
 }

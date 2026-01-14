@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:run_log/stats/filter_data.dart';
+import 'package:scidart/numdart.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 import 'conversions.dart';
@@ -94,6 +95,13 @@ class Figure {
   }
 
   SfCartesianChart chart() {
+    if (lines.length == 1 && lines.first.type == LineType.slopeSpeed) {
+      return chartXY(lines.first);
+    }
+    return chartYTime();
+  }
+
+  SfCartesianChart chartYTime() {
     return SfCartesianChart(
       axes: _axes(),
       series: _series(),
@@ -111,6 +119,36 @@ class Figure {
       primaryYAxis: CategoryAxis(isVisible: false),
       legend: Legend(isVisible: true),
       tooltipBehavior: TooltipBehavior(enable: true),
+    );
+  }
+
+  SfCartesianChart chartXY(LineStat line) {
+    final mm = line.minMax();
+    final mmx =
+        max(
+          line.filter.tdMin.slope.abs(),
+          line.filter.tdMax.slope.abs(),
+        ).ceilToDouble();
+    return SfCartesianChart(
+      axes: [
+        NumericAxis(
+          name: line.type.axisRef,
+          minimum: toPaceMinKm(mm.$1).ceilToDouble(),
+          maximum: toPaceMinKm(mm.$2).floorToDouble(),
+          desiredIntervals: axisIntervals,
+        ),
+        NumericAxis(
+          name: "${line.type.axisRef}x",
+          minimum: -mmx,
+          maximum: mmx,
+          desiredIntervals: axisIntervals,
+        ),
+      ],
+      series: line.serie(),
+      primaryXAxis: CategoryAxis(
+        labelIntersectAction: AxisLabelIntersectAction.multipleRows,
+      ),
+      primaryYAxis: CategoryAxis(isVisible: false),
     );
   }
 
@@ -169,7 +207,8 @@ enum LineType {
   altitudeCorrected,
   slope,
   slopeStats,
-  targetPace;
+  targetPace,
+  slopeSpeed;
 
   bool get speedType => this == LineType.speed || this == LineType.targetPace;
 
@@ -183,33 +222,14 @@ enum LineType {
 class LineStat {
   LineType type;
   late FilterData filter;
-  late FilterData second;
   static const maxPoints = 500;
 
   LineStat({required this.type, required int filterLength}) {
     filter = FilterData.subSampled(filterLength, maxPoints);
-    second = FilterData.subSampled(filterLength, maxPoints);
   }
 
   void updateData(List<TimeData> runningData) {
-    late List<XYData> xyd;
-    switch (type) {
-      case LineType.speed:
-        xyd = runningData.speed();
-      case LineType.targetPace:
-        xyd = runningData.targetSpeed();
-      case LineType.altitude:
-        xyd = runningData.altitude();
-      case LineType.altitudeCorrected:
-        xyd = runningData.altitudeCorrected();
-      case LineType.slope:
-        xyd = runningData.slope();
-      case LineType.slopeStats:
-        filter.update(runningData.speed());
-        second.update(runningData.slope());
-        return;
-    }
-    filter.update(xyd);
+    filter.replace(runningData);
     // print("Filter after update is: ${filter.filteredData.length}");
   }
 
@@ -221,22 +241,52 @@ class LineStat {
       case LineType.altitude:
         return [_serieLines()];
       case LineType.slope:
-        return [_serieSlope()];
+        return [_seriePoints()];
       case LineType.slopeStats:
         return _serieSlopeStats();
+      case LineType.slopeSpeed:
+        return [_serieSlopeSpeed()];
+    }
+  }
+
+  List<XYData> _xyData() {
+    switch (type) {
+      case LineType.speed:
+        return filter.filteredData.speed();
+      case LineType.targetPace:
+        return filter.filteredData.targetSpeed();
+      case LineType.altitudeCorrected:
+        return filter.filteredData.altitudeCorrected();
+      case LineType.altitude:
+        return filter.filteredData.altitude();
+      case LineType.slope:
+        return filter.filteredData.slope();
+      case LineType.slopeStats:
+        return filter.filteredData.slope();
+      case LineType.slopeSpeed:
+        final xs = filter.filteredData.slope().partial(100);
+        final ys = filter.filteredData.speed().partial(100);
+        final regression = PolyFit(Array(xs.ys()), Array(ys.ys()), 3);
+        final points = 50;
+        final xsMin = xs.minY();
+        final xsMul = (xs.maxY() - xsMin) / points;
+        return List.generate(points, (i) {
+          final x = xsMin + xsMul * i;
+          return XYData(x, regression.predict(x));
+        });
     }
   }
 
   List<CartesianSeries> _serieSlopeStats() {
     final bins = 4;
-    final slopes = List.from(second.filteredData).asMap().entries.toList();
+    final slopeXY = filter.filteredData.slope();
+    final slopes = slopeXY.asMap().entries.toList();
     if (slopes.length < bins) {
       return [_slopeStats((0, 0, []))];
     }
     slopes.sort((a, b) => a.value.y.compareTo(b.value.y));
-    final List<(double, double, List<XYData>)> slopeStats = [
-      (0, 0, filter.filteredData),
-    ];
+    final List<(double, double, List<XYData>)> slopeStats = [(0, 0, slopeXY)];
+    final speeds = filter.filteredData.speed();
     for (int bin = 0; bin < bins; bin++) {
       final (from, to) = (
         slopes.length * bin ~/ bins,
@@ -245,10 +295,7 @@ class LineStat {
       slopeStats.add((
         1,
         (slopes[from].value.y + slopes[to].value.y) / 2,
-        slopes
-            .sublist(from, to)
-            .map((sl) => filter.filteredData[sl.key])
-            .toList(),
+        slopes.sublist(from, to).map((sl) => speeds[sl.key]).toList(),
       ));
     }
     // final List<(double, double, List<XYData>)> slopeStats = [
@@ -265,9 +312,23 @@ class LineStat {
       opacity: slopeStat.$1,
       isVisibleInLegend: slopeStat.$1 > 0.5,
       animationDuration: 500,
-      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.x),
       yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
       name: slopeStat.$2.toStringAsFixed(1),
+      dataLabelSettings: DataLabelSettings(isVisible: false),
+    );
+  }
+
+  CartesianSeries _serieSlopeSpeed() {
+    // print("Filtered data is: ${filter.filteredData.length}");
+    return ScatterSeries<XYData, double>(
+      dataSource: _xyData(),
+      xAxisName: "${type.axisRef}x",
+      yAxisName: type.axisRef,
+      animationDuration: 500,
+      xValueMapper: (XYData entry, _) => entry.x,
+      yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
+      name: _label(),
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
   }
@@ -275,10 +336,10 @@ class LineStat {
   CartesianSeries _serieLines() {
     // print("Filtered data is: ${filter.filteredData.length}");
     return LineSeries<XYData, String>(
-      dataSource: filter.filteredData,
+      dataSource: _xyData(),
       yAxisName: type.axisRef,
       animationDuration: 500,
-      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.x),
       yValueMapper:
           (XYData entry, _) => type.speedType ? toPaceMinKm(entry.y) : entry.y,
       name: _label(),
@@ -286,10 +347,10 @@ class LineStat {
     );
   }
 
-  CartesianSeries _serieSlope() {
+  CartesianSeries _seriePoints() {
     return ColumnSeries<XYData, String>(
-      dataSource: filter.filteredData,
-      xValueMapper: (XYData entry, _) => shortHMS(entry.dt),
+      dataSource: _xyData(),
+      xValueMapper: (XYData entry, _) => shortHMS(entry.x),
       yValueMapper: (XYData entry, _) => entry.y,
       yAxisName: type.axisRef,
       name: _label(),
@@ -305,6 +366,15 @@ class LineStat {
     }
     switch (type) {
       case LineType.targetPace:
+        return createIntervals(
+          minuteIntervals,
+          axisIntervals,
+          (toPaceMinKm(filter.tdMax.targetPace ?? 0) * minuteIntervals)
+                  .floor() /
+              minuteIntervals,
+          (toPaceMinKm(filter.tdMin.targetPace ?? 0) * minuteIntervals).ceil() /
+              minuteIntervals,
+        );
       case LineType.slopeStats:
       case LineType.speed:
         // The filter has the speed meter/sec, but the pace is 1/speed,
@@ -312,14 +382,26 @@ class LineStat {
         return createIntervals(
           minuteIntervals,
           axisIntervals,
-          (toPaceMinKm(filter.max) * minuteIntervals).floor() / minuteIntervals,
-          (toPaceMinKm(filter.min) * minuteIntervals).ceil() / minuteIntervals,
+          (toPaceMinKm(filter.tdMax.mps) * minuteIntervals).floor() /
+              minuteIntervals,
+          (toPaceMinKm(filter.tdMin.mps) * minuteIntervals).ceil() /
+              minuteIntervals,
         );
       case LineType.altitudeCorrected:
+        return (
+          filter.tdMin.bestAltitude().floorToDouble(),
+          filter.tdMax.bestAltitude().ceilToDouble(),
+        );
       case LineType.altitude:
-        return (filter.min.floorToDouble(), filter.max.ceilToDouble());
+        return (
+          filter.tdMin.altitude.floorToDouble(),
+          filter.tdMax.altitude.ceilToDouble(),
+        );
       case LineType.slope:
-        var (min, max) = (filter.min.floor().abs(), filter.max.ceil().abs());
+        var (min, max) = (
+          filter.tdMin.slope.floor().abs(),
+          filter.tdMax.slope.ceil().abs(),
+        );
         var abs = (min > max ? min : max).ceil();
         return createIntervals(
           1,
@@ -327,6 +409,9 @@ class LineStat {
           -abs.toDouble(),
           abs.toDouble(),
         );
+      case LineType.slopeSpeed:
+        final xy = _xyData();
+        return (xy.minY(), xy.maxY());
     }
   }
 
@@ -344,82 +429,17 @@ class LineStat {
         return "Slope${_filter()}";
       case LineType.slopeStats:
         return "SlopeStat";
+      case LineType.slopeSpeed:
+        return "SlopeSpeed";
     }
   }
 
   String _filter() {
-    final len = filter.lanczos.length;
-    if (len == 1) {
+    final len = filter.length();
+    if (len <= 1) {
       return "";
     }
     return " (${len}s)";
-  }
-}
-
-class FilterXY {
-  List<XYData> filteredData = [];
-  late List<double> lanczos;
-
-  void filterSpeed(int filterN2) {
-    lanczos = _lanczos(filterN2);
-  }
-
-  void update(List<XYData> raw) {
-    final data = _filterValues(raw.map((s) => s.y).toList());
-    filteredData =
-        raw
-            .asMap()
-            .entries
-            .map((entry) => XYData(entry.value.dt, data[entry.key]))
-            .toList();
-  }
-
-  // Applies the lanczos filter to 'values' and keeps the peak at 'pos'.
-  // If the lanczos filter doesn't fit, it will be cut and thus not return
-  // a nice sampling window.
-  double _applyLanczos(List<double> values, int pos) {
-    if (pos < 0 || pos >= values.length) {
-      throw ("pos out of range");
-    }
-    // This works because lanczos.length is always an odd number.
-    int valuesStart = pos - lanczos.length ~/ 2;
-    int valuesEnd = pos + lanczos.length ~/ 2;
-    int lanczosStart = 0;
-    int lanczosEnd = lanczos.length - 1;
-    if (valuesStart < 0) {
-      lanczosStart -= valuesStart;
-      valuesStart = 0;
-    }
-    if (valuesEnd >= values.length) {
-      final overflow = valuesEnd - values.length + 1;
-      lanczosEnd -= overflow;
-      valuesEnd -= overflow;
-    }
-
-    final filter = lanczos.sublist(lanczosStart, lanczosEnd + 1);
-    final src = values.sublist(valuesStart, valuesEnd + 1);
-
-    double sum = filter.fold(0.0, (a, b) => a + b);
-    return src.asMap().entries.fold(
-      0.0,
-      (a, b) => a + b.value * filter[b.key] / sum,
-    );
-  }
-
-  List<double> _filterValues(List<double> values) {
-    return List.generate(values.length, (i) => _applyLanczos(values, i));
-  }
-
-  static List<double> _lanczos(int n2) {
-    return List.generate(n2 * 2 + 1, (n) => _sinc(2 * n / (2 * n2) - 1));
-  }
-
-  static double _sinc(double x) {
-    if (x == 0) {
-      return 1;
-    }
-    x *= pi;
-    return sin(x) / x;
   }
 }
 

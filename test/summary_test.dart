@@ -75,6 +75,6 @@ void main() {
 (Run, List<TrackedData>) readLog(int id, String name) {
   var data = GpxIO.fromGPX(id, File(name).readAsStringSync());
   var run = Run.now(id);
-  run.summary = SummaryContainer.fromData(data);
-  return (run, data);
+  run.summary = SummaryContainer.fromData(data.$1);
+  return (run, data.$1);
 }

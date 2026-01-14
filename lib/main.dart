@@ -101,13 +101,16 @@ class _MyAppState extends State<MyApp> {
     File gpxFile = File(filePath);
     String content = await gpxFile.readAsString();
     Run newRun = await runStorage.createRun(DateTime.now());
-    List<TrackedData> newData = GpxIO.fromGPX(newRun.id, content);
+    var (newData, feedback) = GpxIO.fromGPX(newRun.id, content);
     for (TrackedData td in newData) {
       await runStorage.addTrackedData(td);
     }
     newRun.startTime = DateTime.fromMillisecondsSinceEpoch(
       newData.first.timestampMS,
     );
+    if (feedback != null){
+      newRun.feedback = feedback;
+    }
     await runStorage.updateRun(newRun);
     RunStats rr = await RunStats.loadRun(runStorage, newRun.id);
     rr.updateStats();
@@ -124,6 +127,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: DefaultTabController(
         length: 3,
+        initialIndex: 1,
         child: Scaffold(
           key: tabKey,
           appBar: AppBar(

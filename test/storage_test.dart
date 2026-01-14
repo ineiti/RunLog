@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:run_log/feedback/feedback.dart';
 import 'package:run_log/feedback/tones.dart';
+import 'package:run_log/stats/run_data.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:run_log/storage.dart';
@@ -74,5 +75,30 @@ void main() {
     expect(10, rs2.trackedData[1]?.length);
     expect(5, rs2.trackedData[2]?.length);
     expect(rs.runs, rs2.runs);
+  });
+
+  test('Store and get FeedbackContainer', () async {
+    final feedback = FeedbackContainer(
+      FeedbackType.pace,
+      [1],
+      SFEntry.fromPoints([
+        SpeedPoint(distanceM: 0, speedMS: 3),
+        SpeedPoint(distanceM: 1000, speedMS: 4),
+      ]),
+    );
+    List<TrackedData> points = [
+      TrackedData(
+        runId: 1,
+        timestampMS: 100,
+        latitude: 200,
+        longitude: 300,
+        altitude: 400,
+        gpsAccuracy: 500,
+      ),
+    ];
+    final gpxStr = points.toGPX(feedback);
+    final (gpx, fb) = GpxIO.fromGPX(1, gpxStr);
+    expect(points, gpx);
+    expect(feedback, fb);
   });
 }

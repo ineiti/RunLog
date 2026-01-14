@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:run_log/stats/run_stats.dart';
 import '../../feedback/feedback.dart';
 import '../../feedback/tones.dart';
 import '../../stats/conversions.dart';
@@ -10,7 +12,8 @@ import '../../stats/filter_data.dart';
 import '../basic.dart';
 
 class PaceWidget extends StatefulWidget {
-  static StreamController<List<PaceEntryImp>> initEntries = StreamController.broadcast();
+  static StreamController<List<PaceEntryImp>> initEntries =
+      StreamController.broadcast();
   final StreamController<FeedbackContainer> updateEntries;
 
   const PaceWidget({super.key, required this.updateEntries});
@@ -43,6 +46,7 @@ class _PaceWidgetState extends State<PaceWidget> {
             PaceWidget.initEntries.add([]);
           }
         }
+        var tf = _entries.isNotEmpty && _entries.first.type != _Entries.reRun;
         return Column(
           children: [
             blueButton("Clear", () {
@@ -50,7 +54,7 @@ class _PaceWidgetState extends State<PaceWidget> {
                 _PaceAdder(_entries, _AdderPos.beginning),
               ]);
             }),
-            _totalFeedback(),
+            if (tf) _totalFeedback(),
             Flexible(
               flex: 1,
               child: ListView.builder(
@@ -112,16 +116,38 @@ abstract class PaceEntryImp {
   List<SpeedPoint> getPoints();
 }
 
+enum _ReRunBase { run, slope }
+
+extension _RRBString on _ReRunBase {
+  _ReRunBase next() {
+    final values = _ReRunBase.values;
+    return values[(values.indexOf(this) + 1) % values.length];
+  }
+
+  String label() {
+    switch (this) {
+      case _ReRunBase.run:
+        return "Convert to Target";
+      case _ReRunBase.slope:
+        return "Use slope/speed";
+    }
+  }
+}
+
 class ReRun implements PaceEntryImp {
   double _paceMinKm = 6;
-  final List<SpeedPoint> _runOrig;
+  int _resolution = 20;
+  _ReRunBase _base = _ReRunBase.run;
+  late FilterData _runOrig;
   late List<SpeedPoint> _run;
   late double _dist;
   late double _duration;
   late double _pace;
 
-  ReRun(this._runOrig) {
-    final sf = SFEntry.fromPoints(_runOrig);
+  ReRun(List<TimeData> run) {
+    _runOrig = FilterData(20);
+    _runOrig.replace(run);
+    final sf = SFEntry.fromPoints(_runOrig.filteredData.speedPoints());
     _dist = sf.getDistance();
     _duration = sf.getDurationS(_dist);
     _pace = toPaceMinKm(_dist / _duration);
@@ -135,12 +161,33 @@ class ReRun implements PaceEntryImp {
   @override
   Widget getWidget(VoidCallback setState) {
     final figure = Figure();
-    figure.lines.add(LineStat(type: LineType.targetPace, filterLength: 1));
-    figure.updateRunningData(ListData.fromSpeedPoints(_run));
+    if (_base == _ReRunBase.run) {
+      figure.lines.add(LineStat(type: LineType.targetPace, filterLength: 1));
+      figure.updateRunningData(ListData.fromSpeedPoints(_run));
+    } else {
+      figure.lines.add(
+        LineStat(type: LineType.slopeSpeed, filterLength: _filterLength),
+      );
+      figure.updateRunningData(_runOrig.rawData);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text("Distance: ${distanceStr(_dist)} - Orig. pace: ${minSec(_pace)}"),
+        GestureDetector(
+          onTap: () {
+            _base = _base.next();
+            setState();
+          },
+          child: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(_base.label(), style: TextStyle(color: Colors.white)),
+          ),
+        ),
         paceSlider(
           (value) {
             _paceMinKm = value;
@@ -152,6 +199,20 @@ class ReRun implements PaceEntryImp {
           4,
           8,
         ),
+        // if (_base == _ReRunBase.run)
+        intSlider(
+          (value) {
+            _resolution = value;
+            _updateRun();
+            setState();
+          },
+          (v) => "${v.toString().padLeft(3, "0")} points",
+          -5,
+          _resolution,
+          "Resolution",
+          1,
+          200,
+        ),
         figure.chart(),
       ],
     );
@@ -160,7 +221,7 @@ class ReRun implements PaceEntryImp {
   @override
   List<SpeedPoint> getPoints() {
     var lastDistance = 0.0;
-    return _runOrig.map((sp) {
+    return _run.map((sp) {
       final ret = SpeedPoint(
         distanceM: sp.distanceM - lastDistance,
         speedMS: sp.speedMS * _pace / _paceMinKm,
@@ -171,16 +232,21 @@ class ReRun implements PaceEntryImp {
   }
 
   void _updateRun() {
-    _run =
-        _runOrig
-            .map(
-              (sp) => SpeedPoint(
-                distanceM: sp.distanceM,
-                speedMS: sp.speedMS * _pace / _paceMinKm,
-              ),
-            )
-            .toList();
+    _runOrig.setFilter(max(1, _filterLength));
+    _run = _runOrig.filteredData
+        .speedPoints()
+        .map(
+          (sp) => SpeedPoint(
+            distanceM: sp.distanceM,
+            speedMS: sp.speedMS * _pace / _paceMinKm,
+          ),
+        )
+        .toList()
+        .partial(_resolution * 3 * 2)
+        .everyNthStartingAt(3, 1);
   }
+
+  int get _filterLength => _runOrig.filteredData.length ~/ _resolution;
 }
 
 enum _Entries { adder, pace, paceLength, intervals, reRun }

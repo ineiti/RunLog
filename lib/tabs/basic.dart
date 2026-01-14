@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../stats/conversions.dart';
@@ -46,6 +48,49 @@ Widget paceSlider(
       ),
     ],
   );
+}
+
+Widget intSlider(
+  ValueChanged<int> onValueChanged,
+  String Function(int) show,
+  double compress,
+  int value,
+  String label,
+  int from,
+  int to,
+) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [Text(label)]),
+      Row(
+        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // spacing: 10,
+        children: [
+          Text(show(value)),
+          Flexible(
+            flex: 1,
+            child: Slider(
+              value: abTozo(value, from, to, compress / 10),
+              onChanged:
+                  (v) => onValueChanged(zoToab(v, from, to, compress / 10).round()),
+              min: 0,
+              divisions: to - from,
+              max: 1,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+double abTozo(num val, num from, num to, num m) {
+  return pow((val - from) / (to - from), exp(m)).toDouble();
+}
+
+double zoToab(num zo, num from, num to, num m) {
+  return (pow(zo, exp(-m)) * (to - from) + from).toDouble();
 }
 
 class TimeHMS {
