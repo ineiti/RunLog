@@ -95,8 +95,8 @@ class Figure {
   }
 
   SfCartesianChart chart() {
-    if (lines.length == 1 && lines.first.type == LineType.slopeSpeed) {
-      return chartXY(lines.first);
+    if (lines.firstOrNull?.type == LineType.slopeSpeed) {
+      return chartSlopeSpeed(lines.first);
     }
     return chartYTime();
   }
@@ -122,32 +122,46 @@ class Figure {
     );
   }
 
-  SfCartesianChart chartXY(LineStat line) {
+  SfCartesianChart chartSlopeSpeed(LineStat line) {
     final mm = line.minMax();
     final mmx =
         max(
           line.filter.tdMin.slope.abs(),
           line.filter.tdMax.slope.abs(),
         ).ceilToDouble();
-    return SfCartesianChart(
-      axes: [
-        NumericAxis(
-          name: line.type.axisRef,
-          minimum: toPaceMinKm(mm.$1).ceilToDouble(),
-          maximum: toPaceMinKm(mm.$2).floorToDouble(),
-          desiredIntervals: axisIntervals,
-        ),
-        NumericAxis(
-          name: "${line.type.axisRef}x",
-          minimum: -mmx,
-          maximum: mmx,
-          desiredIntervals: axisIntervals,
-        ),
-      ],
-      series: line.serie(),
-      primaryXAxis: CategoryAxis(
-        labelIntersectAction: AxisLabelIntersectAction.multipleRows,
+    final axes = [
+      NumericAxis(
+        name: line.type.axisRef,
+        minimum: toPaceMinKm(mm.$1).ceilToDouble(),
+        maximum: toPaceMinKm(mm.$2).floorToDouble(),
+        desiredIntervals: axisIntervals,
       ),
+      NumericAxis(
+        name: "${LineType.slopeSpeed}x",
+        minimum: -mmx,
+        maximum: mmx,
+        desiredIntervals: axisIntervals,
+      ),
+    ];
+    final series = line.serie();
+    if (lines.length > 1 && lines[1].type == LineType.speedDistribution) {
+      final lsd = lines[1];
+      final lsdMM = lsd.minMax();
+      axes.add(
+        NumericAxis(
+          name: lsd.type.axisRef,
+          minimum: 0,
+          maximum: (lsdMM.$2 / 4).ceil() * 4,
+          desiredIntervals: axisIntervals,
+          opposedPosition: true,
+        ),
+      );
+      series.addAll(lsd.serie());
+    }
+    return SfCartesianChart(
+      axes: axes,
+      series: series,
+      primaryXAxis: CategoryAxis(isVisible: false),
       primaryYAxis: CategoryAxis(isVisible: false),
     );
   }
@@ -208,7 +222,8 @@ enum LineType {
   slope,
   slopeStats,
   targetPace,
-  slopeSpeed;
+  slopeSpeed,
+  speedDistribution;
 
   bool get speedType => this == LineType.speed || this == LineType.targetPace;
 
@@ -236,16 +251,18 @@ class LineStat {
   List<CartesianSeries> serie() {
     switch (type) {
       case LineType.speed:
-      case LineType.targetPace:
-      case LineType.altitudeCorrected:
       case LineType.altitude:
+      case LineType.altitudeCorrected:
+      case LineType.targetPace:
         return [_serieLines()];
       case LineType.slope:
         return [_seriePoints()];
       case LineType.slopeStats:
         return _serieSlopeStats();
       case LineType.slopeSpeed:
-        return [_serieSlopeSpeed()];
+        return [_serieSlopeSpeed(toPaceMinKm)];
+      case LineType.speedDistribution:
+        return [_serieSlopeSpeed((x) => x)];
     }
   }
 
@@ -264,16 +281,16 @@ class LineStat {
       case LineType.slopeStats:
         return filter.filteredData.slope();
       case LineType.slopeSpeed:
-        final xs = filter.filteredData.slope().partial(100);
-        final ys = filter.filteredData.speed().partial(100);
-        final regression = PolyFit(Array(xs.ys()), Array(ys.ys()), 3);
+        final regression = filter.slopeSpeed(100, 3);
         final points = 50;
-        final xsMin = xs.minY();
-        final xsMul = (xs.maxY() - xsMin) / points;
+        final xsMin = filter.tdMin.slope.floorToDouble();
+        final xsMul = (filter.tdMax.slope.ceilToDouble() - xsMin) / points;
         return List.generate(points, (i) {
           final x = xsMin + xsMul * i;
           return XYData(x, regression.predict(x));
         });
+      case LineType.speedDistribution:
+        return filter.speedDistribution();
     }
   }
 
@@ -319,15 +336,16 @@ class LineStat {
     );
   }
 
-  CartesianSeries _serieSlopeSpeed() {
+  CartesianSeries _serieSlopeSpeed(double Function(double) yvalue) {
     // print("Filtered data is: ${filter.filteredData.length}");
-    return ScatterSeries<XYData, double>(
+    return LineSeries<XYData, double>(
+      // return ScatterSeries<XYData, double>(
       dataSource: _xyData(),
-      xAxisName: "${type.axisRef}x",
+      xAxisName: "${LineType.slopeSpeed}x",
       yAxisName: type.axisRef,
       animationDuration: 500,
       xValueMapper: (XYData entry, _) => entry.x,
-      yValueMapper: (XYData entry, _) => toPaceMinKm(entry.y),
+      yValueMapper: (XYData entry, _) => yvalue(entry.y),
       name: _label(),
       dataLabelSettings: DataLabelSettings(isVisible: false),
     );
@@ -353,6 +371,7 @@ class LineStat {
       xValueMapper: (XYData entry, _) => shortHMS(entry.x),
       yValueMapper: (XYData entry, _) => entry.y,
       yAxisName: type.axisRef,
+      animationDuration: 500,
       name: _label(),
       pointColorMapper:
           (XYData entry, _) =>
@@ -409,6 +428,7 @@ class LineStat {
           -abs.toDouble(),
           abs.toDouble(),
         );
+      case LineType.speedDistribution:
       case LineType.slopeSpeed:
         final xy = _xyData();
         return (xy.minY(), xy.maxY());
@@ -431,6 +451,8 @@ class LineStat {
         return "SlopeStat";
       case LineType.slopeSpeed:
         return "SlopeSpeed";
+      case LineType.speedDistribution:
+        return "SpeedDist";
     }
   }
 

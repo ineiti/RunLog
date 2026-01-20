@@ -105,7 +105,7 @@ class Run {
 
   Future<void> updateStats(RunStorage rs) async {
     final td = await rs.loadTrackedData(id);
-    final stats = RunStats(rawPositions: td, run: this);
+    final stats = RunStats(td, this);
     durationMS = (stats.durationSec() * 1000).toInt();
     totalDistanceM = stats.distanceM();
     await rs.updateRun(this);
@@ -220,6 +220,15 @@ class TrackedData {
 
   double speedMS(TrackedData after) {
     return distanceM(after) / durationS(after);
+  }
+
+  double bestAltitude() {
+    return altitudeCorrected ?? altitude;
+  }
+
+  double bestSlopeFrom(TrackedData other) {
+    double slope = 100 / other.distanceM(this);
+    return slope * (bestAltitude() - other.bestAltitude());
   }
 
   TrackedData interpolate(TrackedData other, int ts) {

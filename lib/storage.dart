@@ -87,11 +87,15 @@ class RunStorage {
         if (state != null) {
           state(i ~/ 100, allTrackedData.length ~/ 100);
         }
-        await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
+        await _updateTrackedDataAltitudes(
+          allTrackedData,
+          tdUpdate,
+          altitudeURL,
+        );
         tdUpdate.clear();
       }
     }
-    await _updateTrackedData(allTrackedData, tdUpdate, altitudeURL);
+    await _updateTrackedDataAltitudes(allTrackedData, tdUpdate, altitudeURL);
 
     if (state != null) {
       state(0, 0);
@@ -203,48 +207,56 @@ class RunStorage {
     );
   }
 
-  Future<void> _updateTrackedData(
-      List<TrackedData> allTrackedData,
-      List<int> tdUpdate,
-      String altitudeURL,
-      ) async {
+  Future<void> _updateTrackedDataAltitudes(
+    List<TrackedData> allTrackedData,
+    List<int> tdUpdate,
+    String altitudeURL,
+  ) async {
     if (tdUpdate.isEmpty) {
       return;
     }
     try {
-      final acs = await _fetchAltitudes(
+      final acs = await fetchAltitudes(
         tdUpdate
             .map(
               (i) => (allTrackedData[i].latitude, allTrackedData[i].longitude),
-        )
+            )
             .toList(),
         altitudeURL,
       );
-      await db.transaction((txn) async {
-        if (acs.length == tdUpdate.length) {
-          for (int i in tdUpdate) {
-            allTrackedData[i].altitudeCorrected = acs.removeAt(0);
-            await _updateTD(txn, allTrackedData[i]);
-          }
+      if (acs.length == tdUpdate.length) {
+        for (int i in tdUpdate) {
+          allTrackedData[i].altitudeCorrected = acs.removeAt(0);
         }
-      });
+        await updateTrackedData(
+          tdUpdate.map((i) => allTrackedData[i]).toList(),
+        );
+      }
     } catch (e) {
       print("Couldn't fetch entries: $e");
     }
   }
 
-  Future<List<double?>> _fetchAltitudes(
-      List<(double, double)> pos,
-      String altitudeURL,
-      ) async {
+  Future<void> updateTrackedData(List<TrackedData> tds) async {
+    await db.transaction((txn) async {
+      for (final td in tds) {
+        await _updateTD(txn, td);
+      }
+    });
+  }
+
+  Future<List<double?>> fetchAltitudes(
+    List<(double, double)> pos,
+    String altitudeURL,
+  ) async {
     final locations =
         "?locations=${pos.map((ll) => "${ll.$1.toStringAsFixed(6)},${ll.$2.toStringAsFixed(6)}").join("|")}";
     // print("Locations are: $locations");
     final url =
         dotenv.env["TOPO_URL"] ??
-            (altitudeURL != ""
-                ? altitudeURL
-                : 'https://api.opendata.org/v1/eudem25m');
+        (altitudeURL != ""
+            ? altitudeURL
+            : 'https://api.opendata.org/v1/eudem25m');
     final response = await http.get(
       Uri.parse("$url$locations"),
       headers: {'Accept': 'application/json'},
@@ -253,11 +265,11 @@ class RunStorage {
     if (response.statusCode == 200) {
       // Parse the JSON response
       final results =
-      (jsonDecode(response.body) as Map<String, dynamic>)["results"];
+          (jsonDecode(response.body) as Map<String, dynamic>)["results"];
       try {
         final List<double?> elevations = [
           for (final result in results)
-          // double.parse(result["elevation"].toString()),
+            // double.parse(result["elevation"].toString()),
             double.tryParse(result["elevation"].toString()),
         ];
         for (int i = 0; i < elevations.length; i++) {

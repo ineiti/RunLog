@@ -21,10 +21,6 @@ through the run - slower when uphill, faster when downhill
 - use a web interface to configure the app
 - use hear-rate monitor (need to buy a watch first :)
 
-## Current Bugs
-
-- UI bugs when graphs don't fit
-
 ## Motivation
 
 I'm running for a bit more than 10 years now, and I'm always motivated by looking
@@ -63,9 +59,26 @@ So I went all the way to the other side and did a Lanczos filtering.
 But I have yet to check whether I can spot the difference with a triangular filtering.
 Probably not...
 
+# Next Steps
+
+- Change `SFEntry` to accept a pace/inclination curve with
+time indications.
+- Link figure and map
+- Add km-markers on map
+- Pause with drop in accuracy should only restart if accuracy improves enough
+
 # Bugs
 
 # Changelog
+
+2026-01-20:
+- lots of work to get the pace/slope implementation going
+  - add paceSlope to SFEntry
+  - calculate the slope and statistics
+  - fetch the altitudeCorrected every 30s
+- fixed double-correction of ReRun speed change
+- fix display bug with target pace
+- import/export of heightCorrection
 
 2026-01-14:
 - wrong y-axis limits for runs with "pace"

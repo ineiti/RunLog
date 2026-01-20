@@ -1,6 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:run_log/feedback/tones.dart';
 import 'package:run_log/stats/conversions.dart';
+import 'package:run_log/stats/filter_data.dart';
 import 'package:test/test.dart';
 
 import 'package:run_log/stats/run_data.dart';
@@ -9,10 +10,7 @@ import 'package:run_log/stats/run_stats.dart';
 void main() {
   test('Waiting for accuracy', () {
     PositionMock pm = PositionMock();
-    RunStats rr = RunStats(
-      rawPositions: [],
-      run: Run(id: 1, startTime: DateTime.now()),
-    );
+    RunStats rr = RunStats([], Run(id: 1, startTime: DateTime.now()));
     expect(rr.state, RSState.waitAccurateGPS);
     rr.addPosition(pm.pos.withAccuracy(rr.minAccuracy * 2));
     expect(rr.state, RSState.waitAccurateGPS);
@@ -24,10 +22,7 @@ void main() {
 
   test('Start running', () {
     PositionMock pm = PositionMock();
-    RunStats rr = RunStats(
-      rawPositions: [],
-      run: Run(id: 1, startTime: DateTime.now()),
-    );
+    RunStats rr = RunStats([], Run(id: 1, startTime: DateTime.now()));
     rr.addPosition(pm.pos);
     expect(rr.state, RSState.waitRunning);
     rr.addPosition(pm.stepSlow());
@@ -42,10 +37,7 @@ void main() {
 
   test('Convert to SpeedPoints', () {
     PositionMock pm = PositionMock();
-    RunStats rr = RunStats(
-      rawPositions: [],
-      run: Run(id: 1, startTime: DateTime.now()),
-    );
+    RunStats rr = RunStats([], Run(id: 1, startTime: DateTime.now()));
     rr.addPosition(pm.pos);
     for (var i = 0; i < 100; i++) {
       rr.addPosition(pm.stepFast());
@@ -73,6 +65,34 @@ void main() {
     expect(rs.resample(pm.td.withTimestamp(ts)), [pm.td.withTimestamp(ts)]);
     ts += rs.sampleIntervalMS;
     expect(rs.resample(pm.td.withTimestamp(ts)), [pm.td.withTimestamp(ts)]);
+  });
+
+  test('Multiplying speeds', () {
+    final pointsOrig =
+        [
+          (0.0, 6.0),
+          (10.0, 6.0),
+          (20.0, 6.0),
+          (30.0, 6.0),
+          (40.0, 6.0),
+          (50.0, 6.0),
+          (60.0, 5.0),
+          (70.0, 5.0),
+          (80.0, 5.0),
+          (90.0, 5.0),
+          (100.0, 5.0),
+        ].map((a) => SpeedPoint.fromMinKm(a.$1, a.$2)).toList();
+    final points = ListData.fromSpeedPoints(
+      pointsOrig,
+    ).mult(5.6 / 5, pointsOrig.length, 1);
+    final totalM = points.last.distanceM;
+    double totalS = 0.0;
+    for (final p in points.sublist(1).indexed) {
+      totalS +=
+          (p.$2.distanceM - points[p.$1].distanceM) / points[p.$1].speedMS;
+    }
+    print("$totalM / $totalS");
+    print("Mean pace: ${toPaceMinKm(totalM / totalS)}");
   });
 }
 

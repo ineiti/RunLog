@@ -16,6 +16,8 @@ enum RSState { waitAccurateGPS, waitRunning, running, paused }
 class RunStats {
   List<TrackedData> rawPositions;
   List<TimeData> runningData = [];
+
+  // TODO: remove this figures and move it to `running` and `course`.
   Figures figures = Figures();
   TrackedData? lastMovement;
   Resampler? resampler;
@@ -28,16 +30,16 @@ class RunStats {
 
   static Future<RunStats> newRun(RunStorage storage) async {
     final run = await storage.createRun(DateTime.now());
-    return RunStats(rawPositions: [], run: run);
+    return RunStats([], run);
   }
 
   static Future<RunStats> loadRun(RunStorage storage, int runId) async {
     final run = storage.runs[runId]!;
     final rawPos = await storage.loadTrackedData(runId);
-    return RunStats(rawPositions: rawPos, run: run);
+    return RunStats(rawPos, run);
   }
 
-  RunStats({required this.rawPositions, required this.run}) {
+  RunStats(this.rawPositions, this.run) {
     if (rawPositions.isNotEmpty) {
       for (TrackedData td in rawPositions) {
         _newTracked(td);
@@ -52,14 +54,11 @@ class RunStats {
     filter.replace(runningData);
     var distance = 0.0;
     var time = 0.0;
-    return filter.filteredData
-        .everyNthStartingAt(3, 1)
-        .map((id) {
-          distance += (id.ts - time) * id.mps;
-          time = id.ts;
-          return SpeedPoint(distanceM: distance, speedMS: id.mps);
-        })
-        .toList();
+    return filter.filteredData.everyNthStartingAt(3, 1).map((id) {
+      distance += (id.ts - time) * id.mps;
+      time = id.ts;
+      return SpeedPoint(distanceM: distance, speedMS: id.mps);
+    }).toList();
   }
 
   // Start from the end and remove all points which are slower than
@@ -172,6 +171,33 @@ class RunStats {
     _newTracked(td);
   }
 
+  // Calculates new slopes from the given TrackedData.
+  void updateSlopes(int start, List<double> updates) {
+    if (updates.isEmpty) {
+      return;
+    }
+
+    for (final update in updates.indexed) {
+      if (start + update.$1 < rawPositions.length) {
+        rawPositions[start + update.$1].altitudeCorrected = update.$2;
+      }
+    }
+
+    final res = Resampler.fromStart(start, rawPositions);
+    for (final raw in rawPositions.sublist(start)) {
+      var runningPos = res.sampleCount - 1;
+      for (final pos in res.resample(raw)) {
+        runningData[runningPos].altitudeCorrected = pos.altitudeCorrected;
+        if (runningPos > 0 && runningPos + 1 < runningData.length) {
+          runningData[runningPos].slope = runningData[runningPos].slopeFrom(
+            runningData[runningPos - 1],
+          );
+        }
+        runningPos++;
+      }
+    }
+  }
+
   void _newTracked(TrackedData td) {
     if (resampler == null) {
       if (td.gpsAccuracy < minAccuracy) {
@@ -191,13 +217,7 @@ class RunStats {
     // print("td: $td");
     currentSpeed = lastMovement!.speedMS(td);
     // print("Speed: $speed");
-    double slope = 100 / lastMovement!.distanceM(td);
-    if (td.altitudeCorrected != null &&
-        lastMovement!.altitudeCorrected != null) {
-      slope *= td.altitudeCorrected! - lastMovement!.altitudeCorrected!;
-    } else {
-      slope *= td.altitude - lastMovement!.altitude;
-    }
+    final slope = td.bestSlopeFrom(lastMovement!);
     lastMovement = td;
     // print("Speed is $speed - length of rawSpeed: ${rawSpeed.length}");
 
@@ -225,6 +245,7 @@ class RunStats {
     // If running speed is below minSpeedRun, don't count the interval
     // and don't add it to rawSpeed.
     // TODO: the pauses could be shown in the figure.
+    // TODO: only unpause if accuracy is correct, too.
     runPaused = currentSpeed! < minSpeedRun;
     if (runPaused) {
       resampler!.pause();
@@ -251,6 +272,27 @@ class Resampler {
   int tsReferenceMS = -1;
   int sampleIntervalMS;
   TrackedData lastMovement;
+
+  static Resampler fromStart(
+    int start,
+    List<TrackedData> pastSamples, {
+    int sampleIntervalMS = GeoTracker.intervalSeconds * 1000,
+  }) {
+    if (start >= pastSamples.length) {
+      throw "Not enough samples";
+    }
+    if (start > 0) {
+      start--;
+    }
+    final res = Resampler(
+      pastSamples.first,
+      sampleIntervalMS: sampleIntervalMS,
+    );
+    res.sampleCount =
+        (pastSamples[start].timestampMS - res.tsReferenceMS) ~/
+        res.sampleIntervalMS;
+    return res;
+  }
 
   Resampler(
     this.lastMovement, {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -30,6 +31,13 @@ class Running extends StatefulWidget {
 
 enum RunState { waitGPS, waitUser, running }
 
+// TODO: separate this into a RunningConfiguration and Running class:
+// - RunningConfiguration is the first part of the screen where the user
+//   selects what kind of run they want to track
+// - Running is the actual tracking of the run
+//
+// This should better reflect the complex setup now and make it easier
+// to test.
 class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late GeoTracker geoTracker;
   RunStats? runStats;
@@ -40,6 +48,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   late ToneFeedback feedback;
   var _paceSpeechInterval = 0;
   var _lastPaceSpeech = 0;
+  int _countPoints = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -125,27 +134,56 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     runStats = rStats;
     rStats.run.feedback = FeedbackContainer.fromPace(feedback.tones.entry);
     await widget.runStorage.updateRun(rStats.run);
-    runStats!.figures.addSpeed(5);
-    runStats!.figures.addSpeed(20);
+    rStats.figures.addSpeed(5);
+    rStats.figures.addSpeed(20);
     if (rStats.run.feedback!.target.targetSpeeds.isNotEmpty) {
-      runStats!.figures.addTargetPace(1);
+      rStats.figures.addTargetPace(1);
     }
-    runStats!.figures.addSlope(20);
+    rStats.figures.addSlope(20);
 
     geoListen = geoTracker.streamPosition.listen((pos) async {
-      runStats!.addPosition(pos);
+      rStats.addPosition(pos);
       await feedback.updateRunning(
         widget.configurationStorage.config.announceTargetChange,
-        runStats!.durationSec(),
-        runStats!.distanceM(),
+        rStats,
       );
-      await widget.runStorage.addTrackedData(runStats!.rawPositions.last);
-      runStateStream.add(runStats!.state);
+      await widget.runStorage.addTrackedData(rStats.rawPositions.last);
+
+      _countPoints++;
+      if (_countPoints >= 30) {
+        final count = min(_countPoints, rStats.rawPositions.length);
+        final position = max(rStats.rawPositions.length - count, 0);
+        _countPoints = 0;
+        unawaited(_getAltitudes(rStats, position, count));
+      }
+      runStateStream.add(rStats.state);
       if (_paceSpeechInterval > 0) {
-        await _paceSpeechCheck(runStats!.distanceM());
+        await _paceSpeechCheck(rStats.distanceM());
       }
     });
     widgetController.add(RunState.running);
+  }
+
+  // Theoretically, getting 30 new altitudes can take longer than 30
+  // seconds.
+  // To avoid locks, this method is somewhat re-entrant safe, as long as
+  // rs.rawPositions is only appended to from the outside.
+  Future<void> _getAltitudes(RunStats rs, int position, int count) async {
+    final points =
+        rs.rawPositions
+            .sublist(position, position + count)
+            .map((td) => (td.latitude, td.longitude))
+            .toList();
+    await widget.runStorage
+        .fetchAltitudes(points, widget.configurationStorage.config.altitudeURL)
+        .then((heights) async {
+          for (final height in heights.indexed) {
+            rs.rawPositions[position + height.$1].altitudeCorrected = height.$2;
+          }
+          await widget.runStorage.updateTrackedData(
+            rs.rawPositions.sublist(position, position + heights.length),
+          );
+        });
   }
 
   Widget _streamBuilder<T>(

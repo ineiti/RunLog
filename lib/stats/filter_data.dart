@@ -1,6 +1,9 @@
 import 'dart:math';
 
 import 'package:run_log/feedback/tones.dart';
+import 'package:scidart/numdart.dart';
+
+import 'run_stats.dart';
 
 class FilterData {
   List<TimeData> filteredData = [];
@@ -22,7 +25,7 @@ class FilterData {
     _resetMM();
   }
 
-  void setFilter(int filterN2){
+  void setFilter(int filterN2) {
     _filter = Filter(filterN2);
     _filterData();
   }
@@ -38,6 +41,34 @@ class FilterData {
 
   int length() {
     return _filter.lanczos.length;
+  }
+
+  PolyFit slopeSpeed(int partial, int degree) {
+    return PolyFit(
+      Array(filteredData.slope().partial(partial).ys()),
+      Array(filteredData.speed().partial(partial).ys()),
+      degree,
+    );
+  }
+
+  List<XYData> speedDistribution() {
+    final low = tdMin.slope.floor();
+    final points = tdMax.slope.ceil() - low;
+    final slopes = filteredData.slope();
+    return List.generate(points, (i) {
+      final slope = low + i;
+      return XYData(
+        slope.toDouble(),
+        slopes.where((xy) => xy.y.floor() == slope).length.toDouble(),
+      );
+    });
+  }
+
+  double meanSpeed(int partial, int degree) {
+    PolyFit pf = slopeSpeed(partial, degree);
+    List<XYData> points = speedDistribution();
+    return points.fold(0.0, (a, b) => a + b.y * pf.predict(b.x)) /
+        filteredData.length;
   }
 
   void _filterData() {
@@ -164,8 +195,8 @@ class TimeData {
   final double ts;
   final double mps;
   final double altitude;
-  final double slope;
-  final double? altitudeCorrected;
+  double slope;
+  double? altitudeCorrected;
   final double? targetPace;
 
   static TimeData init(double x) {
@@ -185,9 +216,29 @@ class TimeData {
     return altitudeCorrected ?? altitude;
   }
 
+  double distanceM(TimeData prev) {
+    return (ts - prev.ts) * mps;
+  }
+
+  double slopeFrom(TimeData prev) {
+    double slope = 100 / distanceM(prev);
+    return slope * (bestAltitude() - prev.bestAltitude());
+  }
+
   @override
   String toString() {
     return "@$ts: $mps - $targetPace";
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'ts': ts,
+      'mps': mps,
+      'altitude': altitude,
+      'slope': slope,
+      if (altitudeCorrected != null) 'altitudeCorrected': altitudeCorrected,
+      if (targetPace != null) 'targetPace': targetPace,
+    };
   }
 }
 
@@ -227,7 +278,9 @@ extension ListData on List<TimeData> {
         .toList();
   }
 
-  static List<TimeData> fromSpeedPoints(List<SpeedPoint> points) {
+  // Creates two TimeData points for every SpeedPoint to make a nice
+  // stairway of the target speed for the figure.
+  static List<TimeData> targetPaceFromSpeedPoints(List<SpeedPoint> points) {
     var time = 0.0;
     var lastDist = 0.0;
     return points
@@ -242,6 +295,16 @@ extension ListData on List<TimeData> {
         })
         .expand((list) => list)
         .toList();
+  }
+
+  static List<TimeData> fromSpeedPoints(List<SpeedPoint> points) {
+    var time = 0.0;
+    var lastDist = 0.0;
+    return points.map((sp) {
+      time += (sp.distanceM - lastDist) / sp.speedMS;
+      lastDist = sp.distanceM;
+      return TimeData(time, sp.speedMS, 0, 0, null, sp.speedMS);
+    }).toList();
   }
 
   List<XYData> speed() {
@@ -266,18 +329,26 @@ extension ListData on List<TimeData> {
     return map((td) => XYData(td.ts, td.slope)).toList();
   }
 
-
-  List<SpeedPoint> speedPoints(){
+  List<SpeedPoint> speedPoints() {
     double distance = 0;
     double time = 0;
     return map((td) {
       distance += (td.ts - time) * td.mps;
       time = td.ts;
       return SpeedPoint(distanceM: distance, speedMS: td.mps);
-
     }).toList();
   }
 
+  List<SpeedPoint> mult(double mult, int resolution, int partial) {
+    return speedPoints()
+        .map(
+          (sp) =>
+              SpeedPoint(distanceM: sp.distanceM, speedMS: sp.speedMS * mult),
+        )
+        .toList()
+        .partial(resolution * partial)
+        .everyNthStartingAt(partial, partial ~/ 2);
+  }
 }
 
 extension PartialList<T> on List<T> {
@@ -314,11 +385,11 @@ extension ListXY on List<XYData> {
     ).join(", ");
   }
 
-  List<double> xs(){
+  List<double> xs() {
     return map((xy) => xy.x).toList();
   }
 
-  List<double> ys(){
+  List<double> ys() {
     return map((xy) => xy.y).toList();
   }
 

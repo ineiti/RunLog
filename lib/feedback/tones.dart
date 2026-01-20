@@ -4,8 +4,10 @@ import "dart:math";
 import "package:audio_session/audio_session.dart";
 import "package:collection/collection.dart";
 import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
+import "package:scidart/numdart.dart";
 
 import "../stats/conversions.dart" as conversions;
+import "../stats/run_stats.dart";
 
 class Tones {
   SFEntry entry = SFEntry();
@@ -37,13 +39,11 @@ class Tones {
   Future<void> playSound(
     int maxSilence,
     bool announceChange,
-    double distanceM,
-    double currentDuration,
+      RunStats rs,
   ) async {
     final frequencies = entry.getFrequencies(
       announceChange,
-      distanceM,
-      currentDuration,
+      rs
     );
     if (idx < maxSilence && frequencies.length == lastLength) {
       idx++;
@@ -154,6 +154,8 @@ class Sound {
 
 class SFEntry {
   List<SpeedPoint> targetSpeeds = [];
+  PolyFit? poly;
+  double mult = 1;
   double frequencyS = 30;
   int currIndex = 0;
 
@@ -206,6 +208,10 @@ class SFEntry {
 
   void addPoint(SpeedPoint sp) {
     targetSpeeds.add(sp);
+  }
+
+  void addSFEntry(SFEntry other){
+    targetSpeeds.addAll(other.targetSpeeds);
   }
 
   void calcSum() {
@@ -289,11 +295,10 @@ class SFEntry {
 
   List<double> getFrequencies(
     bool announceChange,
-    double distanceM,
-    double currentDuration,
+      RunStats rs,
   ) {
     final List<double> frequencies = [440];
-    final (index, targetDuration) = getIndexDurationS(distanceM);
+    final (index, targetDuration) = getIndexDurationS(rs.distanceM());
     if (index != currIndex) {
       if (announceChange) {
         frequencies.add(440);
@@ -308,7 +313,7 @@ class SFEntry {
       }
       currIndex = index;
     }
-    var diffDuration = currentDuration - targetDuration;
+    var diffDuration = rs.durationSec() - targetDuration;
     // print("Index: $currIndex/$index - DiffDuration: $diffDuration");
     for (
       var diffSteps = 0;

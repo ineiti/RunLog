@@ -33,7 +33,7 @@ class _PaceWidgetState extends State<PaceWidget> {
 
   @override
   Widget build(BuildContext context) {
-    var pointsSum = _points.clone();
+    var pointsSum = _sfEntry.clone();
     pointsSum.calcSum();
     widget.updateEntries.add(FeedbackContainer.fromPace(pointsSum));
     return StreamBuilder(
@@ -82,14 +82,18 @@ class _PaceWidgetState extends State<PaceWidget> {
     );
   }
 
-  SFEntry get _points => SFEntry.fromPoints(
-    _entries.map((e) => e.getPoints()).expand((l) => l).toList(),
-  );
+  SFEntry get _sfEntry {
+    final ret = SFEntry();
+    for (final e in _entries) {
+      ret.addSFEntry(e.getSFEntry());
+    }
+    return ret;
+  }
 
   Widget _totalFeedback() {
     double duration = 0;
     double distance = 0;
-    for (final p in _points.targetSpeeds) {
+    for (final p in _sfEntry.targetSpeeds) {
       if (p.speedMS > 0 && p.distanceM > 0) {
         distance += p.distanceM;
         duration += (p.distanceM / p.speedMS).round();
@@ -113,7 +117,7 @@ abstract class PaceEntryImp {
 
   Widget getWidget(VoidCallback setState);
 
-  List<SpeedPoint> getPoints();
+  SFEntry getSFEntry();
 }
 
 enum _ReRunBase { run, slope }
@@ -136,7 +140,7 @@ extension _RRBString on _ReRunBase {
 
 class ReRun implements PaceEntryImp {
   double _paceMinKm = 6;
-  int _resolution = 20;
+  int _resolution = 50;
   _ReRunBase _base = _ReRunBase.run;
   late FilterData _runOrig;
   late List<SpeedPoint> _run;
@@ -145,7 +149,7 @@ class ReRun implements PaceEntryImp {
   late double _pace;
 
   ReRun(List<TimeData> run) {
-    _runOrig = FilterData(20);
+    _runOrig = FilterData(_resolution);
     _runOrig.replace(run);
     final sf = SFEntry.fromPoints(_runOrig.filteredData.speedPoints());
     _dist = sf.getDistance();
@@ -161,14 +165,20 @@ class ReRun implements PaceEntryImp {
   @override
   Widget getWidget(VoidCallback setState) {
     final figure = Figure();
-    if (_base == _ReRunBase.run) {
+    if (_isBaseRun) {
       figure.lines.add(LineStat(type: LineType.targetPace, filterLength: 1));
-      figure.updateRunningData(ListData.fromSpeedPoints(_run));
+      figure.updateRunningData(ListData.targetPaceFromSpeedPoints(_run));
     } else {
       figure.lines.add(
         LineStat(type: LineType.slopeSpeed, filterLength: _filterLength),
       );
-      figure.updateRunningData(_runOrig.rawData);
+      figure.lines.add(
+        LineStat(type: LineType.speedDistribution, filterLength: _filterLength),
+      );
+      figure.updateRunningData(_runOrig.filteredData);
+      print(
+        "mean speed is: ${minSecFix(toPaceMinKm(_runOrig.meanSpeed(100, 5)), 2)}",
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,31 +229,33 @@ class ReRun implements PaceEntryImp {
   }
 
   @override
-  List<SpeedPoint> getPoints() {
-    var lastDistance = 0.0;
-    return _run.map((sp) {
-      final ret = SpeedPoint(
-        distanceM: sp.distanceM - lastDistance,
-        speedMS: sp.speedMS * _pace / _paceMinKm,
+  SFEntry getSFEntry() {
+    if (_isBaseRun) {
+      var lastDistance = 0.0;
+      return SFEntry.fromPoints(
+        _run.map((sp) {
+          final ret = SpeedPoint(
+            distanceM: sp.distanceM - lastDistance,
+            speedMS: sp.speedMS,
+          );
+          lastDistance = sp.distanceM;
+          return ret;
+        }).toList(),
       );
-      lastDistance = sp.distanceM;
-      return ret;
-    }).toList();
+    } else {
+      return SFEntry();
+    }
   }
+
+  bool get _isBaseRun => _base == _ReRunBase.run;
 
   void _updateRun() {
     _runOrig.setFilter(max(1, _filterLength));
-    _run = _runOrig.filteredData
-        .speedPoints()
-        .map(
-          (sp) => SpeedPoint(
-            distanceM: sp.distanceM,
-            speedMS: sp.speedMS * _pace / _paceMinKm,
-          ),
-        )
-        .toList()
-        .partial(_resolution * 3 * 2)
-        .everyNthStartingAt(3, 1);
+    _run = _runOrig.filteredData.mult(
+      _pace / _paceMinKm,
+      _resolution,
+      3,
+    );
   }
 
   int get _filterLength => _runOrig.filteredData.length ~/ _resolution;
@@ -286,8 +298,8 @@ class _PaceAdder implements PaceEntryImp {
   }
 
   @override
-  List<SpeedPoint> getPoints() {
-    return [];
+  SFEntry getSFEntry() {
+    return SFEntry();
   }
 
   @override
@@ -349,8 +361,8 @@ class _Pace implements PaceEntryImp {
   }
 
   @override
-  List<SpeedPoint> getPoints() {
-    return [SpeedPoint.speed(toSpeedMS(_paceMinKm))];
+  SFEntry getSFEntry() {
+    return SFEntry.fromPoints([SpeedPoint.speed(toSpeedMS(_paceMinKm))]);
   }
 }
 
@@ -396,12 +408,16 @@ class _PaceLength implements PaceEntryImp {
   }
 
   @override
-  List<SpeedPoint> getPoints() {
+  SFEntry getSFEntry() {
     switch (_dudi) {
       case _PLDuDi.duration:
-        return [SpeedPoint.fromMinKm(_duration.getSec() / _paceSM, _pace)];
+        return SFEntry.fromPoints([
+          SpeedPoint.fromMinKm(_duration.getSec() / _paceSM, _pace),
+        ]);
       case _PLDuDi.distance:
-        return [SpeedPoint.fromMinKm(_distance.getM().toDouble(), _pace)];
+        return SFEntry.fromPoints([
+          SpeedPoint.fromMinKm(_distance.getM().toDouble(), _pace),
+        ]);
     }
   }
 
@@ -467,10 +483,12 @@ class _PaceIntervals implements PaceEntryImp {
   }
 
   @override
-  List<SpeedPoint> getPoints() {
-    return List.generate(
-      _repetitions,
-      (i) => [_first.getPoints()[0], _second.getPoints()[0]],
-    ).expand((l) => l).toList();
+  SFEntry getSFEntry() {
+    final ret = SFEntry();
+    for (var i = 0; i < _repetitions; i++) {
+      ret.addSFEntry(_first.getSFEntry());
+      ret.addSFEntry(_second.getSFEntry());
+    }
+    return ret;
   }
 }
