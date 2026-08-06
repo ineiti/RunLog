@@ -1,27 +1,17 @@
 import 'dart:convert';
 
-import 'package:collection/collection.dart';
-
 import 'tones.dart';
 
 enum FeedbackType { none, pace, slope }
 
-enum _FeedbackFields { type, slopeMult, target }
+enum _FeedbackFields { type, target }
 
 class FeedbackContainer {
   final FeedbackType type;
-  final List<double> slopeMult;
   final SFEntry target;
 
   static FeedbackContainer fromPace(SFEntry target) {
-    return FeedbackContainer(FeedbackType.pace, [1], target);
-  }
-
-  static FeedbackContainer fromSlopeMult(
-    SFEntry target,
-    List<double> slopeMult,
-  ) {
-    return FeedbackContainer(FeedbackType.pace, slopeMult, target);
+    return FeedbackContainer(FeedbackType.pace, target);
   }
 
   static FeedbackContainer empty() {
@@ -35,30 +25,17 @@ class FeedbackContainer {
       orElse: () => FeedbackType.none,
     );
 
-    var slopeMult = [1.0];
-    try {
-      slopeMult =
-          (map[_FeedbackFields.slopeMult.name] as List<dynamic>?)
-              ?.map<double>((e) => e.toDouble())
-              .toList() ??
-          [1.0];
-    } catch (e) {
-      print("Error while getting slopeMult: $e");
-    }
-
     return FeedbackContainer(
       fbt,
-      slopeMult,
       SFEntry.fromJson(map[_FeedbackFields.target.name] ?? "[]"),
     );
   }
 
-  FeedbackContainer(this.type, this.slopeMult, this.target);
+  FeedbackContainer(this.type, this.target);
 
   String toJson() {
     return jsonEncode({
       _FeedbackFields.type.name: type.name,
-      _FeedbackFields.slopeMult.name: slopeMult,
       _FeedbackFields.target.name: target.toJson(),
     });
   }
@@ -79,10 +56,9 @@ class FeedbackContainer {
   bool operator ==(Object other) {
     return other is FeedbackContainer &&
         other.type == type &&
-        ListEquality<double>().equals(other.slopeMult, slopeMult) &&
         other.target == target;
   }
 
   @override
-  int get hashCode => type.hashCode ^ slopeMult.hashCode ^ target.hashCode;
+  int get hashCode => type.hashCode ^ target.hashCode;
 }

@@ -132,7 +132,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     );
     final rStats = await RunStats.newRun(widget.runStorage);
     runStats = rStats;
-    rStats.run.feedback = FeedbackContainer.fromPace(feedback.tones.entry);
+    rStats.run.feedback = FeedbackContainer.fromPace(
+      feedback.tones.entry ?? SFEntry(),
+    );
     await widget.runStorage.updateRun(rStats.run);
     rStats.figures.addSpeed(5);
     rStats.figures.addSpeed(20);

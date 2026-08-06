@@ -34,14 +34,13 @@ void main() {
     await checkFeedback(FeedbackContainer.empty());
     var feedback = FeedbackContainer(
       FeedbackType.pace,
-      [1],
       SFEntry.fromPoints([
         SpeedPoint(distanceM: 0, speedMS: 3),
         SpeedPoint(distanceM: 1000, speedMS: 4),
       ]),
     );
     await checkFeedback(feedback);
-    feedback = FeedbackContainer(FeedbackType.slope, [1], feedback.target);
+    feedback = FeedbackContainer(FeedbackType.slope, feedback.target);
     await checkFeedback(feedback);
   });
 
@@ -80,7 +79,6 @@ void main() {
   test('Store and get FeedbackContainer', () async {
     final feedback = FeedbackContainer(
       FeedbackType.pace,
-      [1],
       SFEntry.fromPoints([
         SpeedPoint(distanceM: 0, speedMS: 3),
         SpeedPoint(distanceM: 1000, speedMS: 4),

@@ -1,5 +1,4 @@
 import "dart:convert";
-import "dart:math";
 
 import "package:audio_session/audio_session.dart";
 import "package:collection/collection.dart";
@@ -10,7 +9,7 @@ import "../stats/conversions.dart" as conversions;
 import "../stats/run_stats.dart";
 
 class Tones {
-  SFEntry entry = SFEntry();
+  SFEntry? entry;
   int idx = 0;
   int lastLength = 0;
   final Sound sound;
@@ -27,24 +26,26 @@ class Tones {
   }
 
   bool hasEntry() {
-    return entry.targetSpeeds.isNotEmpty;
+    return entry != null;
   }
 
   void reset() {
     idx = 0;
     lastLength = 0;
     sound.reset();
+    entry = null;
   }
 
   Future<void> playSound(
     int maxSilence,
     bool announceChange,
-      RunStats rs,
+    RunStats rs,
   ) async {
-    final frequencies = entry.getFrequencies(
-      announceChange,
-      rs
-    );
+    if (entry == null){
+      return;
+    }
+
+    final frequencies = entry!.getFrequencies(announceChange, rs);
     if (idx < maxSilence && frequencies.length == lastLength) {
       idx++;
       return;
@@ -159,6 +160,13 @@ class SFEntry {
   double frequencyS = 30;
   int currIndex = 0;
 
+  static SFEntry fromPolyFit(PolyFit poly, double mult) {
+    var sf = SFEntry();
+    sf.poly = poly;
+    sf.mult = mult;
+    return sf;
+  }
+
   static SFEntry startMinKm(double start) {
     var sf = SFEntry();
     sf.addPoint(SpeedPoint.fromMinKm(0, start));
@@ -210,15 +218,18 @@ class SFEntry {
     targetSpeeds.add(sp);
   }
 
-  void addSFEntry(SFEntry other){
+  void addSFEntry(SFEntry other) {
+    if (poly != null || other.poly != null){
+      throw "Cannot add two poly-SFEntries together";
+    }
     targetSpeeds.addAll(other.targetSpeeds);
   }
 
   void calcSum() {
     double total = 0;
-    for (int i = 0; i < targetSpeeds.length; i++) {
-      double newTotal = total + targetSpeeds[i].distanceM;
-      targetSpeeds[i].distanceM = total;
+    for (final ts in targetSpeeds){
+      double newTotal = total + ts.distanceM;
+      ts.distanceM = total;
       total = newTotal;
     }
   }
@@ -293,10 +304,7 @@ class SFEntry {
     );
   }
 
-  List<double> getFrequencies(
-    bool announceChange,
-      RunStats rs,
-  ) {
+  List<double> getFrequencies(bool announceChange, RunStats rs) {
     final List<double> frequencies = [440];
     final (index, targetDuration) = getIndexDurationS(rs.distanceM());
     if (index != currIndex) {
