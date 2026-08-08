@@ -1,11 +1,23 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:run_log/app_log.dart';
+import 'package:run_log/backup.dart';
+import 'package:run_log/storage.dart';
 import 'package:run_log/tabs/basic.dart';
+import 'package:run_log/tabs/dialogs.dart';
 
 import '../../configuration.dart';
 
 class Settings extends StatefulWidget {
-  const Settings({super.key, required this.configurationStorage});
+  const Settings({
+    super.key,
+    required this.runStorage,
+    required this.configurationStorage,
+  });
 
+  final RunStorage runStorage;
   final ConfigurationStorage configurationStorage; // Configuration
 
   @override
@@ -14,11 +26,19 @@ class Settings extends StatefulWidget {
 
 class _SettingsState extends State<Settings> {
   final TextEditingController _altitudeURL = TextEditingController();
+  late Future<List<SnapshotInfo>> _snapshotsFuture;
 
   @override
   void initState() {
     super.initState();
     _altitudeURL.text = widget.configurationStorage.config.altitudeURL;
+    _snapshotsFuture = AppBackup.listSnapshots();
+  }
+
+  void _reloadSnapshots() {
+    setState(() {
+      _snapshotsFuture = AppBackup.listSnapshots();
+    });
   }
 
   @override
@@ -152,9 +172,197 @@ class _SettingsState extends State<Settings> {
                 }
               },
             ),
+            _backupsSection(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _backupsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Backups", style: Theme.of(context).textTheme.titleMedium),
+        FutureBuilder<List<SnapshotInfo>>(
+          future: _snapshotsFuture,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
+              );
+            }
+            final snaps = snapshot.data!;
+            final latest = snaps.isNotEmpty ? snaps.first : null;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  latest == null
+                      ? "Latest: none yet"
+                      : "Latest: ${DateFormat('yyyy-MM-dd HH:mm').format(latest.timestamp)} (${latest.runCount} runs)",
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (snaps.isNotEmpty)
+                      blueButton(
+                        "Restore",
+                        () => _showRestoreList(context, snaps),
+                      ),
+                    if (latest != null)
+                      blueButton(
+                        "Share / Save",
+                        () => _shareSnapshot(latest),
+                      ),
+                    blueButton("View log", () => _showLog(context)),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showRestoreList(
+    BuildContext context,
+    List<SnapshotInfo> snaps,
+  ) async {
+    final protected = AppBackup.protectedPath(snaps);
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children:
+                snaps.map((snap) {
+                  final isProtected = snap.path == protected;
+                  return ListTile(
+                    title: Text(
+                      "${DateFormat('yyyy-MM-dd HH:mm').format(snap.timestamp)} "
+                      "(${snap.runCount} runs)"
+                      "${isProtected ? " — protected" : ""}",
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await AppBackup.deleteSnapshot(snap);
+                        _reloadSnapshots();
+                      },
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _confirmRestore(context, snap);
+                    },
+                  );
+                }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmRestore(BuildContext context, SnapshotInfo snap) async {
+    await showDialog<void>(
+      context: context,
+      builder:
+          (BuildContext context) => AlertDialog(
+            title: const Text('Restore Backup'),
+            content: Text(
+              "This will replace the current ${widget.runStorage.runs.length} "
+              "runs with the ${snap.runCount} runs from "
+              "${DateFormat('yyyy-MM-dd HH:mm').format(snap.timestamp)}. "
+              "A safety snapshot of the current state will be taken first.",
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await AppBackup.restore(widget.runStorage, snap);
+                  _reloadSnapshots();
+                },
+                child: const Text('Restore'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _shareSnapshot(SnapshotInfo snap) async {
+    final bytes = await File(snap.path).readAsBytes();
+    if (mounted) {
+      await showFileBytesActionDialog(
+        context,
+        'application/octet-stream',
+        snap.fileName,
+        bytes,
+      );
+    }
+  }
+
+  Future<void> _showLog(BuildContext context) async {
+    final log = await AppLog.readAll();
+    if (!context.mounted) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Log",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.share),
+                      onPressed: () async {
+                        final outerContext = this.context;
+                        Navigator.pop(context);
+                        await showFileActionDialog(
+                          outerContext,
+                          'text/plain',
+                          'runlog.log',
+                          log,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      log.isEmpty ? "(empty)" : log,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

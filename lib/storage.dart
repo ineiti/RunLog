@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
+import 'package:run_log/app_log.dart';
 import 'package:run_log/feedback/feedback.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -23,19 +24,14 @@ class RunStorage {
   // Factory constructor to handle async initialization
   static Future<RunStorage> init() async {
     WidgetsFlutterBinding.ensureInitialized();
-    final rs = RunStorage._(await _getDB());
+    final rs = RunStorage._(await openDb());
     return rs;
   }
 
   static Future<RunStorage> initLoad() async {
-    try {
-      final rs = await init();
-      await rs.loadRuns();
-      return rs;
-    } catch (e) {
-      print("Error: $e");
-    }
-    return RunStorage.initClean();
+    final rs = await init();
+    await rs.loadRuns();
+    return rs;
   }
 
   static Future<RunStorage> initClean() async {
@@ -46,10 +42,15 @@ class RunStorage {
 
   Future<void> loadRuns() async {
     final runMaps = await db.query('Runs');
-    final runList = runMaps.map((map) => Run.fromMap(map)).toList();
-    for (var run in runList) {
-      await run.ensureStats(this);
-      runs[run.id] = run;
+    for (var map in runMaps) {
+      try {
+        final run = Run.fromMap(map);
+        await run.ensureStats(this);
+        runs[run.id] = run;
+      } catch (e) {
+        print("Skipping unreadable run ${map['id']}: $e");
+        unawaited(AppLog.write("Skipping unreadable run ${map['id']}: $e"));
+      }
     }
 
     updateRuns.add(null);
@@ -60,13 +61,7 @@ class RunStorage {
       return trackedData[runId]!;
     }
 
-    final trackedDataMaps = await db.query(
-      'TrackedData',
-      where: "run_id = ?",
-      whereArgs: [runId],
-    );
-    trackedData[runId] =
-        trackedDataMaps.map((map) => TrackedData.fromMap(map)).toList();
+    trackedData[runId] = await _loadTrackedDataFromDB(runId);
 
     return trackedData[runId]!;
   }
@@ -117,14 +112,47 @@ class RunStorage {
 
   Future<String> exportAll() async {
     List<Map<String, dynamic>> content = [];
-    for (var run in runs.entries) {
-      final track = await loadTrackedData(run.key);
-      content.add({
-        'run': run.value.toMap(),
-        'track': track.map((t) => t.toMap()).toList(),
-      });
+    final runMaps = await db.query('Runs');
+    for (var map in runMaps) {
+      try {
+        final run = Run.fromMap(map);
+        final track = await _loadTrackedDataFromDB(run.id);
+        content.add({
+          'run': run.toMap(),
+          'track': track.map((t) => t.toMap()).toList(),
+        });
+      } catch (e) {
+        print("Skipping unreadable run ${map['id']} during export: $e");
+        unawaited(
+          AppLog.write(
+            "Skipping unreadable run ${map['id']} during export: $e",
+          ),
+        );
+      }
     }
     return jsonEncode(content);
+  }
+
+  Future<List<TrackedData>> _loadTrackedDataFromDB(int runId) async {
+    final trackedDataMaps = await db.query(
+      'TrackedData',
+      where: "run_id = ?",
+      whereArgs: [runId],
+    );
+    final points = <TrackedData>[];
+    for (var map in trackedDataMaps) {
+      try {
+        points.add(TrackedData.fromMap(map));
+      } catch (e) {
+        print("Skipping unreadable point ${map['id']} (run $runId): $e");
+        unawaited(
+          AppLog.write(
+            "Skipping unreadable point ${map['id']} (run $runId): $e",
+          ),
+        );
+      }
+    }
+    return points;
   }
 
   Future<void> importAll(String content) async {
@@ -234,6 +262,7 @@ class RunStorage {
       }
     } catch (e) {
       print("Couldn't fetch entries: $e");
+      unawaited(AppLog.write("Couldn't fetch entries: $e"));
     }
   }
 
@@ -285,26 +314,32 @@ class RunStorage {
         return elevations;
       } catch (e) {
         print("Error while converting: $e - $results");
+        unawaited(AppLog.write("Error while converting: $e - $results"));
         return [];
       }
     } else {
       print(
         "Error while getting heights, status-code is: ${response.statusCode}",
       );
+      unawaited(
+        AppLog.write(
+          "Error while getting heights, status-code is: ${response.statusCode}",
+        ),
+      );
       throw Exception('Failed to load data');
     }
   }
 
-  static Future<String> _dbPath() async {
+  static Future<String> dbPath() async {
     return join(await getDatabasesPath(), dbName);
   }
 
-  static Future<Database> _getDB() async {
+  static Future<Database> openDb({int version = 4}) async {
     return openDatabase(
       // Set the path to the database. Note: Using the `join` function from the
       // `path` package is best practice to ensure the path is correctly
       // constructed for each platform.
-      join(await _dbPath()),
+      join(await dbPath()),
       onCreate: (db, newVersion) async {
         print("Creating db");
         // Run the CREATE TABLE statement on the database.
@@ -318,7 +353,7 @@ class RunStorage {
           await _performDBUpgrade(db, version + 1);
         }
       },
-      version: 4,
+      version: version,
     );
   }
 

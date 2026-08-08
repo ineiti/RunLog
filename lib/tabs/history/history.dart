@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../app_log.dart';
+import '../../backup.dart';
 import '../../configuration.dart';
 import '../../stats/conversions.dart';
 import '../../stats/run_data.dart';
@@ -63,7 +65,7 @@ class _HistoryState extends State<History> {
             children: [
               Column(
                 children: [
-                  _debugRuns(),
+                  _debugRuns(context),
                   blueButton("Export All", () async {
                     await _exportAll(context);
                     setState(() {});
@@ -78,7 +80,7 @@ class _HistoryState extends State<History> {
     );
   }
 
-  Widget _debugRuns() {
+  Widget _debugRuns(BuildContext context) {
     if (!widget.configurationStorage.config.debug) {
       return Text("");
     }
@@ -86,7 +88,7 @@ class _HistoryState extends State<History> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         blueButton("Delete", () async {
-          await _dbDelete();
+          await _confirmDbDelete(context);
           setState(() {});
         }),
         blueButton("PreFill", () async {
@@ -174,7 +176,41 @@ class _HistoryState extends State<History> {
     );
   }
 
+  Future<void> _confirmDbDelete(BuildContext context) async {
+    await showDialog<String>(
+      context: context,
+      builder:
+          (BuildContext context) => AlertDialog(
+            title: const Text('Delete All Runs'),
+            content: const Text(
+              'Do you really want to delete all runs? This cannot be undone '
+              'from within the app.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'Cancel'),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await _dbDelete();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+    );
+  }
+
   Future<void> _dbDelete() async {
+    try {
+      await AppBackup.createSnapshot(widget.runStorage.db, force: true);
+    } catch (e) {
+      await AppLog.write("Pre-delete snapshot failed: $e");
+    }
     await widget.runStorage.cleanDB();
   }
 

@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:run_log/app_log.dart';
 import 'package:run_log/stats/run_data.dart';
 
 enum _SummaryFields { mapIcon, similar, trace, tags }
@@ -29,6 +31,7 @@ class SummaryContainer {
       );
     } catch (e) {
       print("Error: $e");
+      unawaited(AppLog.write("Error parsing SummaryContainer: $e"));
       return SummaryContainer.empty();
     }
   }

@@ -1,8 +1,10 @@
+import "dart:async";
 import "dart:convert";
 
 import "package:audio_session/audio_session.dart";
 import "package:collection/collection.dart";
 import "package:flutter_pcm_sound/flutter_pcm_sound.dart";
+import "package:run_log/app_log.dart";
 import "package:scidart/numdart.dart";
 
 import "../stats/conversions.dart" as conversions;
@@ -194,6 +196,7 @@ class SFEntry {
               .toList();
     } catch (e) {
       print("Couldn't import targetSpeeds: $e");
+      unawaited(AppLog.write("Couldn't import targetSpeeds: $e"));
     }
     return sf;
   }

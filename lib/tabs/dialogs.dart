@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -9,6 +10,20 @@ Future<void> showFileActionDialog(
   String mimeType,
   String name,
   String content,
+) async {
+  await showFileBytesActionDialog(
+    context,
+    mimeType,
+    name,
+    utf8.encode(content),
+  );
+}
+
+Future<void> showFileBytesActionDialog(
+  BuildContext context,
+  String mimeType,
+  String name,
+  List<int> bytes,
 ) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -24,7 +39,7 @@ Future<void> showFileActionDialog(
                 Navigator.pop(context);
                 final params = ShareParams(
                   files: [
-                    XFile.fromData(utf8.encode(content), mimeType: mimeType),
+                    XFile.fromData(Uint8List.fromList(bytes), mimeType: mimeType),
                   ],
                   fileNameOverrides: [name],
                 );
@@ -39,7 +54,7 @@ Future<void> showFileActionDialog(
                 await FilePicker.platform.saveFile(
                   dialogTitle: 'Where to store the file:',
                   fileName: name,
-                  bytes: utf8.encode(content),
+                  bytes: Uint8List.fromList(bytes),
                 );
               },
             ),

@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
+import 'package:run_log/app_log.dart';
+import 'package:run_log/backup.dart';
 import 'package:run_log/configuration.dart';
 import 'package:run_log/summary/init_runs.dart';
 import 'package:run_log/tabs/running/running.dart';
@@ -15,6 +18,15 @@ import 'package:run_log/storage.dart';
 import 'package:run_log/tabs/history/history.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (FlutterErrorDetails details) {
+    unawaited(AppLog.write("FlutterError: ${details.exceptionAsString()}"));
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    unawaited(AppLog.write("Uncaught error: $error\n$stack"));
+    return true;
+  };
   await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
@@ -31,8 +43,18 @@ class AppFutures {
   final ConfigurationStorage configurationStorage;
 
   static Future<AppFutures> start() async {
+    final runStorage = await RunStorage.initLoad();
+    // Must run after initLoad() (migrations applied) and must never be able
+    // to fail app launch -- item 1b removing the auto-wipe is what makes
+    // snapshotting here safe: a load error now throws instead of wiping the
+    // DB before we get a chance to snapshot it.
+    try {
+      await AppBackup.createSnapshot(runStorage.db, force: false);
+    } catch (e) {
+      await AppLog.write("Startup snapshot failed: $e");
+    }
     return AppFutures(
-      runStorage: await RunStorage.initLoad(),
+      runStorage: runStorage,
       configurationStorage: await ConfigurationStorage.loadConfig(),
     );
   }
@@ -119,6 +141,11 @@ class _MyAppState extends State<MyApp> {
   Future<void> _processRLogFile(RunStorage runStorage, String filePath) async {
     File rlogFile = File(filePath);
     String content = await rlogFile.readAsString();
+    try {
+      await AppBackup.createSnapshot(runStorage.db, force: true);
+    } catch (e) {
+      await AppLog.write("Pre-import snapshot failed: $e");
+    }
     await runStorage.importAll(content);
   }
 
@@ -168,6 +195,7 @@ class _MyAppState extends State<MyApp> {
                       configurationStorage: appFutures.configurationStorage,
                     ),
                     Settings(
+                      runStorage: appFutures.runStorage,
                       configurationStorage: appFutures.configurationStorage,
                     ),
                   ],

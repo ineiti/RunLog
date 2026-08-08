@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:run_log/app_log.dart';
 import 'package:run_log/stats/run_stats.dart';
 import 'package:run_log/storage.dart';
 import 'package:run_log/summary/summary.dart';
@@ -44,7 +47,7 @@ class Run {
         dbMap['start_time'] as int,
       ),
       durationMS: dbMap['duration'] as int,
-      totalDistanceM: dbMap['total_distance'] as double,
+      totalDistanceM: (dbMap['total_distance'] as num).toDouble(),
       caloriesBurned: dbMap['calories_burned'] as int?,
       weather: dbMap['weather'] as String?,
       avgHeartRate: dbMap['avg_heart_rate'] as int?,
@@ -170,11 +173,11 @@ class TrackedData {
       id: dbMap['id'] as int,
       runId: dbMap['run_id'] as int,
       timestampMS: dbMap['timestamp'] as int,
-      latitude: dbMap['latitude'] as double,
-      longitude: dbMap['longitude'] as double,
-      altitude: dbMap['altitude'] as double,
-      altitudeCorrected: dbMap['altitude_corrected'] as double?,
-      gpsAccuracy: dbMap['gps_accuracy'] as double,
+      latitude: (dbMap['latitude'] as num).toDouble(),
+      longitude: (dbMap['longitude'] as num).toDouble(),
+      altitude: (dbMap['altitude'] as num).toDouble(),
+      altitudeCorrected: (dbMap['altitude_corrected'] as num?)?.toDouble(),
+      gpsAccuracy: (dbMap['gps_accuracy'] as num?)?.toDouble() ?? 9999,
       heartRate: dbMap['heart_rate'] as int?,
       stepsPerMin: dbMap['steps_per_min'] as int?,
     );
@@ -349,6 +352,7 @@ extension GpxIO on List<TrackedData> {
         feedbackContainer = FeedbackContainer.fromJson(feedbackJson as String);
       } catch (e) {
         print("Couldn't get FeedbackContainer: $e");
+        unawaited(AppLog.write("Couldn't get FeedbackContainer: $e"));
       }
     }
     var now = DateTime.now().subtract(Duration(days: 1)).millisecondsSinceEpoch;

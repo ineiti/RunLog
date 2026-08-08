@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
+
+import 'package:run_log/app_log.dart';
 
 import 'tones.dart';
 
@@ -19,16 +22,22 @@ class FeedbackContainer {
   }
 
   static FeedbackContainer fromJson(String s) {
-    final map = jsonDecode(s);
-    final fbt = FeedbackType.values.firstWhere(
-      (e) => e.name == map[_FeedbackFields.type.name],
-      orElse: () => FeedbackType.none,
-    );
+    try {
+      final map = jsonDecode(s);
+      final fbt = FeedbackType.values.firstWhere(
+        (e) => e.name == map[_FeedbackFields.type.name],
+        orElse: () => FeedbackType.none,
+      );
 
-    return FeedbackContainer(
-      fbt,
-      SFEntry.fromJson(map[_FeedbackFields.target.name] ?? "[]"),
-    );
+      return FeedbackContainer(
+        fbt,
+        SFEntry.fromJson(map[_FeedbackFields.target.name] ?? "[]"),
+      );
+    } catch (e) {
+      print("Error: $e");
+      unawaited(AppLog.write("Error parsing FeedbackContainer: $e"));
+      return FeedbackContainer(FeedbackType.none, SFEntry.fromJson("[]"));
+    }
   }
 
   FeedbackContainer(this.type, this.target);
