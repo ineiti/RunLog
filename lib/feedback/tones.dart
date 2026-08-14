@@ -54,7 +54,12 @@ class Tones {
     }
 
     lastLength = frequencies.length;
-    await sound.play(frequencies, 0.5, 0.5);
+    try {
+      await sound.play(frequencies, 0.5, 0.5);
+    } catch (e) {
+      print("Couldn't play sound: $e");
+      unawaited(AppLog.write("Couldn't play sound: $e"));
+    }
     idx = 0;
   }
 }
@@ -68,7 +73,7 @@ class Sound {
   int samples = 0;
   double volume = 1;
   int index = 0;
-  int conflicts = 0;
+  bool playing = false;
 
   static Future<AudioSession> getSession() async {
     final session = await AudioSession.instance;
@@ -98,18 +103,19 @@ class Sound {
 
   void reset() {
     index = 0;
-    conflicts = 0;
+    playing = false;
     frequencies = [];
   }
 
   Future<void> play(List<double> freqs, double durationS, double vol) async {
-    if (index > 0 && conflicts < 10) {
-      conflicts++;
-      print(
-        "Warning: playing already in progress: $index of ${frequencies.length}",
+    if (playing) {
+      unawaited(
+        AppLog.write("Warning: playing already in progress: $index of ${frequencies.length}"),
       );
-      return;
+      // Force the previous sequence to stop so we never get stuck silent.
+      playing = false;
     }
+    playing = true;
     frequencies = freqs.map((f) => f / Sound.sampleRate * 2 * pi).toList();
     volume = vol;
     samples = (Sound.sampleRate * durationS).toInt();
@@ -120,7 +126,13 @@ class Sound {
     await FlutterPcmSound.setFeedThreshold(8000);
     FlutterPcmSound.setFeedCallback((rest) => _feed(rest == 0));
     index = 0;
-    FlutterPcmSound.start();
+    // Feed the first tone directly instead of relying on
+    // FlutterPcmSound.start(), which only fires when the plugin's own
+    // internal state thinks playback isn't already running. That internal
+    // state can desync from ours (e.g. after release() interrupts the
+    // native playback thread), silently turning start() into a no-op and
+    // leaving the tones stopped forever.
+    await _feed(false);
   }
 
   Future<void> _feed(bool done) async {
@@ -149,8 +161,9 @@ class Sound {
       index += 1;
     } else if (done) {
       // print("done ${DateTime.timestamp()}");
-      await session.setActive(false);
       index = 0;
+      playing = false;
+      await session.setActive(false);
     }
   }
 }
