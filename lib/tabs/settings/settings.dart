@@ -9,6 +9,7 @@ import 'package:run_log/tabs/basic.dart';
 import 'package:run_log/tabs/dialogs.dart';
 
 import '../../configuration.dart';
+import '../../version.dart';
 
 class Settings extends StatefulWidget {
   const Settings({
@@ -166,16 +167,29 @@ class _SettingsState extends State<Settings> {
               onChanged: (bool? value) async {
                 if (value != null) {
                   await widget.configurationStorage.updateConfig(
-                    widget.configurationStorage.config.setAnnounceTargetChange(value),
+                    widget.configurationStorage.config.setAnnounceTargetChange(
+                      value,
+                    ),
                   );
                   setState(() {});
                 }
               },
             ),
             _backupsSection(),
+            _aboutSection(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _aboutSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("About", style: Theme.of(context).textTheme.titleMedium),
+        Text("Version $gitHash · built ${formatBuildDate(buildDate)}"),
+      ],
     );
   }
 
@@ -212,10 +226,7 @@ class _SettingsState extends State<Settings> {
                         () => _showRestoreList(context, snaps),
                       ),
                     if (latest != null)
-                      blueButton(
-                        "Share / Save",
-                        () => _shareSnapshot(latest),
-                      ),
+                      blueButton("Share / Save", () => _shareSnapshot(latest)),
                     blueButton("View log", () => _showLog(context)),
                   ],
                 ),
@@ -328,10 +339,7 @@ class _SettingsState extends State<Settings> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Log",
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+                    Text("Log", style: Theme.of(context).textTheme.titleMedium),
                     IconButton(
                       icon: const Icon(Icons.share),
                       onPressed: () async {

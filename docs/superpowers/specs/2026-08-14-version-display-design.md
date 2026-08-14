@@ -23,7 +23,8 @@ Git info isn't available at runtime in a compiled Flutter app, so it must be bak
   ```
   --dart-define=GIT_HASH=$GIT_HASH --dart-define=BUILD_DATE=$BUILD_DATE
   ```
-- `devbox.json` gains two new scripts, `run` and `build`, that call these shell scripts. Existing `test` and `analyze` scripts are unchanged.
+- `devbox.json` gains a new `run` script that calls `scripts/run.sh` (no arguments needed). `scripts/build.sh` is invoked directly as `devbox run -- bash scripts/build.sh <platform>` rather than as a named devbox script, since devbox's generated script wrappers don't forward extra CLI arguments to the script body — a named `build` script could never receive the platform argument. Existing `test` and `analyze` scripts are unchanged.
+- IDE "Run" buttons (Android Studio, VS Code) and plain `flutter run`/`flutter build` bypass these wrapper scripts entirely, so the app will show `Version unknown · built unknown` when launched that way.
 
 ### App code
 

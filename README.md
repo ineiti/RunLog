@@ -21,6 +21,16 @@ through the run - slower when uphill, faster when downhill
 - use a web interface to configure the app
 - use hear-rate monitor (need to buy a watch first :)
 
+## Running / building
+
+Use `devbox run run` (or `devbox run -- bash scripts/build.sh <platform>`,
+e.g. `devbox run -- bash scripts/build.sh apk --release`) instead of calling
+`flutter run` / `flutter build` directly — these wrapper scripts bake the
+current git commit hash and build timestamp into the app via `--dart-define`,
+shown under Settings > About. Plain `flutter run`/`flutter build`, and IDE
+"Run" buttons (Android Studio, VS Code), bypass the wrapper, so the version
+shows as "unknown" there.
+
 ## Motivation
 
 I'm running for a bit more than 10 years now, and I'm always motivated by looking
@@ -70,6 +80,10 @@ time indications.
 # Bugs
 
 # Changelog
+
+2026-08-14:
+- show git commit hash + build time in Settings > About
+- use `devbox run run` / `devbox run build` to launch with version info baked in
 
 2026-01-20:
 - lots of work to get the pace/slope implementation going

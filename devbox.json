@@ -8,6 +8,9 @@
       ],
       "analyze": [
         "flutter analyze"
+      ],
+      "run": [
+        "bash scripts/run.sh"
       ]
     }
   }
