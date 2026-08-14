@@ -27,9 +27,25 @@ Use `devbox run run` (or `devbox run -- bash scripts/build.sh <platform>`,
 e.g. `devbox run -- bash scripts/build.sh apk --release`) instead of calling
 `flutter run` / `flutter build` directly — these wrapper scripts bake the
 current git commit hash and build timestamp into the app via `--dart-define`,
-shown under Settings > About. Plain `flutter run`/`flutter build`, and IDE
-"Run" buttons (Android Studio, VS Code), bypass the wrapper, so the version
-shows as "unknown" there.
+shown under Settings > About. Plain `flutter run`/`flutter build` bypass the
+wrapper, so the version shows as "unknown" there.
+
+### Android Studio "Run" button
+
+To get real version info from the IDE's Run button too (one-time setup,
+per machine, since `.idea/` isn't checked in):
+
+1. Run > Edit Configurations… > `main.dart`
+2. Additional run args: `--dart-define-from-file=version.dartdefine.json`
+3. Before launch > `+` > Run External tool > `+`:
+   - Name: `Generate version.dartdefine.json`
+   - Program: `bash`
+   - Arguments: `scripts/gen_version_json.sh`
+   - Working directory: `$ProjectFileDir$`
+
+Without this setup, Run shows "unknown", same as plain `flutter run`.
+`version.dartdefine.json` is checked in with `"unknown"` placeholders so a
+fresh clone's Run button doesn't error before the external tool has run once.
 
 ## Motivation
 
@@ -83,7 +99,8 @@ time indications.
 
 2026-08-14:
 - show git commit hash + build time in Settings > About
-- use `devbox run run` / `devbox run build` to launch with version info baked in
+- use `devbox run run` / `devbox run -- bash scripts/build.sh <platform>` to launch with version info baked in
+- wire up Android Studio's Run button to also show real version info (one-time per-machine setup)
 
 2026-01-20:
 - lots of work to get the pace/slope implementation going
