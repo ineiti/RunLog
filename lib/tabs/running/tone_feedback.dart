@@ -40,14 +40,19 @@ class ToneFeedback {
   ) async {
     if (tones.hasEntry()) {
       if (rs.durationSec() >= _nextSoundS) {
+        // Claim this beep slot before awaiting playSound(). playSound()
+        // makes native audio calls that can outlast a single GPS tick
+        // (position updates arrive every second); advancing the schedule
+        // first stops a position update that arrives mid-playback from
+        // seeing the same slot as still due and re-entering playSound().
+        while (_nextSoundS <= rs.durationSec()) {
+          _nextSoundS += _soundIntervalS;
+        }
         await tones.playSound(
           _maxFeedbackSilence,
           announceChange,
           rs,
         );
-        while (_nextSoundS <= rs.durationSec()) {
-          _nextSoundS += _soundIntervalS;
-        }
       }
     }
   }
