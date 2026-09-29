@@ -45,7 +45,10 @@ class _PaceWidgetState extends State<PaceWidget> {
             PaceWidget.initEntries.add([]);
           }
         }
-        var tf = _entries.isNotEmpty && _entries.first.type != _Entries.reRun;
+        var tf =
+            _entries.isNotEmpty &&
+            _entries.first.type != _Entries.reRun &&
+            _entries.first.type != _Entries.copied;
         return Column(
           children: [
             blueButton("Clear", () {
@@ -260,7 +263,39 @@ class ReRun implements PaceEntryImp {
   int get _filterLength => _runOrig.filteredData.length ~/ _resolution;
 }
 
-enum _Entries { adder, pace, paceLength, intervals, reRun }
+class CopiedEntry implements PaceEntryImp {
+  final SFEntry _target;
+
+  CopiedEntry(SFEntry target) : _target = target.clone();
+
+  @override
+  _Entries get type => _Entries.copied;
+
+  @override
+  Widget getWidget(VoidCallback setState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Copied entries: ${_target.targetSpeeds.length}"),
+        for (final sp in _target.targetSpeeds)
+          Text(
+            "${distanceStr(sp.distanceM)} at ${minSec(toPaceMinKm(sp.speedMS))} min/km",
+          ),
+      ],
+    );
+  }
+
+  @override
+  SFEntry getSFEntry() {
+    return SFEntry.fromPoints(
+      _target.targetSpeeds
+          .map((sp) => SpeedPoint(distanceM: sp.distanceM, speedMS: sp.speedMS))
+          .toList(),
+    );
+  }
+}
+
+enum _Entries { adder, pace, paceLength, intervals, reRun, copied }
 
 enum _AdderPos { beginning, end }
 
@@ -311,6 +346,8 @@ class _PaceAdder implements PaceEntryImp {
       case _Entries.adder:
         return;
       case _Entries.reRun:
+        return;
+      case _Entries.copied:
         return;
       case _Entries.pace:
         imp = _Pace();

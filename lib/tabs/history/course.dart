@@ -122,6 +122,14 @@ class _DetailPageState extends State<DetailPage> {
       blueButton("Delete", () => _trackDelete(context)),
       blueButton("Height", () => _trackHeight(context)),
       blueButton("Re-Run", () => _reRun(context)),
+      TextButton(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.lightBlue,
+        ),
+        onPressed: _hasPaceEntries ? () => _copyEntries(context) : null,
+        child: const Text("Entries"),
+      ),
     ];
     if (widget.configurationStorage.config.debug) {
       children.add(blueButton("Clear", () => _trackClear(context)));
@@ -228,6 +236,18 @@ class _DetailPageState extends State<DetailPage> {
     final controller = DefaultTabController.of(tabKey.currentContext!);
     controller.index = 1;
     PaceWidget.initEntries.add([ReRun(rr!.runningData)]);
+  }
+
+  bool get _hasPaceEntries {
+    final feedback = rr?.run.feedback;
+    return feedback != null && feedback.target.targetSpeeds.isNotEmpty;
+  }
+
+  Future<void> _copyEntries(BuildContext context) async {
+    Navigator.of(context).pop();
+    final controller = DefaultTabController.of(tabKey.currentContext!);
+    controller.index = 1;
+    PaceWidget.initEntries.add([CopiedEntry(rr!.run.feedback!.target)]);
   }
 
   Future<void> _trackExport(BuildContext context) async {
