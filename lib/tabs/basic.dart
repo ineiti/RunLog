@@ -25,6 +25,7 @@ Widget paceSlider(
   double to,
 ) {
   final divisions = ((to - from) * 12).round();
+  final step = (to - from) / divisions;
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -36,15 +37,42 @@ Widget paceSlider(
           Text("${minSecFix(pace, 2)} / km"),
           Flexible(
             flex: 1,
-            child: Slider(
-              value: pace,
-              onChanged: onPaceChanged,
-              min: from,
-              divisions: divisions,
-              max: to,
+            child: stepSlider(
+              slider: Slider(
+                value: pace,
+                onChanged: onPaceChanged,
+                min: from,
+                divisions: divisions,
+                max: to,
+                padding: EdgeInsets.zero,
+              ),
+              onStepDown: () => onPaceChanged((pace - step).clamp(from, to)),
+              onStepUp: () => onPaceChanged((pace + step).clamp(from, to)),
             ),
           ),
         ],
+      ),
+    ],
+  );
+}
+
+Widget stepSlider({
+  required Widget slider,
+  required VoidCallback onStepDown,
+  required VoidCallback onStepUp,
+}) {
+  return Row(
+    children: [
+      IconButton(
+        icon: const Icon(Icons.remove),
+        onPressed: onStepDown,
+        visualDensity: VisualDensity.compact,
+      ),
+      Expanded(child: slider),
+      IconButton(
+        icon: const Icon(Icons.add),
+        onPressed: onStepUp,
+        visualDensity: VisualDensity.compact,
       ),
     ],
   );

@@ -154,6 +154,13 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
+  void _stepFilterDivisions(int delta) {
+    setState(() {
+      filterDivisions = (filterDivisions + delta).clamp(1, 200);
+    });
+    _updateFigures(rr!, filterDivisions);
+  }
+
   Widget _filterSlider() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,16 +173,21 @@ class _DetailPageState extends State<DetailPage> {
             Text("$filterDivisions"),
             Flexible(
               flex: 1,
-              child: Slider(
-                value: pow(200 * filterDivisions, 1 / 2).toDouble(),
-                onChanged: (fd) async {
-                  setState(() {
-                    filterDivisions = (pow(fd, 2) / 200).ceil();
-                  });
-                  _updateFigures(rr!, filterDivisions);
-                },
-                min: 1,
-                max: 200,
+              child: stepSlider(
+                slider: Slider(
+                  value: pow(200 * filterDivisions, 1 / 2).toDouble(),
+                  onChanged: (fd) async {
+                    setState(() {
+                      filterDivisions = (pow(fd, 2) / 200).ceil();
+                    });
+                    _updateFigures(rr!, filterDivisions);
+                  },
+                  min: 1,
+                  max: 200,
+                  padding: EdgeInsets.zero,
+                ),
+                onStepDown: () => _stepFilterDivisions(-1),
+                onStepUp: () => _stepFilterDivisions(1),
               ),
             ),
           ],
