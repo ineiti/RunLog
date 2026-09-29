@@ -20,6 +20,10 @@ analyzer:
     unawaited_futures: error
     avoid_void_async: error
     discarded_futures: error
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
 
 linter:
   # The lint rules applied to this project can be customized in the

@@ -303,7 +303,8 @@ class Resampler {
 
   List<TrackedData> resample(TrackedData td) {
     if (lastMovement == td) {
-      throw "Cannot resample with same element again";
+      // A duplicate GPS fix (same position/time) carries no new sample.
+      return [];
     }
     List<TrackedData> resampled = [];
     while (nextSampleMS <= td.timestampMS) {

@@ -67,6 +67,18 @@ void main() {
     expect(rs.resample(pm.td.withTimestamp(ts)), [pm.td.withTimestamp(ts)]);
   });
 
+  test('Resampling duplicate TrackData does not throw', () {
+    final r = Run.now(1);
+    final pm = PositionMock(run: r);
+    final rs = Resampler(pm.td);
+    final ts = pm.td.timestampMS + rs.sampleIntervalMS;
+    final td = pm.td.withTimestamp(ts);
+    expect(rs.resample(td), [td]);
+    // A value-equal sample arriving again (e.g. a duplicate GPS fix) must
+    // be a no-op, not a thrown error.
+    expect(rs.resample(td.withTimestamp(ts)), []);
+  });
+
   test('Multiplying speeds', () {
     final pointsOrig =
         [
