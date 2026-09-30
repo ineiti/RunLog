@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 enum GTState { permissionRequest, permissionRefused, permissionGranted }
 
@@ -14,36 +15,52 @@ class GeoTracker {
   final bool simul;
   static const intervalSeconds = 1;
   GTState? state;
+  StreamSubscription<Position>? _posSub;
+  Timer? _simulTimer;
 
   GeoTracker({this.simul = false}) {
     gtStream.stream.listen((s) => state = s);
+    state = GTState.permissionRequest;
+    gtStream.add(GTState.permissionRequest);
     if (simul) {
-      state = GTState.permissionRequest;
       Timer(const Duration(seconds: 1), () {
         gtStream.add(GTState.permissionGranted);
       });
+    } else {
+      unawaited(_gtStreamPermissions());
     }
-    gtStream.add(GTState.permissionRequest);
-    unawaited(_gtStreamPermissions());
   }
 
   Future<void> _gtStreamPermissions() async {
     final bool result = await _handlePermission();
 
     if (result) {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        // Awaited so the Android 13+ notification permission is resolved
+        // before the GPS foreground service starts: the service posts its
+        // tracking notification immediately on start, and a still-pending
+        // permission means that first notification is silently dropped
+        // and never reappears.
+        await Permission.notification.request();
+      }
       gtStream.add(GTState.permissionGranted);
-      _startLocation();
     } else {
       gtStream.add(GTState.permissionRefused);
     }
   }
 
-  void _startLocation() {
+  /// Starts the underlying GPS stream. Safe to call multiple times: does
+  /// nothing if tracking is already active.
+  void startTracking() {
+    if (_posSub != null || _simulTimer != null) {
+      return;
+    }
+
     if (simul) {
       var latitude = 0.0;
       var now = DateTime.now();
       final interval = Duration(seconds: intervalSeconds);
-      var timer = Timer.periodic(interval, (timer) {
+      _simulTimer = Timer.periodic(interval, (timer) {
         now = now.add(interval);
         double targetSpeed = 5 + sin(latitude / 0.00011 / 3 + pi / 2);
         latitude += 0.00011 * 1.3 * intervalSeconds / targetSpeed;
@@ -62,9 +79,6 @@ class GeoTracker {
           ),
         );
       });
-      gpsPos.onCancel = () {
-        timer.cancel();
-      };
     } else {
       late LocationSettings locationSettings;
 
@@ -89,12 +103,20 @@ class GeoTracker {
         );
       }
 
-      Geolocator.getPositionStream(
+      _posSub = Geolocator.getPositionStream(
         locationSettings: locationSettings,
       ).listen((pos) {
         gpsPos.add(pos);
       });
     }
+  }
+
+  /// Stops the underlying GPS stream. Safe to call multiple times.
+  void stopTracking() {
+    _simulTimer?.cancel();
+    _simulTimer = null;
+    unawaited(_posSub?.cancel());
+    _posSub = null;
   }
 
   Stream<GTState> get streamState => gtStream.stream;

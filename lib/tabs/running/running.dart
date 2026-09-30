@@ -38,7 +38,8 @@ enum RunState { waitGPS, waitUser, running }
 //
 // This should better reflect the complex setup now and make it easier
 // to test.
-class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
+class _RunningState extends State<Running>
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   late GeoTracker geoTracker;
   RunStats? runStats;
   StreamController<RunState> widgetController = StreamController.broadcast();
@@ -49,6 +50,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   var _paceSpeechInterval = 0;
   var _lastPaceSpeech = 0;
   int _countPoints = 0;
+  bool _runActive = false;
+  bool _appResumed = true;
+  bool _permissionGranted = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -56,6 +60,7 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     runStateStream = StreamController.broadcast();
     geoTracker = GeoTracker(
       simul: widget.configurationStorage.config.simulateGPS,
@@ -63,6 +68,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
     geoTracker.streamState.listen((state) {
       if (state == GTState.permissionGranted) {
         geoTracker.streamPosition.listen((pos) => accuracy.add(pos.accuracy));
+        _permissionGranted = true;
+        _syncTracking();
       }
     });
     unawaited(
@@ -70,6 +77,49 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
         feedback = f;
       }),
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(geoListen?.cancel());
+    geoTracker.stopTracking();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // `inactive` fires transiently for the notification shade, permission
+    // dialogs, and focus changes; treating it as "not shown" tears down
+    // the GPS foreground service (and its notification) the instant a
+    // system dialog appears. Only paused/hidden mean the app is actually
+    // not visible; detached is covered by dispose().
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _appResumed = true;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        _appResumed = false;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        return;
+    }
+    _syncTracking();
+  }
+
+  /// GPS should run whenever a run is active (so tracking continues with
+  /// the phone in a pocket/screen off), or while the app is shown and GPS
+  /// permission has been granted (so the pre-run accuracy readout works).
+  /// Otherwise it must stay off to avoid draining the battery.
+  void _syncTracking() {
+    if (!_permissionGranted) {
+      return;
+    }
+    if (_runActive || _appResumed) {
+      geoTracker.startTracking();
+    } else {
+      geoTracker.stopTracking();
+    }
   }
 
   @override
@@ -127,6 +177,8 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   }
 
   Future<void> _startRunning() async {
+    _runActive = true;
+    _syncTracking();
     await feedback.startRunning(
       widget.configurationStorage.config.maxFeedbackSilence,
     );
@@ -347,6 +399,9 @@ class _RunningState extends State<Running> with AutomaticKeepAliveClientMixin {
   Future<void> _cancel() async {
     runStats!.reset();
     await geoListen?.cancel();
+    geoListen = null;
+    _runActive = false;
+    _syncTracking();
     widgetController.add(RunState.waitUser);
     _lastPaceSpeech = 0;
     _paceSpeechInterval = 0;
