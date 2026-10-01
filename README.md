@@ -30,6 +30,9 @@ current git commit hash and build timestamp into the app via `--dart-define`,
 shown under Settings > About. Plain `flutter run`/`flutter build` bypass the
 wrapper, so the version shows as "unknown" there.
 
+To build and install a release (non-debug) build onto a connected device,
+use `devbox run install` (wraps `flutter install --release`).
+
 ### Android Studio "Run" button
 
 To get real version info from the IDE's Run button too (one-time setup,

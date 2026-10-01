@@ -11,6 +11,9 @@
       ],
       "run": [
         "bash scripts/run.sh"
+      ],
+      "install": [
+        "bash scripts/install.sh"
       ]
     }
   }
