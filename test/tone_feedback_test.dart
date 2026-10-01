@@ -30,6 +30,72 @@ class RecordingTones extends Tones {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('hasEntry is false when no target speeds are configured', () async {
+    final tones = RecordingTones(sound: (await Tones.init()).sound);
+    tones.setEntry(SFEntry());
+
+    expect(tones.hasEntry(), false);
+  });
+
+  test('hasEntry is true once target speeds are configured', () async {
+    final tones = RecordingTones(sound: (await Tones.init()).sound);
+    tones.setEntry(SFEntry.startMS(1));
+
+    expect(tones.hasEntry(), true);
+  });
+
+  test(
+    'No too-slow/too-fast feedback plays when no pace entries are configured',
+    () async {
+      final tones = RecordingTones(sound: (await Tones.init()).sound);
+      tones.setEntry(SFEntry());
+
+      final paceUpdates = StreamController<FeedbackContainer>();
+      final feedback = ToneFeedback(
+        tones,
+        paceUpdates,
+        PaceWidget(updateEntries: paceUpdates),
+      );
+      await feedback.startRunning(4);
+
+      final run = Run.now(1);
+      final rs = RunStats([], run);
+      var pos = Position(
+        longitude: 0,
+        latitude: 0,
+        timestamp: DateTime.now(),
+        accuracy: 1,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+      // Get past the GPS-accuracy/start-speed gate and past the first
+      // sound interval (15s), same as the re-entrancy test below.
+      for (var i = 0; i < 20; i++) {
+        pos = Position(
+          longitude: pos.longitude + 0.0003,
+          latitude: 0,
+          timestamp: pos.timestamp.add(const Duration(seconds: 1)),
+          accuracy: 1,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        );
+        rs.addPosition(pos);
+      }
+
+      await feedback.updateRunning(false, rs);
+
+      expect(tones.playCount, 0);
+    },
+  );
+
   test(
     'A slow playSound must not be re-entered by an overlapping updateRunning call',
     () async {

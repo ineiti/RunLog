@@ -28,7 +28,7 @@ class Tones {
   }
 
   bool hasEntry() {
-    return entry != null;
+    return entry != null && entry!.targetSpeeds.isNotEmpty;
   }
 
   void reset() {
